@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.5.0
+// @version      1.6.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -31,6 +31,25 @@
 // @author       Ian Brown
 // @run-at       document-idle
 // ==/UserScript==
+
+/*
+ * ┌──────────────────────────────────────────────────────────────────┐
+ * │  Ian's Assistant                                  © Ian Brown     │
+ * │  Sabre GDS, BO and calling toolkit for Travel Business Class     │
+ * │  agents. Guide and install: https://iantbc.github.io/ians-assistant/ │
+ * └──────────────────────────────────────────────────────────────────┘
+ *
+ *  How this file is laid out
+ *    SHARED LOOK ............ colours for Dark / Light / Navy, and Pip
+ *    UPDATE NOTICE .......... "new version available" banner
+ *    SECTION 1 .............. flight sites: GDS copy, Lead ID, Sell box
+ *    SECTIONS 2-3 ........... the BO: Add option tools, search panel, flags
+ *    SECTION 4 .............. the assistant panel: dialer, texting, Pip
+ *    SECTIONS 5-9 ........... lead sniper, RingCentral helpers, checks
+ *
+ *  Saved settings keep their original key names on purpose, so agents
+ *  never lose their templates, theme or progress when they update.
+ */
 
 
 // ====================================================================
@@ -147,7 +166,7 @@ function iaPipNode(size, p) {
 
 
 // ====================================================================
-// PART 1 — Flight-search-site GDS *IA/VI* copy button
+// SECTION 1 · Flight-search-site GDS *IA/VI* copy button
 // (ITA Matrix, FlyBasis/agentsearch, PointsYeah, AwardLogic, Kayak,
 // CheapOair, Google Flights)
 // ====================================================================
@@ -401,9 +420,9 @@ function equipCode(leg) {
   }
 
 // Worried Pip for warnings (airport change, rush only, $0.00).
-function sadBmoFace(width) {
+function worriedPip(width) {
   const el = document.createElement('span');
-  el.className = 'js-sadbmo';
+  el.className = 'ia-worried';
   el.setAttribute('aria-hidden', 'true');
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -844,7 +863,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     setTimeout(() => el.remove(), 1500);
   }
 
-  // Hooks used by the BMO popover (see "Send to lead" below): in capture
+  // Hooks used by the Pip popover (see "Send to lead" below): in capture
   // mode the built *IA/VI* text is handed back instead of copied.
   let gdsCaptureResolve = null;
   let gdsCopyListener = null;
@@ -2547,8 +2566,8 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
 
 
   // ==================================================================
-  // BMO "Send to lead" — the GDS button becomes BMO's face. Clicking it
-  // opens a mini BMO screen with:
+  // Pip "Send to lead" — the GDS button becomes Pip's face. Clicking it
+  // opens a mini Pip screen with:
   //   • GDS      — the usual *IA/VI* copy
   //   • LEAD ID  — paste a lead number and the option (segments + price,
   //                or miles & taxes for award) is added to that lead in
@@ -2831,7 +2850,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     return { from: legs[0].from, to: dest, airports };
   }
 
-  // --- Theme colors for BMO's face (same skin as the BO's BMO) ----------
+  // --- Theme colors for Pip's face (same skin as the BO's Pip) ----------
   const FACE_THEMES = {
     midnight: { acc: '#7c7cf8' }, teal: { acc: '#14b8a6' }, pink: { acc: '#ec4899' },
     black: { acc: '#cbd5e1' }, gold: { acc: '#eab308' }, rainbow: { acc: '#a78bfa' },
@@ -2848,7 +2867,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
 
   // --- Safe markup builder ---------------------------------------------
   // Google's sites (ITA Matrix, Google Flights) enforce "Trusted Types",
-  // which makes any innerHTML assignment throw — that's what stopped BMO's
+  // which makes any innerHTML assignment throw — that's what stopped Pip's
   // face from appearing on ITA. This builds the same markup from plain DOM
   // calls instead, so it works everywhere.
   const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -2964,7 +2983,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       </div></div></div>`).forEach((n) => root.appendChild(n));
     document.documentElement.appendChild(host);
     const wrap = root.querySelector('.wrap');
-    // Pinned to BMO's face: it follows the face when the page (or any
+    // Pinned to Pip's face: it follows the face when the page (or any
     // scrolling panel) moves, instead of floating in one screen spot.
     const r0 = trigger.getBoundingClientRect();
     const h0 = wrap.offsetHeight || 260;
@@ -3268,7 +3287,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     }
   }
 
-  // Swap every GDS button for BMO's face (the original stays hidden and
+  // Swap every GDS button for Pip's face (the original stays hidden and
   // still does the actual copy work).
   function bmoizeGdsButtons() {
     // The face goes right BEFORE the hidden original, so the original stays
@@ -3280,7 +3299,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       orig.setAttribute('data-bmo', '1');
       try {
         const trig = document.createElement('span');
-        trig.className = 'gds-bmo-trigger';
+        trig.className = 'gds-pip-trigger';
         trig.title = "Ian's Assistant: GDS copy / send to lead";
         setMarkup(trig, FACE_SVG(faceTheme()));
         trig.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openBmoPopover(trig, orig); }, true);
@@ -3292,11 +3311,11 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     });
     document.querySelectorAll('.gds-btn-base[data-bmo]').forEach((orig) => {
       const prev = orig.previousElementSibling;
-      if (!prev || !prev.classList.contains('gds-bmo-trigger')) {
-        const stray = orig.parentElement && orig.parentElement.querySelector(':scope > .gds-bmo-trigger');
+      if (!prev || !prev.classList.contains('gds-pip-trigger')) {
+        const stray = orig.parentElement && orig.parentElement.querySelector(':scope > .gds-pip-trigger');
         if (stray) orig.insertAdjacentElement('beforebegin', stray);
       }
-      if (prev && prev.classList.contains('gds-bmo-trigger') && !prev.dataset.sized) sizeTrigger(prev, orig);
+      if (prev && prev.classList.contains('gds-pip-trigger') && !prev.dataset.sized) sizeTrigger(prev, orig);
     });
   }
 
@@ -3338,10 +3357,10 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
   }
 
   GM_addStyle(`
-    .gds-bmo-trigger { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; vertical-align: middle;
+    .gds-pip-trigger { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; vertical-align: middle;
       margin: 0 4px; line-height: 0; transition: filter .15s ease; flex-shrink: 0; }
-    .gds-bmo-trigger:hover { filter: brightness(1.25); }
-    .gds-bmo-trigger:active { transform: translateY(1px) scale(.98); }
+    .gds-pip-trigger:hover { filter: brightness(1.25); }
+    .gds-pip-trigger:active { transform: translateY(1px) scale(.98); }
   `);
 
   // ------------------------------------------------------------------
@@ -3435,7 +3454,7 @@ function __jsEnsureSharedObserver() {
 }
 
 // ====================================================================
-// PART 2 — CRM "Add option" modal: Sort Me + auto-carrier + auto-next
+// SECTION 2 · CRM "Add option" modal: Sort Me + auto-carrier + auto-next
 // ====================================================================
 (function () {
   'use strict';
@@ -4801,7 +4820,7 @@ function __jsEnsureSharedObserver() {
 
 
   // ==================================================================
-  // "Send to lead" worker — runs in the background BO tab that the BMO
+  // "Send to lead" worker — runs in the background BO tab that the Pip
   // popover on a flight site opens (URL carries ?jsjob=<id>). It reads
   // the lead, reports it back for the route check, then fills the BO's
   // own Add Option form (so the BO itself builds the segments) and saves.
@@ -5306,7 +5325,7 @@ function __jsEnsureSharedObserver() {
   // lead (in a hidden frame — nothing in your tab changes, no focus is
   // taken, no sound). Sending to the same lead again is then instant;
   // a different lead is switched to in place, without reloading.
-  // Opening BMO's popover on a flight site wakes it up ahead of time.
+  // Opening Pip's popover on a flight site wakes it up ahead of time.
   const HOST_KEY = 'js-sendjob-host';
   const LAST_LEAD_KEY = 'js-sendjob-lastlead';
 
@@ -5401,7 +5420,7 @@ function __jsEnsureSharedObserver() {
       ensureFrame(last);
     })();
 
-    // BMO's popover opened somewhere: get the frame ready on the last lead.
+    // Pip's popover opened somewhere: get the frame ready on the last lead.
     GM_addValueChangeListener('js-sendjob-warm', () => {
       const who = chosenToken();
       if (who && who !== tabToken) return;
@@ -5602,9 +5621,9 @@ function __jsEnsureSharedObserver() {
     } catch (e) { /* ignore */ }
   })();
 
-  // The agent's first name for BMO's name strip, found without needing the
+  // The agent's first name for Pip's name strip, found without needing the
   // profile menu opened: from the login token, or the BO's own account
-  // reply. Stored for BMO (PART 4) under the same key it reads.
+  // reply. Stored for Pip (PART 4) under the same key it reads.
   const AGENT_NAME_KEY = 'bmo-first-name';
   function saveAgentName(n) {
     const first = String(n || '').trim().split(/\s+/)[0].replace(/[^\p{L}'-]/gu, '');
@@ -5756,7 +5775,7 @@ function __jsEnsureSharedObserver() {
   // BO "Mile program" dropdown ids -> program code.
   const MILE_PROGRAM_IDS = { 16: 'AA', 1: 'AC', 19: 'AD', 3: 'AF', 20: 'AS', 15: 'AV', 22: 'B6', 4: 'BA', 17: 'CM', 11: 'CX', 10: 'DL', 5: 'EK', 18: 'EY', 23: 'IB', 24: 'JL', 7: 'LH', 9: 'QF', 14: 'QR', 13: 'SK', 8: 'SQ', 2: 'TK', 21: 'TP', 6: 'UA', 12: 'VS' };
 
-  // An existing option's cost: what BMO stored when it added it, else
+  // An existing option's cost: what Pip stored when it added it, else
   // read from the BO's own data for that option.
   function costFor(id) {
     const d = detailCache.get(String(id));
@@ -5980,10 +5999,10 @@ function __jsEnsureSharedObserver() {
 
   // Click "#630962," under the client's name → copies 630962.
   function wireLeadIdCopy() {
-    document.querySelectorAll('div.text-secondary-400.text-xs.font-medium:not([data-js-idcopy])').forEach((el) => {
+    document.querySelectorAll('div.text-secondary-400.text-xs.font-medium:not([data-ia-idcopy])').forEach((el) => {
       const m = el.textContent.match(/#\s*(\d{5,})/);
       if (!m) return;
-      el.setAttribute('data-js-idcopy', '1');
+      el.setAttribute('data-ia-idcopy', '1');
       el.style.cursor = 'copy';
       el.title = 'Click to copy lead ID';
       el.addEventListener('click', (e) => {
@@ -5992,8 +6011,8 @@ function __jsEnsureSharedObserver() {
         const id = (el.textContent.match(/#\s*(\d{5,})/) || [])[1];
         if (!id) return;
         try { GM_setClipboard(id, 'text'); } catch (err) { try { navigator.clipboard.writeText(id); } catch (e2) { /* ignore */ } }
-        el.classList.add('js-idcopied');
-        setTimeout(() => el.classList.remove('js-idcopied'), 900);
+        el.classList.add('ia-idcopied');
+        setTimeout(() => el.classList.remove('ia-idcopied'), 900);
       }, true);
     });
   }
@@ -6133,7 +6152,7 @@ function __jsEnsureSharedObserver() {
   }
   function showSellToast(msg) {
     const toast = document.createElement('div');
-    toast.className = 'js-sell-toast';
+    toast.className = 'ia-sell-toast';
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 6000);
@@ -6181,22 +6200,22 @@ function __jsEnsureSharedObserver() {
       e.preventDefault();
       e.stopImmediatePropagation();
       const back = document.createElement('div');
-      back.className = 'js-zero-back';
+      back.className = 'ia-zero-back';
       const box = document.createElement('div');
-      box.className = 'js-zero-box';
+      box.className = 'ia-zero-box';
       const h = document.createElement('div');
-      h.className = 'js-zero-title';
+      h.className = 'ia-zero-title';
       h.textContent = '$0.00 price in this send';
-      box.appendChild(sadBmoFace(84));
+      box.appendChild(worriedPip(84));
       const p2 = document.createElement('div');
-      p2.className = 'js-zero-text';
+      p2.className = 'ia-zero-text';
       p2.textContent = (hits.length === 1 ? '1 quote shows' : hits.length + ' quotes show') + ' $0.00 to the client (' + hits.join(', ') + '). Set the Sell price before sending.';
       const row = document.createElement('div');
-      row.className = 'js-zero-row';
+      row.className = 'ia-zero-row';
       const no = document.createElement('button');
-      no.type = 'button'; no.className = 'js-zero-no'; no.textContent = 'Go back';
+      no.type = 'button'; no.className = 'ia-zero-no'; no.textContent = 'Go back';
       const yes = document.createElement('button');
-      yes.type = 'button'; yes.className = 'js-zero-yes'; yes.textContent = 'Send anyway';
+      yes.type = 'button'; yes.className = 'ia-zero-yes'; yes.textContent = 'Send anyway';
       row.append(no, yes);
       box.append(h, p2, row);
       back.appendChild(box);
@@ -6295,27 +6314,27 @@ function __jsEnsureSharedObserver() {
         const type = (tds[0] ? tds[0].textContent : '').trim().toUpperCase();
         if (!['ADT', 'CHD', 'INF'].includes(type)) return;
         const cell = tds[sellIdx];
-        if (!cell || cell.querySelector('.js-sell-pen')) return;
+        if (!cell || cell.querySelector('.ia-sell-pen')) return;
         const pen = document.createElement('span');
-        pen.className = 'js-sell-pen';
+        pen.className = 'ia-sell-pen';
         pen.title = 'Edit ' + type + ' sell price';
         pen.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
         cell.insertBefore(pen, cell.firstChild);
         cell.style.whiteSpace = 'nowrap';
         const zero = () => { const t = Array.from(cell.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent).join(''); return parseCell(t) === 0; };
-        const syncPen = () => { if (!cell.querySelector('.js-sell-input')) pen.style.display = zero() ? '' : 'none'; };
+        const syncPen = () => { if (!cell.querySelector('.ia-sell-input')) pen.style.display = zero() ? '' : 'none'; };
         syncPen();
         cell._jsSyncPen = syncPen;
-        cell.classList.add('js-sell-cell');
+        cell.classList.add('ia-sell-cell');
         cell.title = 'Click to edit ' + type + ' sell price';
         cell.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (cell.querySelector('.js-sell-input')) return;
+          if (cell.querySelector('.ia-sell-input')) return;
           const textNode = Array.from(cell.childNodes).find((n) => n.nodeType === 3 && n.textContent.trim());
           const old = parseCell(textNode ? textNode.textContent : cell.textContent);
           const input = document.createElement('input');
-          input.className = 'js-sell-input';
+          input.className = 'ia-sell-input';
           input.type = 'text';
           input.inputMode = 'decimal';
           input.value = old ? String(old) : '';
@@ -6353,8 +6372,8 @@ function __jsEnsureSharedObserver() {
               if (!found) throw new Error('could not be sure which option this is, so nothing was changed \u2014 please use edit for this one');
               await saveSellPrice(found.id, type, Math.round(v * 100) / 100, found.netChecked ? netShown : null);
               close(money(v));
-              cell.classList.add('js-sell-saved');
-              setTimeout(() => cell.classList.remove('js-sell-saved'), 1200);
+              cell.classList.add('ia-sell-saved');
+              setTimeout(() => cell.classList.remove('ia-sell-saved'), 1200);
               // Keep the TTL row and the profit badge in step.
               const rows = Array.from(table.querySelectorAll('tbody tr'));
               const ttl = rows.find((r) => /^TTL$/i.test((r.querySelector('td') || {}).textContent.trim()));
@@ -6376,14 +6395,14 @@ function __jsEnsureSharedObserver() {
               }
             } catch (err) {
               close(money(old));
-              cell.classList.add('js-sell-err');
+              cell.classList.add('ia-sell-err');
               cell.title = 'Not saved: ' + (err && err.message ? err.message : err);
               const toast = document.createElement('div');
-              toast.className = 'js-sell-toast';
+              toast.className = 'ia-sell-toast';
               toast.textContent = 'Sell price not saved: ' + (err && err.message ? err.message : err);
               document.body.appendChild(toast);
               setTimeout(() => toast.remove(), 7000);
-              setTimeout(() => cell.classList.remove('js-sell-err'), 2500);
+              setTimeout(() => cell.classList.remove('ia-sell-err'), 2500);
             }
           };
           input.addEventListener('input', () => { input.classList.remove('is-bad'); });
@@ -6409,11 +6428,11 @@ function __jsEnsureSharedObserver() {
   // ==================================================================
   const FXP_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const FXP_ITA_CABIN = { COACH: 'Y', ECONOMY: 'Y', 'PREMIUM-COACH': 'W', PREMIUM_COACH: 'W', 'PREMIUM-ECONOMY': 'W', PREMIUM_ECONOMY: 'W', BUSINESS: 'B', FIRST: 'F' };
-  const fxpCabinLabel = (c) => ({ Y: 'Economy', W: 'Premium Economy', B: 'Business', F: 'First' }[c] || 'Business');
-  const fxpAddDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
-  const fxpFmt = (d) => { if (!d) return '?'; const p = d.split('-'); return parseInt(p[2], 10) + ' ' + FXP_MONTHS[parseInt(p[1], 10) - 1]; };
+  const srchCabinLabel = (c) => ({ Y: 'Economy', W: 'Premium Economy', B: 'Business', F: 'First' }[c] || 'Business');
+  const srchAddDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  const srchFmt = (d) => { if (!d) return '?'; const p = d.split('-'); return parseInt(p[2], 10) + ' ' + FXP_MONTHS[parseInt(p[1], 10) - 1]; };
 
-  function fxpLeadFromBox(box) {
+  function srchLeadFromBox(box) {
     const a = box.querySelector('a[href*="matrix.itasoftware.com/search"]');
     if (!a) return null;
     let p;
@@ -6435,7 +6454,7 @@ function __jsEnsureSharedObserver() {
       infants: (parseInt(pax.infantInLap, 10) || 0) + (parseInt(pax.infantInSeat, 10) || 0),
     };
   }
-  function fxpLegs(lead) {
+  function srchLegs(lead) {
     const s = lead.segments;
     if (s.length === 1) {
       const legs = [{ label: 'Outbound', origin: s[0].origin, destination: s[0].destination, date: s[0].departureDate }];
@@ -6444,7 +6463,7 @@ function __jsEnsureSharedObserver() {
     }
     return s.map((x, i) => ({ label: 'Leg ' + (i + 1), origin: x.origin, destination: x.destination, date: x.departureDate }));
   }
-  function fxpKayak(lead, flex, cab) {
+  function srchKayak(lead, flex, cab) {
     const cabin = { Y: 'economy', W: 'premium', B: 'business', F: 'first' }[cab] || 'business';
     const f = (d) => (d && flex > 0 ? d + '-flexible-' + flex + 'days' : d);
     const s = lead.segments;
@@ -6462,32 +6481,32 @@ function __jsEnsureSharedObserver() {
     if (t.length) path += '/children-' + t.join('-');
     return 'https://www.kayak.com' + path + '?sort=bestflight_a';
   }
-  function fxpPbVarint(n) { const o = []; while (n > 127) { o.push((n & 0x7f) | 0x80); n >>>= 7; } o.push(n); return o; }
-  const fxpPbTag = (f, w) => fxpPbVarint((f << 3) | w);
-  const fxpPbStr = (f, v) => { const b = Array.from(new TextEncoder().encode(v)); return [...fxpPbTag(f, 2), ...fxpPbVarint(b.length), ...b]; };
-  const fxpPbMsg = (f, b) => [...fxpPbTag(f, 2), ...fxpPbVarint(b.length), ...b];
-  const fxpPbNum = (f, v) => [...fxpPbTag(f, 0), ...fxpPbVarint(v)];
-  function fxpGoogle(lead, addYvr, cab) {
-    const legs = fxpLegs(lead).filter((l) => l.date && l.origin && l.destination);
+  function srchPbVarint(n) { const o = []; while (n > 127) { o.push((n & 0x7f) | 0x80); n >>>= 7; } o.push(n); return o; }
+  const srchPbTag = (f, w) => srchPbVarint((f << 3) | w);
+  const srchPbStr = (f, v) => { const b = Array.from(new TextEncoder().encode(v)); return [...srchPbTag(f, 2), ...srchPbVarint(b.length), ...b]; };
+  const srchPbMsg = (f, b) => [...srchPbTag(f, 2), ...srchPbVarint(b.length), ...b];
+  const srchPbNum = (f, v) => [...srchPbTag(f, 0), ...srchPbVarint(v)];
+  function srchGoogle(lead, addYvr, cab) {
+    const legs = srchLegs(lead).filter((l) => l.date && l.origin && l.destination);
     if (!legs.length) return 'https://www.google.com/travel/flights';
     let tripType;
     if (addYvr) {
-      legs.push({ origin: legs[0].origin, destination: 'YVR', date: fxpAddDays(legs[legs.length - 1].date, 1) });
+      legs.push({ origin: legs[0].origin, destination: 'YVR', date: srchAddDays(legs[legs.length - 1].date, 1) });
       tripType = 3;
     } else {
       tripType = lead.segments.length > 1 ? 3 : (lead.segments[0].returnDate ? 1 : 2);
     }
     let body = [];
-    legs.forEach((l) => { body = body.concat(fxpPbMsg(3, [].concat(fxpPbStr(2, l.date), fxpPbMsg(13, fxpPbStr(2, l.origin)), fxpPbMsg(14, fxpPbStr(2, l.destination))))); });
-    for (let i = 0; i < lead.adults; i++) body = body.concat(fxpPbNum(8, 1));
-    for (let i = 0; i < lead.children; i++) body = body.concat(fxpPbNum(8, 2));
-    for (let i = 0; i < lead.infants; i++) body = body.concat(fxpPbNum(8, 4));
-    body = body.concat(fxpPbNum(9, { Y: 1, W: 2, B: 3, F: 4 }[cab] || 3), fxpPbNum(19, tripType));
+    legs.forEach((l) => { body = body.concat(srchPbMsg(3, [].concat(srchPbStr(2, l.date), srchPbMsg(13, srchPbStr(2, l.origin)), srchPbMsg(14, srchPbStr(2, l.destination))))); });
+    for (let i = 0; i < lead.adults; i++) body = body.concat(srchPbNum(8, 1));
+    for (let i = 0; i < lead.children; i++) body = body.concat(srchPbNum(8, 2));
+    for (let i = 0; i < lead.infants; i++) body = body.concat(srchPbNum(8, 4));
+    body = body.concat(srchPbNum(9, { Y: 1, W: 2, B: 3, F: 4 }[cab] || 3), srchPbNum(19, tripType));
     const tfs = btoa(String.fromCharCode.apply(null, body)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return 'https://www.google.com/travel/flights?tfs=' + tfs + '&hl=en&curr=USD';
   }
   const FXP_ITA_EXT = { B: '2', W: 'premium-coach', F: '1', Y: '3' };
-  function fxpMatrix(lead, cab, mixDep, mixRet, flex) {
+  function srchMatrix(lead, cab, mixDep, mixRet, flex) {
     const cabinMap = { Y: 'COACH', W: 'PREMIUM-COACH', B: 'BUSINESS', F: 'FIRST' };
     const segs = lead.segments;
     const multi = segs.length > 1;
@@ -6517,49 +6536,50 @@ function __jsEnsureSharedObserver() {
     };
     return 'https://matrix.itasoftware.com/search?search=' + encodeURIComponent(btoa(JSON.stringify(payload)));
   }
-  function fxpPointsYeah(lead, leg, flex, cab) {
-    const c = fxpCabinLabel(cab);
+  function srchPointsYeah(lead, leg, flex, cab) {
+    const c = srchCabinLabel(cab);
     let d1 = leg.date;
     let d2 = leg.date;
     let multi = false;
-    if (flex > 0) { d1 = fxpAddDays(leg.date, -flex); d2 = fxpAddDays(leg.date, flex); multi = true; }
+    if (flex > 0) { d1 = srchAddDays(leg.date, -flex); d2 = srchAddDays(leg.date, flex); multi = true; }
     const q = new URLSearchParams({ cabins: c, cabin: c, banks: 'Amex,Bilt,Capital One,Chase,Citi,WF', airlineProgram: 'AR,AM,AC,KL,AS,AA,AV,DL,EY,AY,B6,LH,QF,SK,TK,UA,VS,VA', tripType: '1', adults: String(lead.adults), children: String(lead.children), departure: leg.origin, arrival: leg.destination, departDate: d1, departDateSec: d2, multiday: String(multi) });
     return 'https://www.pointsyeah.com/search?' + q.toString();
   }
-  function fxpBasis(lead, leg, cab) {
+  function srchBasis(lead, leg, cab) {
     const payload = {
       tripType: 'oneway',
       stops: [{ origin: [{ code: leg.origin, city: leg.origin }], destination: [{ code: leg.destination, city: leg.destination }], date: { value: leg.date, range: 1 } }],
-      pax: String(lead.adults + lead.children + lead.infants), cabin: fxpCabinLabel(cab),
+      pax: String(lead.adults + lead.children + lead.infants), cabin: srchCabinLabel(cab),
       programs: ['AM', 'AC', 'KL', 'AS', 'AA', 'AV', 'BA', 'CM', 'DL', 'EY', 'IB', 'B6', 'QF', 'SK', 'SQ', 'NK', 'TP', 'TK', 'UA', 'VS', 'VA', 'LH', 'QR', 'AY'],
       enableHC: false, enableFlybasisCPMs: false, isMax: false,
     };
     return 'https://agentsearch.vercel.app/flights?s=' + encodeURIComponent(btoa(JSON.stringify(payload)));
   }
 
-  const fxpOpen = (url) => { window.open(url, '_blank', 'noopener'); };
-  const fxpOpenBg = (url) => {
+  // Search links open in a new tab behind the BO, so you stay on the lead.
+  const srchOpen = (url) => srchOpenBg(url);
+  const srchOpenBg = (url) => {
     try { if (typeof GM_openInTab === 'function') { GM_openInTab(url, { active: false, insert: true, setParent: true }); return; } } catch (e) { /* fall back */ }
     window.open(url, '_blank', 'noopener');
   };
 
-  let fxpMenu = null;
-  function fxpCloseMenu() {
-    if (fxpMenu) { fxpMenu.el.remove(); if (fxpMenu.btn) fxpMenu.btn.classList.remove('is-open'); fxpMenu = null; }
+  let srchMenu = null;
+  function srchCloseMenu() {
+    if (srchMenu) { srchMenu.el.remove(); if (srchMenu.btn) srchMenu.btn.classList.remove('is-open'); srchMenu = null; }
   }
-  function fxpShowMenu(btn, title, items) {
-    const again = fxpMenu && fxpMenu.btn === btn;
-    fxpCloseMenu();
+  function srchShowMenu(btn, title, items) {
+    const again = srchMenu && srchMenu.btn === btn;
+    srchCloseMenu();
     if (again) return; // second click on the same button closes it
     const el = document.createElement('div');
-    el.className = 'js-fxp-menu js-fxp-menu--' + (btn.dataset.kind || 'x');
+    el.className = 'ia-fxp-menu ia-fxp-menu--' + (btn.dataset.kind || 'x');
     const h = document.createElement('div');
-    h.className = 'js-fxp-menu-h';
+    h.className = 'ia-fxp-menu-h';
     h.textContent = title;
     el.appendChild(h);
     items.forEach((it) => {
       const row = document.createElement('div');
-      row.className = 'js-fxp-menu-i';
+      row.className = 'ia-fxp-menu-i';
       const a = document.createElement('span');
       a.textContent = it.label;
       const b = document.createElement('small');
@@ -6568,10 +6588,10 @@ function __jsEnsureSharedObserver() {
       if (it.toggle) {
         // Checkbox row: ticks on and off, the menu stays open.
         const box = document.createElement('span');
-        box.className = 'js-fxp-chk';
+        box.className = 'ia-fxp-chk';
         const paint = () => { const on = it.checked(); box.classList.toggle('on', on); box.textContent = on ? '\u2713' : ''; row.classList.toggle('is-off', !on); };
         paint();
-        row.classList.add('js-fxp-menu-c');
+        row.classList.add('ia-fxp-menu-c');
         a.prepend(box);
         row.append(a, b);
         row.addEventListener('click', (e) => { e.stopPropagation(); it.toggle(); paint(); });
@@ -6579,7 +6599,15 @@ function __jsEnsureSharedObserver() {
         return;
       }
       row.append(a, b);
-      row.addEventListener('click', (e) => { e.stopPropagation(); fxpCloseMenu(); if (it.pick) it.pick(); else fxpOpen(it.url()); });
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (it.pick) { srchCloseMenu(); it.pick(); return; }
+        const urls = it.urls ? it.urls() : [it.url()];
+        urls.forEach((u) => srchOpen(u));
+        // Ctrl (Cmd on Mac) or Shift held: keep the menu open to open more.
+        if (e.ctrlKey || e.metaKey || e.shiftKey) { row.classList.add('is-opened'); b.textContent = '\u2713 opened'; return; }
+        srchCloseMenu();
+      });
       el.appendChild(row);
     });
     document.body.appendChild(el);
@@ -6588,22 +6616,22 @@ function __jsEnsureSharedObserver() {
     el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
     el.style.top = (r.bottom + 4) + 'px';
     btn.classList.add('is-open');
-    fxpMenu = { el, btn };
+    srchMenu = { el, btn };
   }
   if (window.top === window) {
-    document.addEventListener('mousedown', (e) => { if (fxpMenu && !fxpMenu.el.contains(e.target) && !fxpMenu.btn.contains(e.target)) fxpCloseMenu(); }, true);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fxpCloseMenu(); });
-    window.addEventListener('scroll', () => fxpCloseMenu(), true);
+    document.addEventListener('mousedown', (e) => { if (srchMenu && !srchMenu.el.contains(e.target) && !srchMenu.btn.contains(e.target)) srchCloseMenu(); }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') srchCloseMenu(); });
+    window.addEventListener('scroll', () => srchCloseMenu(), true);
   }
 
-  const fxpState = { cab: null, flex: 0 };
+  const srchState = { cab: null, flex: 0 };
   // What "Open all" opens (ticked in its ▾ menu). Remembered.
   const FXP_OPENALL = [['g', 'Google', ''], ['e', 'ELR', ''], ['m', 'Matrix', ''], ['py', 'PointsYeah', 'each leg'], ['fb', 'Basis', 'each leg'], ['k', 'Kayak', '']];
-  function fxpOpenAllSet() {
+  function srchOpenAllSet() {
     try { const v = JSON.parse(GM_getValue('js-fxp-openall', 'null')); if (Array.isArray(v)) return v; } catch (e) { /* default */ }
     return ['m', 'k'];
   }
-  function fxpSaveOpenAll(list) { try { GM_setValue('js-fxp-openall', JSON.stringify(list)); } catch (e) { /* ignore */ } }
+  function srchSaveOpenAll(list) { try { GM_setValue('js-fxp-openall', JSON.stringify(list)); } catch (e) { /* ignore */ } }
 
   function wireSearchPanels() {
     if (window.top !== window) return;
@@ -6613,14 +6641,14 @@ function __jsEnsureSharedObserver() {
       if (!body || !foot) return;
       // Re-read the lead each time the BO re-renders the box (its Matrix
       // link carries the route, dates and passengers).
-      const fresh = fxpLeadFromBox(box);
+      const fresh = srchLeadFromBox(box);
       if (fresh) {
         // The BO switched this box to other data (another lead, new dates):
         // rebuild the panel for it, with that lead's own cabin.
         const key = JSON.stringify(fresh);
         if (box._fxpKey !== key) {
-          body.querySelectorAll(':scope > .js-fxp-panel').forEach((n) => n.remove());
-          foot.querySelectorAll(':scope > .js-fxp-foot').forEach((n) => n.remove());
+          body.querySelectorAll(':scope > .ia-fxp-panel').forEach((n) => n.remove());
+          foot.querySelectorAll(':scope > .ia-fxp-foot').forEach((n) => n.remove());
           box._fxpCab = fresh.cabin || 'B';
         }
         box._fxpKey = key;
@@ -6628,99 +6656,102 @@ function __jsEnsureSharedObserver() {
       }
       const lead = box._fxpLead;
       if (!lead) return;
-      box.classList.add('js-fxp');
-      if (body.querySelector(':scope > .js-fxp-panel') && foot.querySelector(':scope > .js-fxp-foot')) return;
-      body.querySelectorAll(':scope > .js-fxp-panel').forEach((n) => n.remove());
-      foot.querySelectorAll(':scope > .js-fxp-foot').forEach((n) => n.remove());
+      box.classList.add('ia-fxp');
+      if (body.querySelector(':scope > .ia-fxp-panel') && foot.querySelector(':scope > .ia-fxp-foot')) return;
+      body.querySelectorAll(':scope > .ia-fxp-panel').forEach((n) => n.remove());
+      foot.querySelectorAll(':scope > .ia-fxp-foot').forEach((n) => n.remove());
       if (!box._fxpCab) box._fxpCab = lead.cabin || 'B';
       const L = () => box._fxpLead;
       const cab = () => box._fxpCab;
-      const flex = () => fxpState.flex;
+      const flex = () => srchState.flex;
 
       const panel = document.createElement('div');
-      panel.className = 'js-fxp-panel';
+      panel.className = 'ia-fxp-panel';
       const mk = (label, kind, onClick) => {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'js-fxp-b js-fxp-' + kind;
+        b.className = 'ia-fxp-b ia-fxp-' + kind;
         b.dataset.kind = kind;
         b.textContent = label;
         b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(b); });
         panel.appendChild(b);
         return b;
       };
-      mk('Google ↗', 'g', () => fxpOpen(fxpGoogle(L(), false, cab())));
-      mk('ELR ↗', 'e', () => fxpOpen(fxpGoogle(L(), true, cab())));
+      mk('Google ↗', 'g', () => srchOpen(srchGoogle(L(), false, cab())));
+      mk('ELR ↗', 'e', () => srchOpen(srchGoogle(L(), true, cab())));
       mk('Matrix ▾', 'm', (b) => {
         const lead2 = L();
-        const items = [{ label: fxpCabinLabel(cab()), note: 'regular search', url: () => fxpMatrix(L(), cab(), null, null, flex()) }];
+        const items = [{ label: srchCabinLabel(cab()), note: 'regular search', url: () => srchMatrix(L(), cab(), null, null, flex()) }];
         if (lead2.segments.length > 1 || lead2.segments[0].returnDate) {
-          items.push({ label: 'Business Outbound, Premium Inbound', note: '', url: () => fxpMatrix(L(), null, 'B', 'W', flex()) });
-          items.push({ label: 'Premium Outbound, Business Inbound', note: '', url: () => fxpMatrix(L(), null, 'W', 'B', flex()) });
+          items.push({ label: 'Business Outbound, Premium Inbound', note: '', url: () => srchMatrix(L(), null, 'B', 'W', flex()) });
+          items.push({ label: 'Premium Outbound, Business Inbound', note: '', url: () => srchMatrix(L(), null, 'W', 'B', flex()) });
         }
-        fxpShowMenu(b, 'ITA Matrix', items);
+        srchShowMenu(b, 'ITA Matrix', items);
       });
       const legMenu = (b, title, build) => {
-        const legs = fxpLegs(L()).filter((l) => l.date);
-        if (legs.length === 1) { fxpOpen(build(legs[0])); return; }
-        fxpShowMenu(b, title, legs.map((lg) => ({ label: lg.label, note: lg.origin + '→' + lg.destination + ' · ' + fxpFmt(lg.date), url: () => build(lg) })));
+        const legs = srchLegs(L()).filter((l) => l.date);
+        if (legs.length === 1) { srchOpen(build(legs[0])); return; }
+        const rows = legs.map((lg) => ({ label: lg.label, note: lg.origin + '→' + lg.destination + ' · ' + srchFmt(lg.date), url: () => build(lg) }));
+        // One row that opens every leg at once.
+        rows.unshift({ label: legs.length === 2 ? 'Both' : 'All ' + legs.length + ' legs', note: 'opens ' + legs.length + ' tabs', urls: () => legs.map((lg) => build(lg)) });
+        srchShowMenu(b, title + ' \u00b7 Ctrl+click to pick more', rows);
       };
-      mk('PointsYeah ▾', 'py', (b) => legMenu(b, 'PointsYeah', (lg) => fxpPointsYeah(L(), lg, flex(), cab())));
-      mk('Basis ▾', 'fb', (b) => legMenu(b, 'Basis', (lg) => fxpBasis(L(), lg, cab())));
-      mk('Kayak ↗', 'k', () => fxpOpen(fxpKayak(L(), flex(), cab())));
+      mk('PointsYeah ▾', 'py', (b) => legMenu(b, 'PointsYeah', (lg) => srchPointsYeah(L(), lg, flex(), cab())));
+      mk('Basis ▾', 'fb', (b) => legMenu(b, 'Basis', (lg) => srchBasis(L(), lg, cab())));
+      mk('Kayak ↗', 'k', () => srchOpen(srchKayak(L(), flex(), cab())));
       body.appendChild(panel);
 
       const fwrap = document.createElement('div');
-      fwrap.className = 'js-fxp-foot';
+      fwrap.className = 'ia-fxp-foot';
       const left = document.createElement('div');
-      left.className = 'js-fxp-foot-l';
+      left.className = 'ia-fxp-foot-l';
       // Cabin and date-range pickers, in the panel's own menu style.
       const picker = (kind, title, opts, get, set) => {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'js-fxp-pick';
+        b.className = 'ia-fxp-pick';
         b.dataset.kind = kind;
         const show = () => { const o = opts.find((x) => x[0] === get()); b.textContent = (o ? o[1] : opts[0][1]) + ' \u25be'; };
         show();
         b.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          fxpShowMenu(b, title, opts.map(([v, t]) => ({ label: t, selected: v === get(), pick: () => { set(v); show(); } })));
+          srchShowMenu(b, title, opts.map(([v, t]) => ({ label: t, selected: v === get(), pick: () => { set(v); show(); } })));
         });
         ['mousedown'].forEach((t) => b.addEventListener(t, (e) => e.stopPropagation()));
         return b;
       };
       const selCab = picker('cab', 'Cabin', [['B', 'Business'], ['W', 'Premium'], ['F', 'First'], ['Y', 'Economy']], () => box._fxpCab, (v) => { box._fxpCab = v; });
-      const selFlex = picker('flex', 'Dates', [[0, 'Fixed'], [1, '\u00b11 day'], [2, '\u00b12 days'], [3, '\u00b13 days'], [5, '\u00b15 days'], [7, '\u00b17 days']], () => fxpState.flex, (v) => { fxpState.flex = v; });
+      const selFlex = picker('flex', 'Dates', [[0, 'Fixed'], [1, '\u00b11 day'], [2, '\u00b12 days'], [3, '\u00b13 days'], [5, '\u00b15 days'], [7, '\u00b17 days']], () => srchState.flex, (v) => { srchState.flex = v; });
       left.append(selCab, selFlex);
       const all = document.createElement('button');
       all.type = 'button';
-      all.className = 'js-fxp-all';
+      all.className = 'ia-fxp-all';
       all.title = 'Opens the sites ticked in \u25be in background tabs \u2014 you stay here';
       all.textContent = 'Open all ↗';
       all.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const on = fxpOpenAllSet();
-        const legs = fxpLegs(L()).filter((l) => l.date);
+        const on = srchOpenAllSet();
+        const legs = srchLegs(L()).filter((l) => l.date);
         const urls = [];
         FXP_OPENALL.forEach(([k]) => {
           if (!on.includes(k)) return;
-          if (k === 'g') urls.push(fxpGoogle(L(), false, cab()));
-          if (k === 'e') urls.push(fxpGoogle(L(), true, cab()));
-          if (k === 'm') urls.push(fxpMatrix(L(), cab(), null, null, flex()));
-          if (k === 'py') legs.forEach((lg) => urls.push(fxpPointsYeah(L(), lg, flex(), cab())));
-          if (k === 'fb') legs.forEach((lg) => urls.push(fxpBasis(L(), lg, cab())));
-          if (k === 'k') urls.push(fxpKayak(L(), flex(), cab()));
+          if (k === 'g') urls.push(srchGoogle(L(), false, cab()));
+          if (k === 'e') urls.push(srchGoogle(L(), true, cab()));
+          if (k === 'm') urls.push(srchMatrix(L(), cab(), null, null, flex()));
+          if (k === 'py') legs.forEach((lg) => urls.push(srchPointsYeah(L(), lg, flex(), cab())));
+          if (k === 'fb') legs.forEach((lg) => urls.push(srchBasis(L(), lg, cab())));
+          if (k === 'k') urls.push(srchKayak(L(), flex(), cab()));
         });
         if (!urls.length) { all.textContent = 'Nothing ticked'; setTimeout(() => { all.textContent = 'Open all ↗'; }, 1400); return; }
-        urls.forEach((u) => fxpOpenBg(u));
+        urls.forEach((u) => srchOpenBg(u));
         all.textContent = '✓ Opened ' + urls.length;
         setTimeout(() => { all.textContent = 'Open all ↗'; }, 1400);
       });
       const allMenu = document.createElement('button');
       allMenu.type = 'button';
-      allMenu.className = 'js-fxp-allm';
+      allMenu.className = 'ia-fxp-allm';
       allMenu.dataset.kind = 'all';
       allMenu.title = 'Choose what Open all opens';
       allMenu.textContent = '\u25be';
@@ -6728,37 +6759,37 @@ function __jsEnsureSharedObserver() {
       allMenu.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        fxpShowMenu(allMenu, 'Open all opens', FXP_OPENALL.map(([k, label, note]) => ({
+        srchShowMenu(allMenu, 'Open all opens', FXP_OPENALL.map(([k, label, note]) => ({
           label, note,
-          checked: () => fxpOpenAllSet().includes(k),
-          toggle: () => { const cur = fxpOpenAllSet(); fxpSaveOpenAll(cur.includes(k) ? cur.filter((x) => x !== k) : cur.concat(k)); },
+          checked: () => srchOpenAllSet().includes(k),
+          toggle: () => { const cur = srchOpenAllSet(); srchSaveOpenAll(cur.includes(k) ? cur.filter((x) => x !== k) : cur.concat(k)); },
         })));
       });
       const allWrap = document.createElement('span');
-      allWrap.className = 'js-fxp-allwrap';
+      allWrap.className = 'ia-fxp-allwrap';
       allWrap.append(all, allMenu);
       // Refresh: read the lead again from the BO (route, dates, passengers,
       // cabin) and rebuild the panel from scratch.
       const re = document.createElement('button');
       re.type = 'button';
-      re.className = 'js-fxp-re';
+      re.className = 'ia-fxp-re';
       re.title = 'Refresh — re-read this lead\u2019s route, dates, passengers and cabin';
       re.textContent = '\u21bb';
       re.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        fxpCloseMenu();
+        srchCloseMenu();
         box._fxpLead = null;
         box._fxpKey = null;
         box._fxpCab = null;
-        body.querySelectorAll(':scope > .js-fxp-panel').forEach((n) => n.remove());
-        foot.querySelectorAll(':scope > .js-fxp-foot').forEach((n) => n.remove());
+        body.querySelectorAll(':scope > .ia-fxp-panel').forEach((n) => n.remove());
+        foot.querySelectorAll(':scope > .ia-fxp-foot').forEach((n) => n.remove());
         wireSearchPanels();
-        const nb = foot.querySelector('.js-fxp-re');
+        const nb = foot.querySelector('.ia-fxp-re');
         if (nb) { nb.classList.add('spin'); setTimeout(() => nb.classList.remove('spin'), 600); }
       });
       const right = document.createElement('div');
-      right.className = 'js-fxp-foot-r';
+      right.className = 'ia-fxp-foot-r';
       right.append(re, allWrap);
       fwrap.append(left, right);
       foot.appendChild(fwrap);
@@ -6772,7 +6803,7 @@ function __jsEnsureSharedObserver() {
       cell.dataset.jsMerge = '1';
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'button btn btn-outline-secondary box px-2 py-1 text-theme-33 ml-2 js-merge-btn';
+      btn.className = 'button btn btn-outline-secondary box px-2 py-1 text-theme-33 ml-2 ia-merge-btn';
       btn.title = 'Merge the selected options into one: each option its own ticket (1, 2, 3…) with its own cost — stops before Save';
       btn.textContent = 'Merge';
       btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); mergeSelected(cell, btn); });
@@ -6792,16 +6823,16 @@ function __jsEnsureSharedObserver() {
       // The BO reuses option cards for different options when its list
       // changes (e.g. a new option added on top), so a tag is only kept
       // while the card still shows the option it was made for.
-      const old = holder.querySelector(':scope > .js-optflags');
+      const old = holder.querySelector(':scope > .ia-optflags');
       if (old) { if (old.getAttribute('data-for') === id) return; old.remove(); }
       if (all === null) { try { all = JSON.parse(GM_getValue(OPTION_FLAGS_KEY, '{}')) || {}; } catch (e) { all = {}; } }
       const info = all[id];
       if (!info) return;
       const box = document.createElement('div');
-      box.className = 'js-optflags';
+      box.className = 'ia-optflags';
       box.setAttribute('data-for', id);
-      if (info.rush) { const t = document.createElement('span'); t.className = 'js-optflag js-optflag--rush'; t.appendChild(sadBmoFace(17)); t.appendChild(document.createTextNode(info.rush)); box.appendChild(t); }
-      // Child/infant heads-ups show on BMO's popover only, not in the BO.
+      if (info.rush) { const t = document.createElement('span'); t.className = 'ia-optflag ia-optflag--rush'; t.appendChild(worriedPip(17)); t.appendChild(document.createTextNode(info.rush)); box.appendChild(t); }
+      // Child/infant heads-ups show on Pip's popover only, not in the BO.
       if (!info.rush) return;
       holder.insertBefore(box, holder.firstChild);
     });
@@ -6810,75 +6841,128 @@ function __jsEnsureSharedObserver() {
   GM_addStyle(`
     /* Same spot and look as the airport-change tag (above the option's
        segments). */
-    .js-optflags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px 0; }
-    .js-optflag { background: #f59e0b; color: #1a1a1a; font-weight: 700; font-size: 12px; padding: 1px 7px; border-radius: 4px; font-family: system-ui, sans-serif; letter-spacing: .02em; }
-    .js-optflag--rush { background: #dc2626; color: #fff; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; padding: 1px 7px 1px 2px; }
-    .js-sadbmo { display: inline-block; flex: none; line-height: 0; }
-    .js-zero-box .js-sadbmo { display: block; width: fit-content; margin: 2px auto 10px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
-    [data-js-idcopy]:hover { text-decoration: underline dotted; }
-    .js-idcopied { color: #16a34a !important; transition: color .2s; }
-    .js-sell-pen { display: inline-flex; vertical-align: middle; margin-right: 4px; color: #94a3b8; opacity: .75; }
-    .js-sell-cell { cursor: pointer; }
-    .js-sell-cell:hover, .js-sell-cell:hover .js-sell-pen { color: #3b82f6; opacity: 1; }
-    .js-sell-input { width: 72px; text-align: right; font: inherit; padding: 0 4px; border: 1px solid #3b82f6; border-radius: 4px; background: #fff; color: #111; }
-    .js-sell-input.is-saving { opacity: .6; }
+    .ia-optflags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px 0; }
+    .ia-optflag { background: #f59e0b; color: #1a1a1a; font-weight: 700; font-size: 12px; padding: 1px 7px; border-radius: 4px; font-family: system-ui, sans-serif; letter-spacing: .02em; }
+    .ia-optflag--rush { background: #dc2626; color: #fff; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; padding: 1px 7px 1px 2px; }
+    .ia-worried { display: inline-block; flex: none; line-height: 0; }
+    .ia-zero-box .ia-worried { display: block; width: fit-content; margin: 2px auto 10px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
+    [data-ia-idcopy]:hover { text-decoration: underline dotted; }
+    .ia-idcopied { color: #16a34a !important; transition: color .2s; }
+    .ia-sell-pen { display: inline-flex; vertical-align: middle; margin-right: 4px; color: #94a3b8; opacity: .75; }
+    .ia-sell-cell { cursor: pointer; }
+    .ia-sell-cell:hover, .ia-sell-cell:hover .ia-sell-pen { color: #3b82f6; opacity: 1; }
+    .ia-sell-input { width: 72px; text-align: right; font: inherit; padding: 0 4px; border: 1px solid #3b82f6; border-radius: 4px; background: #fff; color: #111; }
+    .ia-sell-input.is-saving { opacity: .6; }
     /* Search panel in place of the BO's Kayak-price box */
-    .kayak-offers.js-fxp > .kayak-offers-body { max-height: none !important; height: auto !important; overflow: visible !important; }
-    .kayak-offers.js-fxp > .kayak-offers-body > :not(.js-fxp-panel) { display: none !important; }
-    .kayak-offers.js-fxp > .kayak-offers-footer > :not(.js-fxp-foot) { display: none !important; }
-    .js-fxp-foot-r { display: flex; align-items: center; gap: 8px; }
-    .js-fxp-re { border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
-    .js-fxp-re:hover { opacity: 1; background: rgba(148,163,184,.18); }
-    .js-fxp-re.spin { animation: jsFxpSpin .6s ease; }
+    .kayak-offers.ia-fxp > .kayak-offers-body { max-height: none !important; height: auto !important; overflow: visible !important; }
+    .kayak-offers.ia-fxp > .kayak-offers-body > :not(.ia-fxp-panel) { display: none !important; }
+    .kayak-offers.ia-fxp > .kayak-offers-footer > :not(.ia-fxp-foot) { display: none !important; }
+    .ia-fxp-foot-r { display: flex; align-items: center; gap: 8px; }
+    .ia-fxp-re { border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+    .ia-fxp-re:hover { opacity: 1; background: rgba(148,163,184,.18); }
+    .ia-fxp-re.spin { animation: jsFxpSpin .6s ease; }
     @keyframes jsFxpSpin { to { transform: rotate(360deg); } }
-    .js-fxp-panel { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 28px; gap: 6px; padding: 6px; }
-    .js-fxp-b { border-radius: 6px; border: 1px solid #445071; background: rgba(15,20,35,.35); color: #e5e7eb; font: 800 11.5px/1 system-ui, sans-serif; cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s; }
-    .js-fxp-b:hover { background: rgba(255,255,255,.07); }
-    .js-fxp-b:active { transform: translateY(1px); }
-    .js-fxp-g { border-color: #3b82f6; color: #bfdbfe; }
-    .js-fxp-e { border-color: #22c55e; color: #bbf7d0; }
-    .js-fxp-m { border-color: #a855f7; color: #e9d5ff; }
-    .js-fxp-py { border-color: #f59e0b; color: #fde68a; }
-    .js-fxp-fb { border-color: #8b5cf6; color: #ddd6fe; }
-    .js-fxp-k { border-color: #f97316; color: #fed7aa; }
-    .js-fxp-b.is-open { background: rgba(255,255,255,.12); }
-    .js-fxp-foot { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
-    .js-fxp-foot-l { display: flex; gap: 6px; }
-    .js-fxp-pick { border: 1px solid #445071; background: #1b2132; color: #e5e7eb; border-radius: 6px; padding: 4px 10px; font: 700 11px system-ui, sans-serif; cursor: pointer; min-width: 74px; text-align: left; transition: border-color .15s, background .15s; }
-    .js-fxp-pick:hover, .js-fxp-pick.is-open { border-color: #7c8db5; background: #232a40; }
-    .js-fxp-menu.js-fxp-menu--cab, .js-fxp-menu.js-fxp-menu--flex { min-width: 140px; }
-    .js-fxp-allwrap { display: inline-flex; align-items: center; gap: 2px; }
-    .js-fxp-allm { border: 0; background: transparent; color: #c4b5fd; cursor: pointer; font-size: 11px; padding: 3px 5px; border-radius: 4px; line-height: 1; }
-    .js-fxp-allm:hover, .js-fxp-allm.is-open { background: rgba(148,163,184,.18); }
-    .js-fxp-menu.js-fxp-menu--all { min-width: 170px; }
-    .js-fxp-menu-c span { display: inline-flex; align-items: center; gap: 8px; }
-    .js-fxp-menu-c.is-off span { color: #8b93a7; }
-    .js-fxp-chk { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid #5b6787; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; flex: none; }
-    .js-fxp-chk.on { background: #7c3aed; border-color: #7c3aed; }
-    .js-fxp-menu-i.is-sel { background: rgba(59,130,246,.18); color: #93c5fd; }
-    .js-fxp-menu-i.is-sel small { color: #93c5fd; font-weight: 800; }
-    .js-fxp-sel { border: 1px solid #445071; background: rgba(15,20,35,.45); color: #e5e7eb; border-radius: 5px; padding: 2px 6px; font: 700 11px system-ui, sans-serif; cursor: pointer; }
-    .js-fxp-all { background: none; border: 0; color: #c4b5fd; font: 800 12px system-ui, sans-serif; cursor: pointer; padding: 2px 4px; }
-    .js-fxp-all:hover { text-decoration: underline; }
-    .js-fxp-menu { position: fixed; z-index: 2147483000; min-width: 210px; background: #1b2132; border: 1px solid #445071; border-radius: 8px; padding: 5px; box-shadow: 0 12px 26px rgba(0,0,0,.5); font-family: system-ui, sans-serif; color: #e5e7eb; }
-    .js-fxp-menu--m { border-color: #6d4bb0; } .js-fxp-menu--py { border-color: #b07a1a; } .js-fxp-menu--fb { border-color: #6d5bd0; }
-    .js-fxp-menu-h { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: #8b93a7; font-weight: 800; padding: 3px 7px 5px; }
-    .js-fxp-menu-i { display: flex; justify-content: space-between; gap: 14px; padding: 7px 8px; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .js-fxp-menu-i small { color: #8b93a7; font-weight: 600; }
-    .js-fxp-menu-i:hover { background: #2c3550; }
-    .js-zero-back { position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
-    .js-zero-box { width: 380px; max-width: calc(100vw - 32px); background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 12px; padding: 18px 18px 14px; box-shadow: 0 20px 50px rgba(0,0,0,.35); font-family: system-ui, sans-serif; border-top: 5px solid #dc2626; }
-    .js-zero-title { font-weight: 800; font-size: 16px; color: #b91c1c; margin-bottom: 8px; text-align: center; }
-    .js-zero-text { font-size: 13.5px; line-height: 1.45; margin-bottom: 14px; text-align: center; }
-    .js-zero-row { display: flex; gap: 8px; justify-content: flex-end; }
-    .js-zero-row button { border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
-    .js-zero-no { background: #5b5bd6; color: #fff; }
-    .js-zero-yes { background: #1e293b; color: #f87171; }
-    .js-sell-input.is-bad { border-color: #dc2626; background: #fee2e2; }
-    .js-sell-saved { color: #16a34a !important; transition: color .3s; }
-    .js-sell-err { color: #dc2626 !important; }
-    .js-sell-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483000; max-width: 640px; background: #0f172a; border: 1px solid #f87171; color: #fff; font: 600 13px system-ui, sans-serif; padding: 10px 14px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
-    .js-merge-btn { font-size: 12px; font-weight: 600; white-space: nowrap; min-height: 34px; }
+    .ia-fxp-panel { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 28px; gap: 6px; padding: 6px; }
+    .ia-fxp-b { border-radius: 6px; border: 1px solid #445071; background: rgba(15,20,35,.35); color: #e5e7eb; font: 800 11.5px/1 system-ui, sans-serif; cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s; }
+    .ia-fxp-b:hover { background: rgba(255,255,255,.07); }
+    .ia-fxp-b:active { transform: translateY(1px); }
+    .ia-fxp-g { border-color: #3b82f6; color: #bfdbfe; }
+    .ia-fxp-e { border-color: #22c55e; color: #bbf7d0; }
+    .ia-fxp-m { border-color: #a855f7; color: #e9d5ff; }
+    .ia-fxp-py { border-color: #f59e0b; color: #fde68a; }
+    .ia-fxp-fb { border-color: #8b5cf6; color: #ddd6fe; }
+    .ia-fxp-k { border-color: #f97316; color: #fed7aa; }
+    .ia-fxp-b.is-open { background: rgba(255,255,255,.12); }
+    .ia-fxp-foot { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+    .ia-fxp-foot-l { display: flex; gap: 6px; }
+    .ia-fxp-pick { border: 1px solid #445071; background: #1b2132; color: #e5e7eb; border-radius: 6px; padding: 4px 10px; font: 700 11px system-ui, sans-serif; cursor: pointer; min-width: 74px; text-align: left; transition: border-color .15s, background .15s; }
+    .ia-fxp-pick:hover, .ia-fxp-pick.is-open { border-color: #7c8db5; background: #232a40; }
+    .ia-fxp-menu.ia-fxp-menu--cab, .ia-fxp-menu.ia-fxp-menu--flex { min-width: 140px; }
+    .ia-fxp-allwrap { display: inline-flex; align-items: center; gap: 2px; }
+    .ia-fxp-allm { border: 0; background: transparent; color: #c4b5fd; cursor: pointer; font-size: 11px; padding: 3px 5px; border-radius: 4px; line-height: 1; }
+    .ia-fxp-allm:hover, .ia-fxp-allm.is-open { background: rgba(148,163,184,.18); }
+    .ia-fxp-menu.ia-fxp-menu--all { min-width: 170px; }
+    .ia-fxp-menu-c span { display: inline-flex; align-items: center; gap: 8px; }
+    .ia-fxp-menu-c.is-off span { color: #8b93a7; }
+    .ia-fxp-chk { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid #5b6787; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; flex: none; }
+    .ia-fxp-chk.on { background: #7c3aed; border-color: #7c3aed; }
+    .ia-fxp-menu-i.is-sel { background: rgba(59,130,246,.18); color: #93c5fd; }
+    .ia-fxp-menu-i.is-sel small { color: #93c5fd; font-weight: 800; }
+    .ia-fxp-sel { border: 1px solid #445071; background: rgba(15,20,35,.45); color: #e5e7eb; border-radius: 5px; padding: 2px 6px; font: 700 11px system-ui, sans-serif; cursor: pointer; }
+    .ia-fxp-all { background: none; border: 0; color: #c4b5fd; font: 800 12px system-ui, sans-serif; cursor: pointer; padding: 2px 4px; }
+    .ia-fxp-all:hover { text-decoration: underline; }
+    .ia-fxp-menu { position: fixed; z-index: 2147483000; min-width: 210px; background: #1b2132; border: 1px solid #445071; border-radius: 8px; padding: 5px; box-shadow: 0 12px 26px rgba(0,0,0,.5); font-family: system-ui, sans-serif; color: #e5e7eb; }
+    .ia-fxp-menu--m { border-color: #6d4bb0; } .ia-fxp-menu--py { border-color: #b07a1a; } .ia-fxp-menu--fb { border-color: #6d5bd0; }
+    .ia-fxp-menu-h { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: #8b93a7; font-weight: 800; padding: 3px 7px 5px; }
+    .ia-fxp-menu-i { display: flex; justify-content: space-between; gap: 14px; padding: 7px 8px; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .ia-fxp-menu-i small { color: #8b93a7; font-weight: 600; }
+    .ia-fxp-menu-i:hover { background: #2c3550; }
+    .ia-zero-back { position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
+    .ia-zero-box { width: 380px; max-width: calc(100vw - 32px); background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 12px; padding: 18px 18px 14px; box-shadow: 0 20px 50px rgba(0,0,0,.35); font-family: system-ui, sans-serif; border-top: 5px solid #dc2626; }
+    .ia-zero-title { font-weight: 800; font-size: 16px; color: #b91c1c; margin-bottom: 8px; text-align: center; }
+    .ia-zero-text { font-size: 13.5px; line-height: 1.45; margin-bottom: 14px; text-align: center; }
+    .ia-zero-row { display: flex; gap: 8px; justify-content: flex-end; }
+    .ia-zero-row button { border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .ia-zero-no { background: #5b5bd6; color: #fff; }
+    .ia-zero-yes { background: #1e293b; color: #f87171; }
+    .ia-sell-input.is-bad { border-color: #dc2626; background: #fee2e2; }
+    .ia-sell-saved { color: #16a34a !important; transition: color .3s; }
+    .ia-sell-err { color: #dc2626 !important; }
+    .ia-sell-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483000; max-width: 640px; background: #0f172a; border: 1px solid #f87171; color: #fff; font: 600 13px system-ui, sans-serif; padding: 10px 14px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+    .ia-merge-btn { font-size: 12px; font-weight: 600; white-space: nowrap; min-height: 34px; }
+  `);
+
+  // ------------------------------------------------------------------
+  // Search panel in Ian's Assistant colours. Follows the agent's mode
+  // (dark / light / navy) and accent: the values are copied onto the page
+  // as --ias-* variables whenever either setting changes.
+  // ------------------------------------------------------------------
+  function iaPaintSearchColours() {
+    if (typeof iaPalette !== 'function') return;
+    const p = iaPalette();
+    const r = document.documentElement.style;
+    const light = p.mode === 'light';
+    const set = {
+      bg: p.bg, field: p.field, line: p.line, line2: p.line2, text: p.text, title: p.title, muted: p.muted, sec: p.sec,
+      acc: p.acc, onacc: p.onacc, shadow: p.shadow,
+      'g': light ? '#2563eb' : '#60a5fa', 'e': light ? '#16a34a' : '#4ade80', 'm': light ? '#7c3aed' : '#c4b5fd',
+      'py': light ? '#ca8a04' : '#facc15', 'fb': light ? '#3f3f46' : '#e8e8ed', 'k': light ? '#ea580c' : '#fb923c',
+    };
+    Object.keys(set).forEach((k) => r.setProperty('--ias-' + k, set[k]));
+  }
+  iaPaintSearchColours();
+  try { ['ia-mode', 'bmo-theme'].forEach((k) => GM_addValueChangeListener(k, iaPaintSearchColours)); } catch (e) { /* ignore */ }
+
+  GM_addStyle(`
+    .kayak-offers.ia-fxp { background: var(--ias-bg) !important; border: 1px solid var(--ias-line) !important; border-radius: 12px !important; color: var(--ias-text) !important; }
+    .kayak-offers.ia-fxp > .kayak-offers-footer { border-top: 1px solid var(--ias-line) !important; background: transparent !important; }
+    .ia-fxp-panel { gap: 6px; padding: 8px; }
+    .ia-fxp-b, .ia-fxp-b.ia-fxp-g, .ia-fxp-b.ia-fxp-e, .ia-fxp-b.ia-fxp-m, .ia-fxp-b.ia-fxp-py, .ia-fxp-b.ia-fxp-fb, .ia-fxp-b.ia-fxp-k {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; border: 1px solid var(--ias-line2);
+      background: transparent; color: var(--ias-text); font: 600 11.5px/1 Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-fxp-b::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--ias-text); }
+    .ia-fxp-g::before { background: var(--ias-g); } .ia-fxp-e::before { background: var(--ias-e); } .ia-fxp-m::before { background: var(--ias-m); }
+    .ia-fxp-py::before { background: var(--ias-py); } .ia-fxp-fb::before { background: var(--ias-fb); } .ia-fxp-k::before { background: var(--ias-k); }
+    .ia-fxp-b:hover { background: var(--ias-field); border-color: var(--ias-muted); }
+    .ia-fxp-b.is-open { background: var(--ias-field); border-color: var(--ias-acc); }
+    .ia-fxp-pick, .ia-fxp-sel { border: 1px solid var(--ias-line2); background: transparent; color: var(--ias-sec); border-radius: 6px; font: 600 11px Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-fxp-pick:hover, .ia-fxp-pick.is-open { border-color: var(--ias-acc); background: var(--ias-field); }
+    .ia-fxp-re { color: var(--ias-muted); }
+    .ia-fxp-re:hover { color: var(--ias-title); background: var(--ias-field); }
+    .ia-fxp-allwrap { background: var(--ias-acc); border-radius: 6px; padding: 0 2px 0 4px; }
+    .ia-fxp-all, .ia-fxp-allm { color: var(--ias-onacc); font: 600 11.5px Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-fxp-all:hover { text-decoration: none; }
+    .ia-fxp-allm:hover, .ia-fxp-allm.is-open { background: rgba(0,0,0,.12); }
+    .ia-fxp-menu, .ia-fxp-menu--m, .ia-fxp-menu--py, .ia-fxp-menu--fb { background: var(--ias-field); border: 1px solid var(--ias-line2); border-radius: 10px; color: var(--ias-text); box-shadow: var(--ias-shadow); font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-fxp-menu-h { color: var(--ias-muted); text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 500; }
+    .ia-fxp-menu-i { font-weight: 600; color: var(--ias-text); }
+    .ia-fxp-menu-i small { color: var(--ias-muted); font-weight: 500; }
+    .ia-fxp-menu-i:hover { background: var(--ias-bg); }
+    .ia-fxp-menu-i.is-sel, .ia-fxp-menu-i.is-opened { background: color-mix(in srgb, var(--ias-acc) 14%, transparent); color: var(--ias-title); }
+    .ia-fxp-menu-i.is-sel small, .ia-fxp-menu-i.is-opened small { color: var(--ias-acc); font-weight: 600; }
+    .ia-fxp-chk { border-color: var(--ias-line2); color: var(--ias-onacc); }
+    .ia-fxp-chk.on { background: var(--ias-acc); border-color: var(--ias-acc); }
+    .ia-fxp-menu-c.is-off span { color: var(--ias-muted); }
   `);
 
   function scan() {
@@ -6902,7 +6986,7 @@ function __jsEnsureSharedObserver() {
 
 
 // ====================================================================
-// PART 3 — CRM leads list: "select all" checkbox per lead's options
+// SECTION 3 · CRM leads list: "select all" checkbox per lead's options
 // ====================================================================
 (function () {
   'use strict';
@@ -7055,7 +7139,7 @@ function __jsEnsureSharedObserver() {
 })();
 
 // ====================================================================
-// PART 4 — CRM leads list: power dialer
+// SECTION 4 · CRM leads list: power dialer
 // ====================================================================
 // Chrome has an explicit, deliberate "anti-flood" protection for
 // external-protocol launches (tel:, mailto:, etc.) — confirmed directly
@@ -7072,13 +7156,13 @@ function __jsEnsureSharedObserver() {
 (function () {
   'use strict';
 
-  // Experts don't work leads, so BMO and the whole power-dialer setup
+  // Experts don't work leads, so Pip and the whole power-dialer setup
   // have nothing for them — excluded on /experts/ specifically rather
   // than the whole domain, so this still runs on every other leads-list
   // path under this host.
   if (!location.hostname.includes('travelbusinessclass.com')) return;
   if (location.pathname.startsWith('/experts/')) return;
-  if (window.top !== window) return; // no BMO / phone panel inside hidden worker frames
+  if (window.top !== window) return; // no Pip / phone panel inside hidden worker frames
   if (!location.pathname.startsWith('/leads/')) return; // same pages as before the BO-wide match
 
   function wait(ms) {
@@ -7261,7 +7345,7 @@ function __jsEnsureSharedObserver() {
   // page. Returning null here doesn't necessarily mean every lead is
   // done; it can also mean this page is done and there's another page
   // to move to, which is what calls this check what to do next.
-  // Leads whose "Time left" cell is empty have no timer running — BMO
+  // Leads whose "Time left" cell is empty have no timer running — Pip
   // passes over those (without marking them), so they're picked up again
   // if a timer starts later.
   // Column position counted in grid columns (a header like "PQs / SPQs"
@@ -7391,205 +7475,24 @@ function __jsEnsureSharedObserver() {
   }
 
   // ==========================================================================
-  // BMO — the always-present, bottom-right dialer widget
+  // Pip — the always-present, bottom-right dialer widget
   // ==========================================================================
   // Replaces both the old plain floating panel and the separate "Start Auto
-  // Dialer" top-bar button. BMO himself is now the entry point: a small
+  // Dialer" top-bar button. Pip himself is now the entry point: a small
   // round bubble sits bottom-right on every page under this domain at all
   // times, expanding into the full character on click. The four functional
   // actions map onto his actual body, matching where they'd sit on a real
-  // BMO: the yellow cross is Call, the blue triangle is Skip, the green dot
+  // Pip: the yellow cross is Call, the blue triangle is Skip, the green dot
   // is Double Dial, and the red circle — his main button, bottom right — is
   // Stop.
-  let bmoWidget = null;
-  let bmoMaximized = false;
+  let iaWidget = null;
+  let iaMaximized = false;
   let dialerInitialized = false;
 
-  const BMO_SVG_MARKUP = `
-    <defs>
-      <!-- old LED panel: fine dark grid over the glowing text -->
-      <clipPath id="bmo-led-clip"><rect x="58.6" y="130.3" width="54.8" height="9.6" rx="2.2"/></clipPath>
-      <linearGradient id="bmo-rainbow-grad" gradientUnits="userSpaceOnUse" x1="45" y1="40" x2="165" y2="240" spreadMethod="repeat">
-        <stop offset="0" stop-color="#ff3b3b"/>
-        <stop offset=".17" stop-color="#ff9f1c"/>
-        <stop offset=".33" stop-color="#ffe14d"/>
-        <stop offset=".5" stop-color="#3ddc84"/>
-        <stop offset=".67" stop-color="#3fa9f5"/>
-        <stop offset=".83" stop-color="#9b5de5"/>
-        <stop offset="1" stop-color="#ff3b3b"/>
-        <animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="120 200" dur="4s" repeatCount="indefinite"/>
-      </linearGradient>
-      <!-- inner shadow that makes the screen look sunk into the body -->
-      <filter id="bmo-inset" x="-10%" y="-10%" width="120%" height="120%">
-        <feOffset dx="1.2" dy="3.5"/><feGaussianBlur stdDeviation="2.4" result="o"/>
-        <feComposite in="SourceAlpha" in2="o" operator="out" result="inv"/>
-        <feFlood flood-color="#000" flood-opacity=".38"/><feComposite in2="inv" operator="in" result="sh"/>
-        <feComposite in="sh" in2="SourceAlpha" operator="in"/>
-      </filter>
-    </defs>
-    <path class="bmo-arm-left bmo-themed" d="M 45 100 C 18 105, 12 132, 25 154" fill="none" stroke="var(--bmo-dark)" stroke-width="15" stroke-linecap="round"/>
-    <g class="bmo-bodygrp">
-      <!-- thin darker bottom edge (depth), in each skin's own shade -->
-      <rect class="bmo-themed" x="45" y="45" width="120" height="200" rx="20" fill="var(--bmo-side)"/>
-      <rect class="bmo-themed" x="45" y="40" width="120" height="200" rx="20" fill="var(--bmo-body)"/>
-      <rect class="bmo-rainbow" x="45" y="40" width="120" height="200" rx="20" fill="url(#bmo-rainbow-grad)"/>
-    </g>
-    <path class="bmo-rim" d="M 62 41.5 L 148 41.5"/>
-    <!-- screen, sunk into a bezel -->
-    <rect x="52.5" y="49.5" width="105" height="77" rx="12.5" fill="#000" opacity=".18"/>
-    <path class="bmo-lip" d="M 55 123.5 Q 55 127 59 127 L 151 127 Q 155 127 155 123.5"/>
-    <rect class="bmo-themed" x="55" y="52" width="100" height="72" rx="10" fill="var(--bmo-screen)"/>
-    <rect x="55" y="52" width="100" height="72" rx="10" fill="#000" filter="url(#bmo-inset)" pointer-events="none"/>
-    <path class="bmo-glare" d="M 61 57 L 82 57 L 64 94 L 61 94 Z"/>
-    <g class="bmo-face">
-      <circle class="bmo-eye" cx="83" cy="78" r="6"/>
-      <circle class="bmo-eye" cx="127" cy="78" r="6"/>
-      <path class="bmo-smile" d="M 85 92 Q 105 103 125 92"/>
-      <polygon class="bmo-lid" points="74,68 92,68 92,76.5 76,72"/>
-      <polygon class="bmo-lid" points="136,68 118,68 118,76.5 134,72"/>
-      <path class="bmo-sad" d="M 74 68 L 90 64 M 136 68 L 120 64"/>
-      <path class="bmo-sad" d="M 88 100 Q 105 90 122 100"/>
-      <path class="bmo-sad-tear" d="M 80 87 Q 77 92 80 95 Q 83 92 80 87 Z"/>
-    </g>
-    <g class="bmo-dead-face">
-      <path class="bmo-dead-eye" d="M 76 71 L 90 85 M 90 71 L 76 85"/>
-      <path class="bmo-dead-eye" d="M 120 71 L 134 85 M 134 71 L 120 85"/>
-      <path class="bmo-dead-mouth" d="M 88 94 Q 105 90 122 94"/>
-      <ellipse class="bmo-dead-tongue" cx="105" cy="104" rx="9" ry="12"/>
-    </g>
-    <foreignObject x="59" y="57" width="92" height="66" class="bmo-screen-info">
-      <div xmlns="http://www.w3.org/1999/xhtml">
-        <div class="bmo-screen-info__label"></div>
-        <a class="bmo-screen-info__client" target="_blank" rel="noopener"></a>
-        <div class="bmo-screen-info__route"></div>
-        <div class="bmo-screen-info__status"></div>
-      </div>
-    </foreignObject>
-    <g class="bmo-crack">
-      <path d="M 128 58 L 118 72 L 124 80 L 108 95 L 112 104 L 98 120" />
-      <path d="M 118 72 L 100 68 L 88 74 L 70 70" />
-      <path d="M 124 80 L 140 88 L 150 86" />
-      <path d="M 108 95 L 92 98 L 80 112" />
-      <path d="M 112 104 L 126 112 L 132 121" />
-      <path d="M 100 68 L 96 56" />
-    </g>
-    <!-- Controls in BMO's classic arrangement: slot top-left with the lamp
-         at its right, Call cross on the left, Skip triangle in the middle
-         with 2X up at its top-right, big Stop bottom-right, pills
-         bottom-left. Words sit inside the buttons, vertically centered
-         with dominant-baseline="central". -->
-    <g class="bmo-hs" data-k="S">
-      <rect x="54" y="125" width="64" height="17" fill="transparent"/>
-      <rect class="bmo-themed" x="57" y="128.8" width="58" height="12.6" rx="3.4" fill="var(--bmo-dark)"/>
-      <rect class="bmo-themed" x="58.6" y="130.3" width="54.8" height="9.6" rx="2.2" fill="var(--bmo-screen)"/>
-      <g clip-path="url(#bmo-led-clip)">
-        <g class="bmo-led-move">
-          <text class="bmo-led" x="86" y="135.25" text-anchor="middle" dominant-baseline="central"></text>
-        </g>
-      </g>
-      <rect x="58.6" y="130.3" width="54.8" height="1.4" rx="0.7" fill="#000" opacity=".12"/>
-    </g>
-    <g class="bmo-hs bmo-dd-toggle" data-k="D">
-      <title>Double dial each lead (on/off)</title>
-      <circle cx="136" cy="134" r="6" fill="transparent"/>
-      <circle class="bmo-dd-dot" cx="136" cy="134" r="3.6"/>
-      <circle class="bmo-dd-shine" cx="134.9" cy="132.9" r="1"/>
-    </g>
-    <!-- Each button: a darker base it sits on (.bmo-base, stays put) and
-         the button itself (.bmo-top, pushes down onto the base when
-         pressed). Light comes from above, so shadows fall straight down. -->
-    <g class="bmo-btn bmo-btn-call" title="Call">
-      <circle cx="78" cy="171" r="24" fill="transparent"/>
-      <g class="bmo-base bmo-cross-base">
-        <rect x="71" y="156.5" width="14" height="34" rx="3"/>
-        <rect x="61" y="166.5" width="34" height="14" rx="3"/>
-      </g>
-      <g class="bmo-top bmo-cross">
-        <rect x="71" y="154" width="14" height="34" rx="3" fill="#f4c430"/>
-        <rect x="61" y="164" width="34" height="14" rx="3" fill="#f4c430"/>
-        <path class="bmo-hl" d="M 74 157 L 82 157 M 64 167 L 70 167"/>
-      </g>
-      <!-- phone handset icon, centered on the cross -->
-      <g class="bmo-btn-label bmo-label-call">
-        <path transform="translate(70.6 164.6) scale(0.62)" d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
-      </g>
-    </g>
-    <g class="bmo-btn bmo-btn-skip" title="Skip">
-      <circle cx="124" cy="165" r="17" fill="transparent"/>
-      <polygon class="bmo-base" points="124,152.5 139,177.5 109,177.5"/>
-      <g class="bmo-top">
-        <polygon points="124,150 139,175 109,175" fill="#5ec8f0" stroke="#5ec8f0"/>
-        <path class="bmo-hl" d="M 122 156 L 117 164"/>
-      </g>
-      <!-- skip-next icon (triangle + bar), centered low in the triangle -->
-      <g class="bmo-btn-label bmo-label-skip">
-        <path d="M 119.4 164.2 L 126.2 168.5 L 119.4 172.8 Z" stroke-linejoin="round" style="stroke-width:1.2px;stroke:currentColor"/>
-        <rect x="127.3" y="164.2" width="1.9" height="8.6" rx=".9"/>
-      </g>
-    </g>
-    <g class="bmo-btn bmo-btn-doubledial" title="Double Dial">
-      <circle cx="149" cy="147" r="12" fill="transparent"/>
-      <circle class="bmo-base" cx="149" cy="149.5" r="9.5"/>
-      <g class="bmo-top">
-        <circle cx="149" cy="147" r="9.5" fill="#8fd14f"/>
-        <path class="bmo-hl" d="M 143.2 143 Q 145.5 140.2 149 140"/>
-      </g>
-      <text class="bmo-btn-label bmo-label-2x" x="149" y="148.2" font-size="7.5" text-anchor="middle" dominant-baseline="central">2X</text>
-    </g>
-    <g class="bmo-btn bmo-btn-stop" title="Stop">
-      <circle cx="131" cy="210" r="25" fill="transparent"/>
-      <circle class="bmo-base bmo-stop-base" cx="131" cy="213" r="21"/>
-      <g class="bmo-top">
-        <circle class="bmo-stop-face" cx="131" cy="210" r="21" fill="#e8432f"/>
-        <path class="bmo-hl" d="M 117 201 Q 122 193 131 192" style="stroke-width:2.2"/>
-      </g>
-      <!-- stop icon (rounded square), centered -->
-      <g class="bmo-btn-label bmo-label-stop">
-        <rect x="124.5" y="204.5" width="13" height="13" rx="3.2"/>
-      </g>
-    </g>
-    <g class="bmo-btn bmo-btn-theme" title="Change color">
-      <circle cx="71" cy="225" r="12" fill="transparent"/>
-      <rect class="bmo-themed" x="62" y="223" width="18" height="8" rx="4" fill="var(--bmo-side)"/>
-      <rect class="bmo-themed bmo-pill" x="62" y="221" width="18" height="8" rx="4" fill="var(--bmo-dark)"/>
-    </g>
-    <g class="bmo-hs" data-k="P">
-      <rect x="82" y="217" width="24" height="16" fill="transparent"/>
-      <rect class="bmo-themed" x="85" y="223" width="18" height="8" rx="4" fill="var(--bmo-side)"/>
-      <rect class="bmo-themed bmo-pill" x="85" y="221" width="18" height="8" rx="4" fill="var(--bmo-dark)"/>
-    </g>
-    <path class="bmo-arm-right bmo-themed" d="M 165 100 C 192 95, 203 68, 192 46" fill="none" stroke="var(--bmo-dark)" stroke-width="15" stroke-linecap="round"/>
-    <!-- Cute cat-ear headset — a pink-theme-only accessory, invisible
-         (opacity 0) in teal/black and cross-faded in alongside the rest
-         of the theme when pink is picked. Sits above/beside the head:
-         two triangular cat ears over the top edge, a headband arc
-         between them, and a pair of rounded ear cups down the sides. -->
-    <g class="bmo-crown">
-      <path d="M 82 42 L 80 14 L 93 28 L 105 8 L 117 28 L 130 14 L 128 42 Z" fill="#ffd700" stroke="#a87700" stroke-width="2" stroke-linejoin="round"/>
-      <circle cx="105" cy="31" r="4" fill="#e0115f" stroke="#7a0033" stroke-width="1"/>
-      <circle cx="91" cy="35" r="2.6" fill="#1e90ff"/>
-      <circle cx="119" cy="35" r="2.6" fill="#1e90ff"/>
-      <circle cx="80" cy="14" r="2.5" fill="#fff5c0"/>
-      <circle cx="105" cy="8" r="2.5" fill="#fff5c0"/>
-      <circle cx="130" cy="14" r="2.5" fill="#fff5c0"/>
-    </g>
-    <g class="bmo-headset">
-      <path d="M 35 95 C 35 6, 175 6, 175 95" fill="none" stroke="#ff2f8f" stroke-width="10" stroke-linecap="round"/>
-      <path d="M 35 95 C 35 6, 175 6, 175 95" fill="none" stroke="#ffe3f1" stroke-width="4" stroke-linecap="round"/>
-      <path d="M 48 34 L 39 -8 L 79 21 Z" fill="#ff2f8f" stroke="#c2005a" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M 52 23 L 46 -2 L 71 17 Z" fill="#ffe3f1"/>
-      <path d="M 162 34 L 171 -8 L 131 21 Z" fill="#ff2f8f" stroke="#c2005a" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M 158 23 L 164 -2 L 139 17 Z" fill="#ffe3f1"/>
-      <ellipse cx="29" cy="119" rx="17" ry="25" fill="#ff2f8f" stroke="#c2005a" stroke-width="2"/>
-      <ellipse cx="31" cy="119" rx="9" ry="17" fill="#ffe3f1" opacity=".9"/>
-      <ellipse cx="181" cy="119" rx="17" ry="25" fill="#ff2f8f" stroke="#c2005a" stroke-width="2"/>
-      <ellipse cx="179" cy="119" rx="9" ry="17" fill="#ffe3f1" opacity=".9"/>
-    </g>
-  `;
 
   // "Hi, <first name>!" on the LED panel under the screen, from the BO's
   // own "Ian Brown #1234" style label. Remembered, so it shows on every page.
-  const BMO_NAME_KEY = 'bmo-first-name';
+  const AGENT_NAME_KEY = 'bmo-first-name';
   function readAgentFirstName() {
     const el = Array.from(document.querySelectorAll('div.font-medium')).find((d) => /^\s*\S.*#\d+\s*$/.test(d.textContent) && d.children.length === 0);
     if (!el) return null;
@@ -7599,9 +7502,9 @@ function __jsEnsureSharedObserver() {
   function updateLedName() {
     let name = readAgentFirstName();
     try {
-      if (name) { if (GM_getValue(BMO_NAME_KEY, '') !== name) GM_setValue(BMO_NAME_KEY, name); } else name = GM_getValue(BMO_NAME_KEY, '');
+      if (name) { if (GM_getValue(AGENT_NAME_KEY, '') !== name) GM_setValue(AGENT_NAME_KEY, name); } else name = GM_getValue(AGENT_NAME_KEY, '');
     } catch (e) { /* ignore */ }
-    const led = bmoWidget && bmoWidget.querySelector('.bmo-led');
+    const led = iaWidget && iaWidget.querySelector('.ia-led');
     // The signed-in agent's own first name, e.g. "Hi Elena!".
     if (name && (name === name.toUpperCase() || name === name.toLowerCase())) name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
     const text = name ? 'Hi ' + name + '!' : 'Hi there!';
@@ -7617,87 +7520,87 @@ function __jsEnsureSharedObserver() {
   setInterval(updateLedName, 3000);
 
   function ensureBmo() {
-    if (bmoWidget && document.body.contains(bmoWidget)) return bmoWidget;
-    bmoWidget = document.createElement('div');
-    bmoWidget.className = 'bmo-widget ia-mode-' + iaMode();
+    if (iaWidget && document.body.contains(iaWidget)) return iaWidget;
+    iaWidget = document.createElement('div');
+    iaWidget.className = 'ia-widget ia-mode-' + iaMode();
     setTimeout(updateLedName, 0);
-    bmoWidget.innerHTML = `
-      <div class="bmo-levelup" aria-hidden="true">
-        <div class="bmo-levelup__text">Round 1 complete \u00B7 Round 2 unlocked</div>
+    iaWidget.innerHTML = `
+      <div class="ia-levelup" aria-hidden="true">
+        <div class="ia-levelup__text">Round 1 complete \u00B7 Round 2 unlocked</div>
       </div>
-      <div class="bmo-reminder" style="display:none;">
-        <div class="bmo-reminder__text"></div>
-        <button type="button" class="bmo-reminder__dismiss">&times;</button>
+      <div class="ia-reminder" style="display:none;">
+        <div class="ia-reminder__text"></div>
+        <button type="button" class="ia-reminder__dismiss">&times;</button>
       </div>
-      <div class="bmo-bubble" title="Open Ian's Assistant">
+      <div class="ia-bubble" title="Open Ian's Assistant">
         <div class="ia-mini"><svg class="pip" viewBox="10 10 76 80" width="50" height="53" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g><g class="pip-f pip-f-snipe"><path class="pip-line" d="M36 46 L44 48"/><path class="pip-line" d="M60 46 L52 48"/><path class="pip-line" d="M42 59 L54 58"/></g></svg><span class="ia-dot ia-mini__dot"></span></div>
       </div>
-      <div class="bmo-full ia-panel">
+      <div class="ia-full ia-panel">
         <div class="ia-head">
           <svg class="pip" viewBox="10 10 76 80" width="30" height="32" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g><g class="pip-f pip-f-snipe"><path class="pip-line" d="M36 46 L44 48"/><path class="pip-line" d="M60 46 L52 48"/><path class="pip-line" d="M42 59 L54 58"/></g></svg>
           <div class="ia-head__txt">
             <div class="ia-head__title">Ian's Assistant</div>
-            <div class="bmo-hs ia-head__greet" data-k="S"><span class="bmo-led"></span></div>
+            <div class="ia-hs ia-head__greet" data-k="S"><span class="ia-led"></span></div>
           </div>
           <span class="ia-dot" title="Status"></span>
-          <span class="bmo-btn ia-iconbtn ia-mode-btn" title="Switch mode: dark, light, navy"><svg class="ia-ico ia-ico-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/></svg><svg class="ia-ico ia-ico-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg><svg class="ia-ico ia-ico-navy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5c3-3 6 3 9 0s6 3 9 0M3 15.5c3-3 6 3 9 0s6 3 9 0"/></svg></span>
-          <span class="bmo-btn bmo-btn-theme ia-iconbtn" title="Change accent color"><span class="ia-swatch"></span></span>
+          <span class="ia-btn ia-iconbtn ia-mode-btn" title="Switch mode: dark, light, navy"><svg class="ia-ico ia-ico-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/></svg><svg class="ia-ico ia-ico-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg><svg class="ia-ico ia-ico-navy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5c3-3 6 3 9 0s6 3 9 0M3 15.5c3-3 6 3 9 0s6 3 9 0"/></svg></span>
+          <span class="ia-btn ia-btn-theme ia-iconbtn" title="Change accent color"><span class="ia-swatch"></span></span>
           <span class="ia-iconbtn ia-min" title="Minimize">\u2013</span>
         </div>
         <div class="ia-card">
-          <div class="bmo-face ia-idle">
+          <div class="ia-face ia-idle">
             <span class="ia-idle__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span>
             <div class="ia-idle__t">Ready</div>
             <div class="ia-idle__s">Press Call to start your follow-up</div>
           </div>
-          <div class="bmo-screen-info" style="display:none;">
-            <div class="bmo-screen-info__label"></div>
-            <a class="bmo-screen-info__client" target="_blank" rel="noopener"></a>
-            <div class="bmo-screen-info__route"></div>
-            <div class="ia-card-foot"><div class="bmo-screen-info__status"></div><div class="ia-progress"></div></div>
+          <div class="ia-screen-info" style="display:none;">
+            <div class="ia-screen-info__label"></div>
+            <a class="ia-screen-info__client" target="_blank" rel="noopener"></a>
+            <div class="ia-screen-info__route"></div>
+            <div class="ia-card-foot"><div class="ia-screen-info__status"></div><div class="ia-progress"></div></div>
           </div>
         </div>
-        <button type="button" class="bmo-btn bmo-btn-call ia-call"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg><span>Call</span></button>
+        <button type="button" class="ia-btn ia-btn-call ia-call"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg><span>Call</span></button>
         <div class="ia-row">
-          <button type="button" class="bmo-btn bmo-btn-skip ia-sec" title="Skip this lead"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6l8.5 6L6 18zM16 6h2v12h-2z"/></svg><span>Skip</span></button>
-          <button type="button" class="bmo-btn bmo-btn-doubledial ia-sec" title="Redial the last number"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg><span>Redial</span></button>
-          <button type="button" class="bmo-btn bmo-btn-stop ia-stop" title="Stop"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg><span>Stop</span></button>
+          <button type="button" class="ia-btn ia-btn-skip ia-sec" title="Skip this lead"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6l8.5 6L6 18zM16 6h2v12h-2z"/></svg><span>Skip</span></button>
+          <button type="button" class="ia-btn ia-btn-doubledial ia-sec" title="Redial the last number"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg><span>Redial</span></button>
+          <button type="button" class="ia-btn ia-btn-stop ia-stop" title="Stop"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg><span>Stop</span></button>
         </div>
         <div class="ia-toggles">
-          <div class="bmo-hs bmo-dd-toggle ia-toggle ia-toggle--dd" data-k="D" title="Redial each unanswered lead once automatically">
+          <div class="ia-hs ia-dd-toggle ia-toggle ia-toggle--dd" data-k="D" title="Redial each unanswered lead once automatically">
             <span>Double-dial</span><span class="ia-switch"><span></span></span>
           </div>
         </div>
-        <div class="bmo-hs ia-foot" data-k="P">\u00A9 Ian Brown</div>
+        <div class="ia-hs ia-foot" data-k="P">\u00A9 Ian Brown</div>
       </div>
     `;
-    document.body.appendChild(bmoWidget);
+    document.body.appendChild(iaWidget);
 
     // Suppressed after a genuine drag (see initDrag) so releasing
     // the mouse after moving him doesn't also fire this as a click and
     // immediately maximize him.
-    bmoWidget.querySelector('.bmo-bubble').addEventListener('click', () => {
-      if (bmoWasDragged) return;
-      if (!bmoMaximized) maximizeBmo();
+    iaWidget.querySelector('.ia-bubble').addEventListener('click', () => {
+      if (iaWasDragged) return;
+      if (!iaMaximized) maximizeBmo();
     });
-    bmoWidget.querySelector('.bmo-btn-call').addEventListener('click', (e) => { e.stopPropagation(); handleCallClick(); });
-    bmoWidget.querySelector('.bmo-btn-skip').addEventListener('click', (e) => { e.stopPropagation(); handleSkipClick(); });
-    bmoWidget.querySelector('.bmo-btn-doubledial').addEventListener('click', (e) => { e.stopPropagation(); handleDoubleDialClick(); });
-    bmoWidget.querySelector('.bmo-btn-stop').addEventListener('click', (e) => { e.stopPropagation(); handleStopClick(); });
-    bmoWidget.querySelector('.bmo-btn-theme').addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
-    bmoWidget.querySelector('.bmo-reminder__dismiss').addEventListener('click', (e) => { e.stopPropagation(); dismissReminder(); });
-    // Minimizes on a click anywhere on BMO himself EXCEPT the four
+    iaWidget.querySelector('.ia-btn-call').addEventListener('click', (e) => { e.stopPropagation(); handleCallClick(); });
+    iaWidget.querySelector('.ia-btn-skip').addEventListener('click', (e) => { e.stopPropagation(); handleSkipClick(); });
+    iaWidget.querySelector('.ia-btn-doubledial').addEventListener('click', (e) => { e.stopPropagation(); handleDoubleDialClick(); });
+    iaWidget.querySelector('.ia-btn-stop').addEventListener('click', (e) => { e.stopPropagation(); handleStopClick(); });
+    iaWidget.querySelector('.ia-btn-theme').addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
+    iaWidget.querySelector('.ia-reminder__dismiss').addEventListener('click', (e) => { e.stopPropagation(); dismissReminder(); });
+    // Minimizes on a click anywhere on Pip himself EXCEPT the four
     // buttons — scoped to just his own element now, not the whole page,
     // so clicking elsewhere (the leads table, etc.) no longer closes him.
-    bmoWidget.querySelector('.bmo-full').addEventListener('click', (e) => {
-      if (bmoWasDragged) return; // releasing a drag isn't a "click to minimize"
-      if (e.target.closest && e.target.closest('.bmo-btn')) return;
+    iaWidget.querySelector('.ia-full').addEventListener('click', (e) => {
+      if (iaWasDragged) return; // releasing a drag isn't a "click to minimize"
+      if (e.target.closest && e.target.closest('.ia-btn')) return;
       minimizeBmo();
     });
-    bmoWidget.querySelectorAll('.bmo-hs').forEach((el) => {
+    iaWidget.querySelectorAll('.ia-hs').forEach((el) => {
       el.addEventListener('click', (e) => {
         e.stopPropagation(); // a tap here shouldn't also minimize him
-        if (bmoWasDragged || !bmoMaximized) return;
+        if (iaWasDragged || !iaMaximized) return;
         if (el.getAttribute('data-k') === 'D') toggleDoubleDialMode();
         registerGoldTap(el.getAttribute('data-k'));
       });
@@ -7706,28 +7609,28 @@ function __jsEnsureSharedObserver() {
     setSnipingIndicator(window.__iansAssistantSniperActive);
     applySuperState();
     applyDoubleDialState();
-    const modeBtn = bmoWidget.querySelector('.ia-mode-btn');
+    const modeBtn = iaWidget.querySelector('.ia-mode-btn');
     if (modeBtn) modeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleMode(); });
     applyMode();
     try { GM_addValueChangeListener('ia-mode', () => applyMode()); } catch (e) { /* ignore */ }
     applyStoredPosition();
     initDrag();
 
-    return bmoWidget;
+    return iaWidget;
   }
 
-  // --- Dragging BMO — minimized bubble OR maximized body — with a floaty
+  // --- Dragging Pip — minimized bubble OR maximized body — with a floaty
   // "air resistance" trail ---------------------------------------------
   // Rendered position eases toward the cursor each frame (lerp) so he
   // trails behind, and leans opposite that lag. When maximized, his whole
   // body is a drag handle except the buttons and the client link; a plain
   // click (no movement) still minimizes as before.
   const POSITION_STORAGE_KEY = 'bmo-position';
-  const BMO_BOX_W = 280;
-  const BMO_BOX_H = 331;
+  const PANEL_W = 280;
+  const PANEL_H = 331;
   const BUBBLE_W = 96;
   const BUBBLE_H = 76;
-  let bmoWasDragged = false;
+  let iaWasDragged = false;
   let dragState = null;
 
   // --- "Shaken viciously" -> dead face --------------------------------
@@ -7735,7 +7638,7 @@ function __jsEnsureSharedObserver() {
   // frame (not raw mousemove events), so it reflects actual on-screen
   // back-and-forth motion rather than raw, possibly-jittery input.
   // Counts rapid left-right direction reversals; enough of them close
-  // together (a real shake) flips BMO to a dead face for 2 seconds,
+  // together (a real shake) flips Pip to a dead face for 2 seconds,
   // whether he's currently maximized or minimized.
   let shakeLastX = null;
   let shakeLastDirSign = null;
@@ -7754,11 +7657,11 @@ function __jsEnsureSharedObserver() {
   }
 
   function triggerDeadFace() {
-    if (!bmoWidget) return;
-    bmoWidget.classList.add('bmo-widget--dead');
+    if (!iaWidget) return;
+    iaWidget.classList.add('ia-widget--dead');
     if (deadFaceTimer) clearTimeout(deadFaceTimer);
     deadFaceTimer = setTimeout(() => {
-      if (bmoWidget) bmoWidget.classList.remove('bmo-widget--dead');
+      if (iaWidget) iaWidget.classList.remove('ia-widget--dead');
       deadFaceTimer = null;
     }, 2000);
   }
@@ -7795,7 +7698,7 @@ function __jsEnsureSharedObserver() {
   }
 
   function isShowingFull() {
-    return bmoMaximized || (bmoWidget && bmoWidget.classList.contains('bmo-widget--peeking'));
+    return iaMaximized || (iaWidget && iaWidget.classList.contains('ia-widget--peeking'));
   }
 
   // The widget box is always 280x331, but when minimized only the bubble
@@ -7804,51 +7707,51 @@ function __jsEnsureSharedObserver() {
   // whatever is actually showing instead.
   function clampToViewport(x, y) {
     const full = isShowingFull();
-    const minX = full ? 0 : -(BMO_BOX_W - BUBBLE_W);
-    const minY = full ? 0 : -(BMO_BOX_H - BUBBLE_H);
-    const maxX = Math.max(minX, window.innerWidth - BMO_BOX_W);
-    const maxY = Math.max(minY, window.innerHeight - BMO_BOX_H);
+    const minX = full ? 0 : -(PANEL_W - BUBBLE_W);
+    const minY = full ? 0 : -(PANEL_H - BUBBLE_H);
+    const maxX = Math.max(minX, window.innerWidth - PANEL_W);
+    const maxY = Math.max(minY, window.innerHeight - PANEL_H);
     return { x: Math.min(Math.max(minX, x), maxX), y: Math.min(Math.max(minY, y), maxY) };
   }
 
   function applyStoredPosition() {
     const pos = getStoredPosition();
-    if (!pos || !bmoWidget) return;
+    if (!pos || !iaWidget) return;
     const clamped = clampToViewport(pos.x, pos.y);
-    bmoWidget.style.left = clamped.x + 'px';
-    bmoWidget.style.top = clamped.y + 'px';
-    bmoWidget.style.right = 'auto';
-    bmoWidget.style.bottom = 'auto';
+    iaWidget.style.left = clamped.x + 'px';
+    iaWidget.style.top = clamped.y + 'px';
+    iaWidget.style.right = 'auto';
+    iaWidget.style.bottom = 'auto';
   }
 
   // Opening him from a bubble parked near the top/left edge would spill
   // the full body off-screen — slide him back in.
   function reclampToViewport(animate) {
-    if (!bmoWidget || !bmoWidget.style.left || dragState) return; // default corner is always on-screen
-    const x = parseFloat(bmoWidget.style.left);
-    const y = parseFloat(bmoWidget.style.top);
+    if (!iaWidget || !iaWidget.style.left || dragState) return; // default corner is always on-screen
+    const x = parseFloat(iaWidget.style.left);
+    const y = parseFloat(iaWidget.style.top);
     const c = clampToViewport(x, y);
     if (c.x === x && c.y === y) return;
     if (animate) {
-      bmoWidget.style.transition = 'left .35s cubic-bezier(.34,1.56,.64,1), top .35s cubic-bezier(.34,1.56,.64,1)';
-      setTimeout(() => { if (bmoWidget && !dragState) bmoWidget.style.transition = ''; }, 400);
+      iaWidget.style.transition = 'left .35s cubic-bezier(.34,1.56,.64,1), top .35s cubic-bezier(.34,1.56,.64,1)';
+      setTimeout(() => { if (iaWidget && !dragState) iaWidget.style.transition = ''; }, 400);
     }
-    bmoWidget.style.left = c.x + 'px';
-    bmoWidget.style.top = c.y + 'px';
+    iaWidget.style.left = c.x + 'px';
+    iaWidget.style.top = c.y + 'px';
   }
 
   window.addEventListener('resize', () => reclampToViewport(false));
 
   function isDragHandle(target) {
     if (!target || !target.closest) return false;
-    if (target.closest('.bmo-btn, .bmo-screen-info__client, .bmo-reminder')) return false;
-    if (target.closest('.bmo-bubble')) return !bmoMaximized;
-    if (target.closest('.bmo-full')) return bmoMaximized;
+    if (target.closest('.ia-btn, .ia-screen-info__client, .ia-reminder')) return false;
+    if (target.closest('.ia-bubble')) return !iaMaximized;
+    if (target.closest('.ia-full')) return iaMaximized;
     return false;
   }
 
   function initDrag() {
-    bmoWidget.addEventListener('mousedown', (e) => {
+    iaWidget.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return; // left button only
       if (!isDragHandle(e.target)) return;
       e.preventDefault();
@@ -7858,28 +7761,28 @@ function __jsEnsureSharedObserver() {
       if (dragState && dragState.animFrame) cancelAnimationFrame(dragState.animFrame);
 
       let left, top;
-      if (bmoWidget.style.left) {
-        left = parseFloat(bmoWidget.style.left);
-        top = parseFloat(bmoWidget.style.top);
+      if (iaWidget.style.left) {
+        left = parseFloat(iaWidget.style.left);
+        top = parseFloat(iaWidget.style.top);
       } else {
-        const rect = bmoWidget.getBoundingClientRect();
+        const rect = iaWidget.getBoundingClientRect();
         left = rect.left;
         top = rect.top;
       }
       // Switch from right/bottom anchoring to left/top on first grab.
-      bmoWidget.style.left = left + 'px';
-      bmoWidget.style.top = top + 'px';
-      bmoWidget.style.right = 'auto';
-      bmoWidget.style.bottom = 'auto';
-      bmoWidget.style.transition = 'none';
+      iaWidget.style.left = left + 'px';
+      iaWidget.style.top = top + 'px';
+      iaWidget.style.right = 'auto';
+      iaWidget.style.bottom = 'auto';
+      iaWidget.style.transition = 'none';
 
       const grabOffsetX = e.clientX - left;
       const grabOffsetY = e.clientY - top;
       // Tilt pivots around the point actually being held, so dragging the
       // big maximized body leans naturally instead of swinging around a
       // fixed spot near the bubble.
-      bmoWidget.style.transformOrigin = grabOffsetX + 'px ' + grabOffsetY + 'px';
-      bmoWidget.classList.add('bmo-widget--dragging');
+      iaWidget.style.transformOrigin = grabOffsetX + 'px ' + grabOffsetY + 'px';
+      iaWidget.classList.add('ia-widget--dragging');
       resetShakeTracking();
 
       preOpenPos = null; // moved by hand: stay where dropped
@@ -7899,7 +7802,7 @@ function __jsEnsureSharedObserver() {
     });
   }
 
-  // --- Easter egg: slam BMO into a screen edge fast and his screen cracks
+  // --- Easter egg: slam Pip into a screen edge fast and his screen cracks
   // for a moment. Measures how fast the mouse is moving at the instant he
   // first hits the edge (rather than sliding along it).
   const CRACK_SPEED_PX_PER_MS = 3;
@@ -7908,13 +7811,13 @@ function __jsEnsureSharedObserver() {
   let lastCrackAt = 0;
 
   function triggerCrack() {
-    if (!bmoWidget || Date.now() - lastCrackAt < 4000) return;
+    if (!iaWidget || Date.now() - lastCrackAt < 4000) return;
     lastCrackAt = Date.now();
-    bmoWidget.classList.remove('bmo-widget--cracked');
-    void bmoWidget.offsetWidth;
-    bmoWidget.classList.add('bmo-widget--cracked');
+    iaWidget.classList.remove('ia-widget--cracked');
+    void iaWidget.offsetWidth;
+    iaWidget.classList.add('ia-widget--cracked');
     if (crackTimer) clearTimeout(crackTimer);
-    crackTimer = setTimeout(() => { if (bmoWidget) bmoWidget.classList.remove('bmo-widget--cracked'); }, CRACK_SHOW_MS);
+    crackTimer = setTimeout(() => { if (iaWidget) iaWidget.classList.remove('ia-widget--cracked'); }, CRACK_SHOW_MS);
   }
 
   function onDragMove(e) {
@@ -7954,8 +7857,8 @@ function __jsEnsureSharedObserver() {
     dragState.currentX += dx * 0.22;
     dragState.currentY += dy * 0.22;
 
-    bmoWidget.style.left = dragState.currentX + 'px';
-    bmoWidget.style.top = dragState.currentY + 'px';
+    iaWidget.style.left = dragState.currentX + 'px';
+    iaWidget.style.top = dragState.currentY + 'px';
 
     // Leans INTO the direction of travel -- dragging right leans
     // clockwise, dragging left leans counter-clockwise (CSS rotate()'s
@@ -7964,7 +7867,7 @@ function __jsEnsureSharedObserver() {
     // direction and rough magnitude of the current motion -- so no sign
     // flip is needed, unlike the old "trail behind" lean this replaced.
     const tilt = Math.max(-18, Math.min(18, dx * 0.7));
-    bmoWidget.style.transform = 'rotate(' + tilt.toFixed(2) + 'deg)';
+    iaWidget.style.transform = 'rotate(' + tilt.toFixed(2) + 'deg)';
 
     trackShake(dragState.currentX);
 
@@ -7976,16 +7879,16 @@ function __jsEnsureSharedObserver() {
   }
 
   function finishDragSettle() {
-    bmoWidget.style.left = dragState.targetX + 'px';
-    bmoWidget.style.top = dragState.targetY + 'px';
-    bmoWidget.style.transition = 'transform .4s ease';
-    bmoWidget.style.transform = 'rotate(0deg)';
+    iaWidget.style.left = dragState.targetX + 'px';
+    iaWidget.style.top = dragState.targetY + 'px';
+    iaWidget.style.transition = 'transform .4s ease';
+    iaWidget.style.transform = 'rotate(0deg)';
     try { GM_setValue(POSITION_STORAGE_KEY, JSON.stringify({ x: dragState.targetX, y: dragState.targetY })); } catch (e) { /* best-effort */ }
     dragState = null;
     setTimeout(() => {
-      if (!bmoWidget || dragState) return; // a new drag already started — leave its settings alone
-      bmoWidget.style.transition = '';
-      bmoWidget.style.transformOrigin = '';
+      if (!iaWidget || dragState) return; // a new drag already started — leave its settings alone
+      iaWidget.style.transition = '';
+      iaWidget.style.transformOrigin = '';
     }, 400);
   }
 
@@ -7993,12 +7896,12 @@ function __jsEnsureSharedObserver() {
     document.removeEventListener('mousemove', onDragMove);
     document.removeEventListener('mouseup', onDragEnd);
     if (!dragState) return;
-    bmoWidget.classList.remove('bmo-widget--dragging');
+    iaWidget.classList.remove('ia-widget--dragging');
     // Swallow only the click that immediately follows this mouseup. The
-    // reset is deferred so a release outside BMO (where no click fires)
+    // reset is deferred so a release outside Pip (where no click fires)
     // can't leave the flag stuck and eat the next real click.
-    bmoWasDragged = dragState.moved;
-    setTimeout(() => { bmoWasDragged = false; }, 0);
+    iaWasDragged = dragState.moved;
+    setTimeout(() => { iaWasDragged = false; }, 0);
     dragState.settling = true;
     if (!dragState.animFrame) finishDragSettle();
   }
@@ -8033,12 +7936,12 @@ function __jsEnsureSharedObserver() {
 
   let rainbowTheme = false; // rainbow picked as the skin (owner) or via the secret combo
   function applyTheme(name) {
-    if (!bmoWidget) return;
-    bmoWidget.classList.remove('bmo-widget--midnight', 'bmo-widget--pink', 'bmo-widget--black', 'bmo-widget--gold');
-    if (name === 'midnight') bmoWidget.classList.add('bmo-widget--midnight');
-    else if (name === 'pink') bmoWidget.classList.add('bmo-widget--pink');
-    else if (name === 'black') bmoWidget.classList.add('bmo-widget--black');
-    else if (name === 'gold') bmoWidget.classList.add('bmo-widget--gold');
+    if (!iaWidget) return;
+    iaWidget.classList.remove('ia-widget--midnight', 'ia-widget--pink', 'ia-widget--black', 'ia-widget--gold');
+    if (name === 'midnight') iaWidget.classList.add('ia-widget--midnight');
+    else if (name === 'pink') iaWidget.classList.add('ia-widget--pink');
+    else if (name === 'black') iaWidget.classList.add('ia-widget--black');
+    else if (name === 'gold') iaWidget.classList.add('ia-widget--gold');
     // 'teal' is the unmarked default -- no class needed for it. Rainbow
     // sits on top of the teal base.
     rainbowTheme = name === 'rainbow';
@@ -8046,18 +7949,18 @@ function __jsEnsureSharedObserver() {
   }
 
   function getCurrentTheme() {
-    if (!bmoWidget) return 'teal';
+    if (!iaWidget) return 'teal';
     if (rainbowTheme) return 'rainbow';
-    if (bmoWidget.classList.contains('bmo-widget--midnight')) return 'midnight';
-    if (bmoWidget.classList.contains('bmo-widget--pink')) return 'pink';
-    if (bmoWidget.classList.contains('bmo-widget--black')) return 'black';
-    if (bmoWidget.classList.contains('bmo-widget--gold')) return 'gold';
+    if (iaWidget.classList.contains('ia-widget--midnight')) return 'midnight';
+    if (iaWidget.classList.contains('ia-widget--pink')) return 'pink';
+    if (iaWidget.classList.contains('ia-widget--black')) return 'black';
+    if (iaWidget.classList.contains('ia-widget--gold')) return 'gold';
     return 'teal';
   }
 
   function toggleTheme() {
-    if (!bmoWidget) return;
-    // Super BMO earned today: the rainbow is locked in until the 2pm GMT
+    if (!iaWidget) return;
+    // Super Pip earned today: the rainbow is locked in until the 2pm GMT
     // reset. The color button just gives a little "locked" wiggle.
     if (superLocked()) { showLockedWiggle(); return; }
     const cycle = themeCycle();
@@ -8070,41 +7973,41 @@ function __jsEnsureSharedObserver() {
     try { GM_setValue(THEME_STORAGE_KEY, next); } catch (e) { /* best-effort */ }
   }
 
-  // Colors are never locked any more: Super BMO only takes over while
+  // Colors are never locked any more: Super Pip only takes over while
   // he's actively calling, and your own color comes back when stopped.
   function superLocked() {
     return false;
   }
 
   function showLockedWiggle() {
-    const pill = bmoWidget && bmoWidget.querySelector('.bmo-btn-theme');
+    const pill = iaWidget && iaWidget.querySelector('.ia-btn-theme');
     if (!pill) return;
-    pill.classList.remove('bmo-locked-wiggle');
+    pill.classList.remove('ia-locked-wiggle');
     void pill.getBBox();
-    pill.classList.add('bmo-locked-wiggle');
+    pill.classList.add('ia-locked-wiggle');
   }
 
   // --- "Level up" celebration --------------------------------------------
   let levelUpTimer = null;
   function playLevelUp(withSubtitle) {
     const el = ensureBmo();
-    const wasMaximized = bmoMaximized;
-    // If he's minimized, briefly show the full BMO so the moment is seen.
-    if (!wasMaximized) el.classList.add('bmo-widget--peeking');
-    el.classList.toggle('bmo-widget--levelup-sub', !!withSubtitle);
-    el.classList.remove('bmo-widget--levelup');
+    const wasMaximized = iaMaximized;
+    // If he's minimized, briefly show the full Pip so the moment is seen.
+    if (!wasMaximized) el.classList.add('ia-widget--peeking');
+    el.classList.toggle('ia-widget--levelup-sub', !!withSubtitle);
+    el.classList.remove('ia-widget--levelup');
     void el.offsetWidth;
-    el.classList.add('bmo-widget--levelup');
+    el.classList.add('ia-widget--levelup');
     triggerWave();
     if (levelUpTimer) clearTimeout(levelUpTimer);
     levelUpTimer = setTimeout(() => {
-      el.classList.remove('bmo-widget--levelup');
-      if (!wasMaximized && !bmoMaximized) el.classList.remove('bmo-widget--peeking');
+      el.classList.remove('ia-widget--levelup');
+      if (!wasMaximized && !iaMaximized) el.classList.remove('ia-widget--peeking');
     }, 2600);
   }
 
   // --- Secret gold skin ------------------------------------------------
-  // Shown only when three of BMO's plain, decorative body parts are
+  // Shown only when three of Pip's plain, decorative body parts are
   // tapped in one exact order while he's open. Only a salted SHA-256 hash
   // of that order lives in this file, never the order itself, so reading
   // the source doesn't reveal it. Taps more than 1.5s apart restart the
@@ -8130,8 +8033,8 @@ function __jsEnsureSharedObserver() {
     if (goldTaps.length < GOLD_SEQ_LEN) return;
     let h, hr;
     try {
-      h = await sha256Hex('bmo-gold:' + goldTaps);
-      hr = await sha256Hex('bmo-rainbow:' + goldTaps);
+      h = await sha256Hex('ia-gold:' + goldTaps);
+      hr = await sha256Hex('ia-rainbow:' + goldTaps);
     } catch (e) { return; }
     if ((hr === RAINBOW_HASH || h === GOLD_HASH) && superLocked()) { goldTaps = ''; showLockedWiggle(); return; }
     if (hr === RAINBOW_HASH) {
@@ -8145,66 +8048,66 @@ function __jsEnsureSharedObserver() {
     goldTaps = '';
     if (getCurrentTheme() === 'gold') { applyTheme(getStoredTheme() === 'gold' ? 'teal' : getStoredTheme()); return; }
     applyTheme('gold'); // deliberately not saved
-    bmoWidget.classList.add('bmo-widget--gold-unlock');
-    setTimeout(() => bmoWidget && bmoWidget.classList.remove('bmo-widget--gold-unlock'), 1600);
+    iaWidget.classList.add('ia-widget--gold-unlock');
+    setTimeout(() => iaWidget && iaWidget.classList.remove('ia-widget--gold-unlock'), 1600);
     triggerWave();
   }
 
   // --- Sniper-active indicator ---------------------------------------
   // The lead sniper (PART 5, below) lives in its own IIFE, so it can't
-  // touch bmoWidget directly. Instead it flips a boolean on window and
+  // touch iaWidget directly. Instead it flips a boolean on window and
   // dispatches an event; this is the one place that listens and applies
   // it as a class overlay on top of whatever theme is active, rather
   // than as a fourth theme, so it always reverts to the real theme
   // (teal/pink/black) the moment sniping turns off instead of getting
   // "stuck" chosen like a theme would.
   function setSnipingIndicator(active) {
-    if (!bmoWidget) return;
-    bmoWidget.classList.toggle('bmo-widget--sniping', !!active);
+    if (!iaWidget) return;
+    iaWidget.classList.toggle('ia-widget--sniping', !!active);
   }
   window.addEventListener('iansassistant:sniper-state', (e) => {
     setSnipingIndicator(e.detail && e.detail.active);
   });
 
   function triggerWave() {
-    if (!bmoWidget) return;
-    ['.bmo-arm-left', '.bmo-arm-right'].forEach((sel) => {
-      const arm = bmoWidget.querySelector(sel);
+    if (!iaWidget) return;
+    ['.ia-arm-left', '.ia-arm-right'].forEach((sel) => {
+      const arm = iaWidget.querySelector(sel);
       if (!arm) return;
-      arm.classList.remove('bmo-waving');
+      arm.classList.remove('ia-waving');
       void arm.getBBox && arm.getBBox(); // restart the CSS animation (SVG-safe reflow trigger)
-      arm.classList.add('bmo-waving');
+      arm.classList.add('ia-waving');
     });
   }
 
-  // Used when BMO is currently minimized and the hourly reminder becomes
+  // Used when Pip is currently minimized and the hourly reminder becomes
   // due — briefly shows the full character just long enough to fade the
   // arms in, wave, and fade them out again, then returns to the
   // minimized bubble. Deliberately non-interactive (see the
-  // .bmo-widget--peeking CSS) and never touches bmoMaximized, so this is
-  // purely a visual nudge, not BMO actually opening.
+  // .ia-widget--peeking CSS) and never touches iaMaximized, so this is
+  // purely a visual nudge, not Pip actually opening.
   let peekTimeout = null;
   function peekAndWave() {
     const el = ensureBmo();
-    if (bmoMaximized) { triggerWave(); return; }
-    el.classList.add('bmo-widget--peeking');
+    if (iaMaximized) { triggerWave(); return; }
+    el.classList.add('ia-widget--peeking');
     reclampToViewport(true);
     triggerWave();
     if (peekTimeout) clearTimeout(peekTimeout);
     peekTimeout = setTimeout(() => {
-      if (!bmoMaximized) el.classList.remove('bmo-widget--peeking');
+      if (!iaMaximized) el.classList.remove('ia-widget--peeking');
     }, 2300); // just past the 2.2s wave animation, so the peek doesn't cut off mid-wave
   }
 
-  // Where the bubble sat before opening — if opening had to slide BMO
+  // Where the bubble sat before opening — if opening had to slide Pip
   // into view, minimizing glides him back there in the same motion
   // (instead of shrinking first and jumping afterwards).
   let preOpenPos = null;
   async function maximizeBmo() {
-    bmoMaximized = true;
+    iaMaximized = true;
     const el = ensureBmo();
     preOpenPos = el.style.left ? { left: el.style.left, top: el.style.top } : null;
-    el.classList.add('bmo-widget--maximized');
+    el.classList.add('ia-widget--maximized');
     reclampToViewport(true);
     triggerWave();
     if (!dialerInitialized) {
@@ -8217,21 +8120,21 @@ function __jsEnsureSharedObserver() {
   }
 
   function minimizeBmo() {
-    bmoMaximized = false;
-    if (!bmoWidget) return;
+    iaMaximized = false;
+    if (!iaWidget) return;
     const back = preOpenPos;
     preOpenPos = null;
-    if (back && !dragState && (bmoWidget.style.left !== back.left || bmoWidget.style.top !== back.top)) {
-      bmoWidget.style.transition = 'left .35s cubic-bezier(.34,1.56,.64,1), top .35s cubic-bezier(.34,1.56,.64,1)';
-      bmoWidget.style.left = back.left;
-      bmoWidget.style.top = back.top;
-      setTimeout(() => { if (bmoWidget && !dragState) bmoWidget.style.transition = ''; }, 400);
+    if (back && !dragState && (iaWidget.style.left !== back.left || iaWidget.style.top !== back.top)) {
+      iaWidget.style.transition = 'left .35s cubic-bezier(.34,1.56,.64,1), top .35s cubic-bezier(.34,1.56,.64,1)';
+      iaWidget.style.left = back.left;
+      iaWidget.style.top = back.top;
+      setTimeout(() => { if (iaWidget && !dragState) iaWidget.style.transition = ''; }, 400);
     }
-    bmoWidget.classList.remove('bmo-widget--maximized');
+    iaWidget.classList.remove('ia-widget--maximized');
   }
 
-  // First press while BMO is running: stop, and clearly show it stopped
-  // (BMO stays open). A press when he's not running minimizes him.
+  // First press while Pip is running: stop, and clearly show it stopped
+  // (Pip stays open). A press when he's not running minimizes him.
   function handleStopClick() {
     if (isAutoActive()) {
       stopAutoRun();
@@ -8248,54 +8151,54 @@ function __jsEnsureSharedObserver() {
   function showStopped() {
     const el = ensureBmo();
     if (!currentPanelRow) {
-      el.querySelector('.bmo-face').style.display = 'none';
-      el.querySelector('.bmo-screen-info').style.display = '';
-      el.querySelector('.bmo-screen-info__label').textContent = 'Auto-dial';
-      const clientEl = el.querySelector('.bmo-screen-info__client');
+      el.querySelector('.ia-face').style.display = 'none';
+      el.querySelector('.ia-screen-info').style.display = '';
+      el.querySelector('.ia-screen-info__label').textContent = 'Auto-dial';
+      const clientEl = el.querySelector('.ia-screen-info__client');
       clientEl.textContent = 'Stopped';
       clientEl.removeAttribute('href');
-      el.querySelector('.bmo-screen-info__route').textContent = '';
+      el.querySelector('.ia-screen-info__route').textContent = '';
     }
     setPanelStatus('\u25A0 Stopped \u2014 press Stop again to close');
-    el.classList.remove('bmo-widget--stop-flash');
+    el.classList.remove('ia-widget--stop-flash');
     void el.offsetWidth;
-    el.classList.add('bmo-widget--stop-flash');
+    el.classList.add('ia-widget--stop-flash');
   }
 
   // ==========================================================================
   // RingCentral Embeddable — call-status watcher for the auto-dialer
   // ==========================================================================
-  // BMO still dials the normal way (tel: links -> your RingCentral app). The
+  // Pip still dials the normal way (tel: links -> your RingCentral app). The
   // RingCentral panel is used ONLY to watch call status: it reports every
-  // active call on your RingCentral account, on any device, so BMO can tell
-  // when a call ends. Once you press Call, BMO stays "running" — every time
+  // active call on your RingCentral account, on any device, so Pip can tell
+  // when a call ends. Once you press Call, Pip stays "running" — every time
   // a call ends he waits a few seconds, then dials the next lead by himself
   // — until you press Stop.
   //
   // Chrome may refuse a tel: link that isn't triggered by a real click. If
-  // no call shows up within a few seconds of an automatic dial, BMO assumes
+  // no call shows up within a few seconds of an automatic dial, Pip assumes
   // Chrome blocked it and waits for you to press Call for that one lead.
   // Root cause of calls only working while signed into the widget:
   // RingCentral's adapter.js script runs INSIDE the BO page and takes over
   // tel: phone links there — signed out, it swallowed them, so neither the
-  // BO's own phone links nor BMO's reached the Windows app. So adapter.js
+  // BO's own phone links nor Pip's reached the Windows app. So adapter.js
   // is no longer used at all. The RingCentral phone is loaded as a plain
   // iframe instead: it lives in its own sealed-off box, can't touch anything
-  // on the BO page, and still reports call status to BMO.
+  // on the BO page, and still reports call status to Pip.
   const RC_APP_URL = 'https://apps.ringcentral.com/integration/ringcentral-embeddable/latest/app.html';
   const AUTO_NEXT_DELAY_SEC = 4;
   const CALL_APPEAR_TIMEOUT_MS = 12000;
   const pageWin = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
 
   let autoRunning = false;      // set by pressing Call, cleared by Stop
-  let awaitingCallEnd = false;  // BMO dialed and is watching for that call
+  let awaitingCallEnd = false;  // Pip dialed and is watching for that call
   let callSeen = false;         // RingCentral has reported that call as live
   let callAppearTimer = null;
   let autoNextTimer = null;
   let autoNextCountdown = null;
   let pendingAutoNext = false;  // next dial is waiting for your own call to end
-  let bmoCallDigits = null;     // number BMO is currently calling (last 10 digits)
-  let bmoCallConnectedAt = 0;   // when BMO's current call connected (0 = never)
+  let iaCallDigits = null;     // number Pip is currently calling (last 10 digits)
+  let iaCallConnectedAt = 0;   // when Pip's current call connected (0 = never)
   let leadRedialed = false;     // double-dial: this lead already got its 2nd call
   // Every live call RingCentral reports on your account: key -> { mine, seen }
   const activeCalls = new Map();
@@ -8309,7 +8212,7 @@ function __jsEnsureSharedObserver() {
     try { return !!GM_getValue(DOUBLE_DIAL_KEY, false); } catch (e) { return false; }
   }
   function applyDoubleDialState() {
-    if (bmoWidget) bmoWidget.classList.toggle('bmo-widget--dd-on', doubleDialOn());
+    if (iaWidget) iaWidget.classList.toggle('ia-widget--dd-on', doubleDialOn());
   }
   function toggleDoubleDialMode() {
     try { GM_setValue(DOUBLE_DIAL_KEY, !doubleDialOn()); } catch (e) { /* best-effort */ }
@@ -8319,18 +8222,18 @@ function __jsEnsureSharedObserver() {
   // --- Mode: dark / light / navy ------------------------------------------
   var IA_MODE_LIST = ['dark', 'light', 'navy'];
   function applyMode() {
-    if (!bmoWidget) return;
+    if (!iaWidget) return;
     const m = iaMode();
-    ['dark', 'light', 'navy'].forEach((x) => bmoWidget.classList.toggle('ia-mode-' + x, x === m));
+    ['dark', 'light', 'navy'].forEach((x) => iaWidget.classList.toggle('ia-mode-' + x, x === m));
   }
   function cycleMode() {
     const next = IA_MODE_LIST[(IA_MODE_LIST.indexOf(iaMode()) + 1) % IA_MODE_LIST.length];
     try { GM_setValue('ia-mode', next); } catch (e) { /* best-effort */ }
     applyMode();
   }
-  // Pip's face while BMO's own call is live.
+  // Pip's face while Pip's own call is live.
   function setOnCall(on) {
-    if (bmoWidget) bmoWidget.classList.toggle('bmo-widget--oncall', !!on);
+    if (iaWidget) iaWidget.classList.toggle('ia-widget--oncall', !!on);
   }
   function manualCallActive() {
     const now = Date.now();
@@ -8342,9 +8245,9 @@ function __jsEnsureSharedObserver() {
   }
 
   function loadRingCentral() {
-    if (document.getElementById('js-rc-panel') || !document.body) return;
+    if (document.getElementById('ia-rc-panel') || !document.body) return;
     const panel = document.createElement('div');
-    panel.id = 'js-rc-panel';
+    panel.id = 'ia-rc-panel';
     const frame = document.createElement('iframe');
     frame.id = 'rc-widget-adapter-frame';
     frame.src = RC_APP_URL;
@@ -8354,7 +8257,7 @@ function __jsEnsureSharedObserver() {
   }
 
   function rcContainer() {
-    return document.getElementById('js-rc-panel');
+    return document.getElementById('ia-rc-panel');
   }
 
   // Dials through your normal tel: handler (the RingCentral app) and starts
@@ -8375,8 +8278,8 @@ function __jsEnsureSharedObserver() {
     if (!rcContainer()) return; // no status watcher -> old one-click-per-call mode
     awaitingCallEnd = true;
     callSeen = false;
-    bmoCallDigits = digitsOf(number);
-    bmoCallConnectedAt = 0;
+    iaCallDigits = digitsOf(number);
+    iaCallConnectedAt = 0;
     if (callAppearTimer) clearTimeout(callAppearTimer);
     callAppearTimer = setTimeout(() => {
       callAppearTimer = null;
@@ -8397,10 +8300,10 @@ function __jsEnsureSharedObserver() {
     awaitingCallEnd = false;
     callSeen = false;
     pendingAutoNext = false;
-    bmoCallDigits = null;
+    iaCallDigits = null;
     if (callAppearTimer) { clearTimeout(callAppearTimer); callAppearTimer = null; }
     clearAutoNext();
-    if (bmoWidget) bmoWidget.classList.remove('bmo-widget--running');
+    if (iaWidget) iaWidget.classList.remove('ia-widget--running');
     if (typeof applySuperState === 'function') applySuperState();
     if (currentPanelRow) setPanelStatus('Stopped');
   }
@@ -8408,17 +8311,17 @@ function __jsEnsureSharedObserver() {
   function startAutoRun() {
     if (!rcContainer()) return; // can't detect call ends without RingCentral
     autoRunning = true;
-    if (bmoWidget) bmoWidget.classList.add('bmo-widget--running');
+    if (iaWidget) iaWidget.classList.add('ia-widget--running');
     if (typeof applySuperState === 'function') applySuperState();
   }
 
   function onCallEnded() {
     setOnCall(false);
-    if (!awaitingCallEnd || !callSeen) return; // not a call BMO is watching
+    if (!awaitingCallEnd || !callSeen) return; // not a call Pip is watching
     awaitingCallEnd = false;
     callSeen = false;
-    const answered = bmoCallConnectedAt && (Date.now() - bmoCallConnectedAt) / 1000 > ANSWERED_AFTER_SEC;
-    bmoCallDigits = null;
+    const answered = iaCallConnectedAt && (Date.now() - iaCallConnectedAt) / 1000 > ANSWERED_AFTER_SEC;
+    iaCallDigits = null;
     if (!autoRunning) { setPanelStatus('Call ended'); return; }
 
     // Double dial: unanswered calls get one immediate second try.
@@ -8468,7 +8371,7 @@ function __jsEnsureSharedObserver() {
     }
   }
 
-  // Tracks EVERY call on your RingCentral account, and tells BMO's own
+  // Tracks EVERY call on your RingCentral account, and tells Pip's own
   // call (outbound to the number he just dialed) apart from calls you make
   // or take yourself. Your own calls pause the auto-dialer until they end.
   pageWin.addEventListener('message', (e) => {
@@ -8488,22 +8391,22 @@ function __jsEnsureSharedObserver() {
     if (live) {
       let mine = known ? known.mine : false;
       if (!known && awaitingCallEnd && call.direction !== 'Inbound') {
-        // BMO's call: outbound to the number he dialed (or, if RingCentral
+        // Pip's call: outbound to the number he dialed (or, if RingCentral
         // doesn't say the number, the first outbound call after he dialed).
-        mine = toDigits ? toDigits === bmoCallDigits : !callSeen;
+        mine = toDigits ? toDigits === iaCallDigits : !callSeen;
       }
       activeCalls.set(key, { mine, seen: Date.now() });
       if (mine) {
         callSeen = true;
         setOnCall(true);
-        if (st === 'CallConnected' && !bmoCallConnectedAt) bmoCallConnectedAt = Date.now();
+        if (st === 'CallConnected' && !iaCallConnectedAt) iaCallConnectedAt = Date.now();
         if (!manualCallActive()) setPanelStatus(st === 'Ringing' ? 'Ringing\u2026' : st === 'OnHold' ? 'On hold' : 'On call');
       } else {
         onManualCallsChanged();
       }
     } else if (st === 'NoCall') {
       activeCalls.delete(key);
-      const wasMine = known ? known.mine : (awaitingCallEnd && callSeen && (!toDigits || toDigits === bmoCallDigits));
+      const wasMine = known ? known.mine : (awaitingCallEnd && callSeen && (!toDigits || toDigits === iaCallDigits));
       if (wasMine) onCallEnded();
       else onManualCallsChanged();
     }
@@ -8516,7 +8419,7 @@ function __jsEnsureSharedObserver() {
   // button opens RingCentral's panel fully expanded beside it (the CRM
   // button acts as the minimized state), and clicking it again or pressing
   // Esc hides it. Hidden, the panel keeps running so call status still
-  // reaches BMO. The CRM widget's drag handle still moves it.
+  // reaches Pip. The CRM widget's drag handle still moves it.
   const RC_PANEL_W = 300;
   const RC_PANEL_H = 500;
   let rcPanelOpen = false;
@@ -8567,7 +8470,7 @@ function __jsEnsureSharedObserver() {
   // check. RingCentral never touches <html>, so this can't be undone.
   function setRcPanelOpen(open) {
     rcPanelOpen = open;
-    document.documentElement.setAttribute('data-js-rc', open ? 'open' : 'closed');
+    document.documentElement.setAttribute('data-ia-rc', open ? 'open' : 'closed');
     const c = rcContainer();
     if (!c) return;
     expandRcIfMinimized(c); // always keep it expanded underneath
@@ -8594,7 +8497,7 @@ function __jsEnsureSharedObserver() {
   ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'click'].forEach((type) => {
     window.addEventListener(type, (e) => {
       if (allowRcToggle) return;
-      const toggle = e.target && e.target.closest && e.target.closest('#js-rc-panel .Adapter_toggle');
+      const toggle = e.target && e.target.closest && e.target.closest('#ia-rc-panel .Adapter_toggle');
       if (!toggle) return;
       e.preventDefault();
       e.stopPropagation();
@@ -8617,7 +8520,7 @@ function __jsEnsureSharedObserver() {
     if (!rcContainer()) loadRingCentral();
     const c = rcContainer();
     if (!c) return;
-    if (!document.documentElement.hasAttribute('data-js-rc')) { setRcPanelOpen(false); return; }
+    if (!document.documentElement.hasAttribute('data-ia-rc')) { setRcPanelOpen(false); return; }
     const header = c.querySelector('.Adapter_header');
     const minimized = c.classList.contains('Adapter_minimized') || (header && header.classList.contains('Adapter_minimized'));
     if (minimized) {
@@ -8630,7 +8533,7 @@ function __jsEnsureSharedObserver() {
   });
 
   GM_addStyle(`
-    #js-rc-panel {
+    #ia-rc-panel {
       position: fixed;
       width: ${RC_PANEL_W}px;
       height: ${RC_PANEL_H}px;
@@ -8638,18 +8541,18 @@ function __jsEnsureSharedObserver() {
       background: #fff;
       overflow: hidden;
     }
-    #js-rc-panel iframe { width: 100%; height: 100%; border: 0; display: block; }
-    html:not([data-js-rc="open"]) #js-rc-panel {
+    #ia-rc-panel iframe { width: 100%; height: 100%; border: 0; display: block; }
+    html:not([data-ia-rc="open"]) #ia-rc-panel {
       visibility: hidden !important;
       opacity: 0 !important;
       pointer-events: none !important;
     }
-    html[data-js-rc="closed"] #js-rc-panel {
+    html[data-ia-rc="closed"] #ia-rc-panel {
       visibility: hidden !important;
       opacity: 0 !important;
       pointer-events: none !important;
     }
-    html[data-js-rc="open"] #js-rc-panel {
+    html[data-ia-rc="open"] #ia-rc-panel {
       visibility: visible !important;
       opacity: 1 !important;
       box-shadow: 0 10px 30px rgba(0,0,0,.35) !important;
@@ -8734,7 +8637,7 @@ function __jsEnsureSharedObserver() {
   function smsClientName(chat) {
     const cp = Array.from(document.querySelectorAll('span')).find((sp) => sp.classList.contains('cursor-[copy]') && /^[\p{L}][\p{L} .'-]*$/u.test(sp.textContent.trim()));
     if (cp) return cp.textContent.trim();
-    const a = chat.querySelector('.chat__message--not-me:not(.chat__message--system):not(.js-sms-msg) .chat__message__author');
+    const a = chat.querySelector('.chat__message--not-me:not(.chat__message--system):not(.ia-sms-msg) .chat__message__author');
     if (a) return a.textContent.replace(/\+[\d*]+/, '').trim();
     const d = chat.querySelector('.chat__system-message__description');
     const m = d && d.textContent.match(/\(([^)]+)\)/);
@@ -8766,7 +8669,7 @@ function __jsEnsureSharedObserver() {
   function smsLooksPhone(t) { return SMS_PHONE_LIKE.test(t) && t.replace(/[^\d*]/g, '').length >= 7 && t.replace(/[^\d*]/g, '').length <= 16; }
   function smsIsRevealed(t) { return smsLooksPhone(t) && t.indexOf('*') < 0; }
   function smsPhoneCell() {
-    const all = Array.from(document.querySelectorAll('.cursor-pointer')).filter((el) => el.children.length === 0 && smsLooksPhone(smsPhoneText(el)) && !el.closest('.chat, .js-sms, .bmo-widget, table'));
+    const all = Array.from(document.querySelectorAll('.cursor-pointer')).filter((el) => el.children.length === 0 && smsLooksPhone(smsPhoneText(el)) && !el.closest('.chat, .ia-sms, .ia-widget, table'));
     return all.find((el) => el.classList.contains('truncate') && el.classList.contains('ml-2'))
       || all.find((el) => el.classList.contains('truncate'))
       || all[0] || null;
@@ -8848,7 +8751,7 @@ function __jsEnsureSharedObserver() {
   async function smsRcRead(num, mayOpen) {
     const r = await smsRc('read', { phone: num }, 8000);
     if (r.ok && r.data && r.data.match) return r;
-    const panelOpen = document.documentElement.getAttribute('data-js-rc') === 'open';
+    const panelOpen = document.documentElement.getAttribute('data-ia-rc') === 'open';
     if (!mayOpen && panelOpen) return r.ok ? { ok: true, data: { list: null } } : r;
     if (!r.ok && r.error !== 'nopanel') return r;
     await smsRcOpen(num);
@@ -8875,7 +8778,7 @@ function __jsEnsureSharedObserver() {
   // Messages the BO already shows (so RingCentral's copy isn't doubled).
   function smsBoCounts(chat) {
     const counts = new Map();
-    chat.querySelectorAll('.chat__message:not(.chat__message--system):not(.js-sms-msg)').forEach((m) => {
+    chat.querySelectorAll('.chat__message:not(.chat__message--system):not(.ia-sms-msg)').forEach((m) => {
       const part = m.querySelector('.chat__message__part');
       if (!part) return;
       const k = (m.classList.contains('chat__message--my-side') ? 'O|' : 'I|') + smsNorm(part.textContent);
@@ -8908,13 +8811,13 @@ function __jsEnsureSharedObserver() {
 
   function smsBubble(m, ctx) {
     const mine = m.dir === 'Outbound';
-    const state = m.state === 'sending' ? ' <span class="js-sms-state">Sending…</span>'
-      : m.state === 'failed' ? ' <span class="js-sms-state js-sms-state--err" title="' + smsEsc(m.error || '') + '">Not sent — click to retry</span>'
-      : (m.status === 'SendingFailed' || m.status === 'DeliveryFailed') ? ' <span class="js-sms-state js-sms-state--err">Failed</span>' : '';
+    const state = m.state === 'sending' ? ' <span class="ia-sms-state">Sending…</span>'
+      : m.state === 'failed' ? ' <span class="ia-sms-state ia-sms-state--err" title="' + smsEsc(m.error || '') + '">Not sent — click to retry</span>'
+      : (m.status === 'SendingFailed' || m.status === 'DeliveryFailed') ? ' <span class="ia-sms-state ia-sms-state--err">Failed</span>' : '';
     const author = mine ? smsEsc(ctx.agent) : smsEsc((ctx.client ? ctx.client + ' ' : '') + ctx.masked);
     const avatar = mine ? '' : '<div class="rounded-full flex items-center justify-center font-bold chat__message__avatar" style="background: rgb(243, 156, 18); color: rgb(255, 255, 255); width: 24px; height: 24px;">' + smsEsc(smsInitials(ctx.client)) + '</div>';
-    return '<div class="chat__message ' + (mine ? 'chat__message--my-side' : 'chat__message--not-me') + ' chat__message--last-in-group js-sms-msg' + (m.state ? ' js-sms-msg--' + m.state : '') + '" data-js-local="' + smsEsc(m.localId || '') + '">'
-      + '<div class="chat__message__body"><div class="chat__message__author">' + author + '<span class="js-sms-tag">RC</span></div>'
+    return '<div class="chat__message ' + (mine ? 'chat__message--my-side' : 'chat__message--not-me') + ' chat__message--last-in-group ia-sms-msg' + (m.state ? ' ia-sms-msg--' + m.state : '') + '" data-ia-local="' + smsEsc(m.localId || '') + '">'
+      + '<div class="chat__message__body"><div class="chat__message__author">' + author + '<span class="ia-sms-tag">RC</span></div>'
       + '<div class="chat__message__text"><span class="chat__message__part">' + smsEsc(m.text) + '</span><span class="chat__message__time"> ' + smsTime(m.time) + state + ' </span></div></div>'
       + avatar + '</div>';
   }
@@ -8931,13 +8834,13 @@ function __jsEnsureSharedObserver() {
   // history for ("No messages"), a list of our own in the chat area.
   function smsMessageBox(chat) {
     const own = chat.querySelector('.chat__messages');
-    if (own) { const extra = chat.querySelector(':scope .js-sms-ownbox'); if (extra && extra !== own) extra.remove(); return own; }
-    let box = chat.querySelector('.js-sms-ownbox');
+    if (own) { const extra = chat.querySelector(':scope .ia-sms-ownbox'); if (extra && extra !== own) extra.remove(); return own; }
+    let box = chat.querySelector('.ia-sms-ownbox');
     if (box && box.isConnected) return box;
     const host = chat.querySelector('.chat__body') || chat.querySelector('.chat__body-wrapper') || chat.querySelector('.chat__screen');
     if (!host) return null;
     box = document.createElement('div');
-    box.className = 'js-sms-ownbox';
+    box.className = 'ia-sms-ownbox';
     const bar = host.classList.contains('chat__screen') ? host.querySelector(':scope > .chat__input') : null;
     if (bar) host.insertBefore(box, bar); else host.appendChild(box);
     return box;
@@ -8945,8 +8848,8 @@ function __jsEnsureSharedObserver() {
   // The BO's own "No messages" placeholder is hidden while texts show.
   function smsToggleEmpty(chat, hasTexts) {
     chat.querySelectorAll('.chat__screen *').forEach((el) => {
-      if (el.children.length || el.closest('.js-sms, .js-sms-live, .js-sms-ownbox')) return;
-      if (/^no messages\.?$/i.test(el.textContent.trim())) el.classList.toggle('js-sms-hidden', hasTexts);
+      if (el.children.length || el.closest('.ia-sms, .ia-sms-live, .ia-sms-ownbox')) return;
+      if (/^no messages\.?$/i.test(el.textContent.trim())) el.classList.toggle('ia-sms-hidden', hasTexts);
     });
   }
 
@@ -8954,10 +8857,10 @@ function __jsEnsureSharedObserver() {
     const box = smsMessageBox(chat);
     if (!box) return;
     const rcView = smsView() === 'rc';
-    chat.classList.toggle('js-sms-rcview', rcView);
+    chat.classList.toggle('ia-sms-rcview', rcView);
     const tg = chat.querySelector('.js-sms-view');
     if (tg) tg.textContent = rcView ? 'Show BO history' : 'Show RingCentral chat';
-    let live = box.querySelector(':scope > .js-sms-live');
+    let live = box.querySelector(':scope > .ia-sms-live');
     const shown = rcView ? (list || []) : smsUnsynced(chat, list || []);
     // A text sent from here stays as its own bubble until RingCentral lists it.
     const outs = (list || []).filter((x) => x.dir === 'Outbound');
@@ -8969,28 +8872,28 @@ function __jsEnsureSharedObserver() {
     const ctx = { agent: smsAgentName(), client: smsClientName(chat), masked: smsMaskedNumber(chat) };
     const dayAttr = smsScopeAttr(chat, '.chat__day');
     const innerAttr = smsScopeAttr(chat, '.chat__day__inner');
-    const days = Array.from(chat.querySelectorAll('.chat__day__inner:not(.js-sms-day)'));
+    const days = Array.from(chat.querySelectorAll('.chat__day__inner:not(.ia-sms-day)'));
     let lastDay = rcView ? '' : (days.length ? days[days.length - 1].textContent.trim() : '');
     let html = '';
     all.forEach((m) => {
       const d = smsDay(m.time);
-      if (d !== lastDay) { html += '<div ' + dayAttr + ' class="chat__day"><div ' + innerAttr + ' class="chat__day__inner js-sms-day">' + d + '</div></div>'; lastDay = d; }
+      if (d !== lastDay) { html += '<div ' + dayAttr + ' class="chat__day"><div ' + innerAttr + ' class="chat__day__inner ia-sms-day">' + d + '</div></div>'; lastDay = d; }
       html += smsBubble(m, ctx);
     });
     if (rcView) {
       const note = chat.__jsSmsNote || (list == null ? 'Loading your RingCentral chat\u2026' : (!html ? 'No texts with this number in RingCentral yet' : ''));
-      if (note && !(list && list.length) && !all.length) html = '<div class="js-sms-note">' + smsEsc(note) + '</div>';
+      if (note && !(list && list.length) && !all.length) html = '<div class="ia-sms-note">' + smsEsc(note) + '</div>';
     }
     smsUpdateChips(chat, leadId);
     smsToggleEmpty(chat, !!html);
     if (!html) { if (live) live.remove(); return; }
     if (!live) {
       live = document.createElement('div');
-      live.className = 'js-sms-live';
+      live.className = 'ia-sms-live';
       live.addEventListener('click', (e) => {
-        const b = e.target.closest('.js-sms-msg--failed');
+        const b = e.target.closest('.ia-sms-msg--failed');
         if (!b) return;
-        const lid = b.getAttribute('data-js-local');
+        const lid = b.getAttribute('data-ia-local');
         const m = (smsLocal.get(leadId) || []).find((x) => x.localId === lid);
         if (m) smsSend(chat, leadId, m.text, m);
       });
@@ -8998,9 +8901,9 @@ function __jsEnsureSharedObserver() {
     const summary = Array.from(box.children).find((c) => c !== live && c.classList.contains('mt-5') && c.querySelector('button'));
     if (summary) { if (live.nextSibling !== summary || live.parentNode !== box) box.insertBefore(live, summary); }
     else if (live.parentNode !== box || box.lastElementChild !== live) box.appendChild(live);
-    if (live.getAttribute('data-js-html') !== String(html.length) + '|' + html.slice(-80)) {
+    if (live.getAttribute('data-ia-html') !== String(html.length) + '|' + html.slice(-80)) {
       live.innerHTML = html;
-      live.setAttribute('data-js-html', String(html.length) + '|' + html.slice(-80));
+      live.setAttribute('data-ia-html', String(html.length) + '|' + html.slice(-80));
       const scroller = chat.querySelector('.chat__body');
       if (scroller) scroller.scrollTop = scroller.scrollHeight;
     }
@@ -9009,37 +8912,37 @@ function __jsEnsureSharedObserver() {
   // --- Composer --------------------------------------------------------
   function smsComposerHtml() {
     const t = smsTemplates();
-    return '<div class="js-sms-chips">' + t.map((x, i) => '<span class="js-sms-chip" data-i="' + i + '" title="' + smsEsc(x.text) + '"><span class="js-sms-chip__tick" hidden>\u2713</span><span class="js-sms-chip__name">' + smsEsc(x.name) + '</span><span class="js-sms-chip__edit" title="Edit template">✎</span></span>').join('') + '</div>'
-      + '<div class="js-sms-editor" hidden><input class="js-sms-ed-name" maxlength="24"><textarea class="js-sms-ed-text" rows="3"></textarea>'
-      + '<div class="js-sms-ed-row"><span class="js-sms-hint">{agent} · {destination} · {client}</span><button type="button" class="js-sms-btn js-sms-ed-reset">Reset</button><button type="button" class="js-sms-btn js-sms-ed-cancel">Cancel</button><button type="button" class="js-sms-btn js-sms-btn--go js-sms-ed-save">Save</button></div></div>'
-      + '<div class="js-sms-row"><textarea class="js-sms-text" rows="2" placeholder="Type a message…"></textarea><button type="button" class="js-sms-btn js-sms-btn--go js-sms-send">Send</button></div>'
-      + '<div class="js-sms-foot"><span class="js-sms-status"></span><span class="js-sms-via">via RingCentral \u00B7 Ctrl+Enter to send</span><button type="button" class="js-sms-view"></button></div>';
+    return '<div class="ia-sms-chips">' + t.map((x, i) => '<span class="ia-sms-chip" data-i="' + i + '" title="' + smsEsc(x.text) + '"><span class="ia-sms-chip__tick" hidden>\u2713</span><span class="ia-sms-chip__name">' + smsEsc(x.name) + '</span><span class="ia-sms-chip__edit" title="Edit template">✎</span></span>').join('') + '</div>'
+      + '<div class="ia-sms-editor" hidden><input class="ia-sms-ed-name" maxlength="24"><textarea class="ia-sms-ed-text" rows="3"></textarea>'
+      + '<div class="ia-sms-ed-row"><span class="ia-sms-hint">{agent} · {destination} · {client}</span><button type="button" class="ia-sms-btn ia-sms-ed-reset">Reset</button><button type="button" class="ia-sms-btn ia-sms-ed-cancel">Cancel</button><button type="button" class="ia-sms-btn ia-sms-btn--go ia-sms-ed-save">Save</button></div></div>'
+      + '<div class="ia-sms-row"><textarea class="ia-sms-text" rows="2" placeholder="Type a message…"></textarea><button type="button" class="ia-sms-btn ia-sms-btn--go ia-sms-send">Send</button></div>'
+      + '<div class="ia-sms-foot"><span class="ia-sms-status"></span><span class="ia-sms-via">via RingCentral \u00B7 Ctrl+Enter to send</span><button type="button" class="js-sms-view"></button></div>';
   }
 
   function smsSetStatusLine(comp, text, err) {
-    const s = comp.querySelector('.js-sms-status');
+    const s = comp.querySelector('.ia-sms-status');
     s.textContent = text || '';
-    s.classList.toggle('js-sms-status--err', !!err);
+    s.classList.toggle('ia-sms-status--err', !!err);
   }
 
   async function smsApplyStatus(comp, force) {
     const st = await smsGetStatus(force);
-    const btn = comp.querySelector('.js-sms-send');
+    const btn = comp.querySelector('.ia-sms-send');
     comp.dataset.signed = st.signedIn ? '1' : '';
     if (!st.signedIn) {
       btn.textContent = st.loading ? 'RingCentral loading\u2026' : 'Sign in to RingCentral';
-      btn.classList.add('js-sms-btn--signin');
+      btn.classList.add('ia-sms-btn--signin');
       smsSetStatusLine(comp, st.loading ? '' : 'RingCentral is signed out', !st.loading);
       return st;
     }
     btn.textContent = 'Send';
-    btn.classList.remove('js-sms-btn--signin');
-    if (comp.querySelector('.js-sms-status').textContent === 'RingCentral is signed out') smsSetStatusLine(comp, '');
+    btn.classList.remove('ia-sms-btn--signin');
+    if (comp.querySelector('.ia-sms-status').textContent === 'RingCentral is signed out') smsSetStatusLine(comp, '');
     return st;
   }
 
   async function smsLoad(chat, leadId, quiet, mayOpen) {
-    const comp = chat.querySelector('.js-sms');
+    const comp = chat.querySelector('.ia-sms');
     if (!comp || comp.dataset.busy) return;
     const st = await smsApplyStatus(comp, false);
     chat.__jsSmsNote = st.signedIn || st.loading ? '' : 'Sign in to RingCentral to see the chat';
@@ -9065,19 +8968,19 @@ function __jsEnsureSharedObserver() {
       return;
     }
     if (!r.data || !r.data.list) return; // you're using the RC panel: keep what's shown
-    if (comp.querySelector('.js-sms-status--err')) smsSetStatusLine(comp, '');
+    if (comp.querySelector('.ia-sms-status--err')) smsSetStatusLine(comp, '');
     chat.__jsSmsList = r.data.list;
     chat.__jsSmsNote = '';
     smsRenderLive(chat, leadId, r.data.list);
   }
 
   async function smsSend(chat, leadId, text, retryOf) {
-    const comp = chat.querySelector('.js-sms');
+    const comp = chat.querySelector('.ia-sms');
     if (!comp || comp.dataset.busy) return;
     text = String(text || '').trim();
     if (!text) return;
     comp.dataset.busy = '1';
-    const btn = comp.querySelector('.js-sms-send');
+    const btn = comp.querySelector('.ia-sms-send');
     btn.disabled = true;
     try {
       const st = await smsApplyStatus(comp, true);
@@ -9088,7 +8991,7 @@ function __jsEnsureSharedObserver() {
       const msg = retryOf || { localId: 'l' + Date.now(), dir: 'Outbound', text, time: new Date().toISOString() };
       msg.state = 'sending';
       msg.time = new Date().toISOString();
-      if (!retryOf) { locals.push(msg); smsLocal.set(leadId, locals); comp.querySelector('.js-sms-text').value = ''; smsGrow(comp.querySelector('.js-sms-text')); }
+      if (!retryOf) { locals.push(msg); smsLocal.set(leadId, locals); comp.querySelector('.ia-sms-text').value = ''; smsGrow(comp.querySelector('.ia-sms-text')); }
       smsRenderLive(chat, leadId, chat.__jsSmsList);
       await smsRcOpen(num, text);
       const r = await smsRc('send', { phone: num, text }, 45000);
@@ -9096,7 +8999,7 @@ function __jsEnsureSharedObserver() {
         msg.state = 'sent';
         smsSetStatusLine(comp, 'Sent via RingCentral \u2713');
         if (comp.dataset.tpl && smsKey(text).indexOf(comp.dataset.tplKey) === 0) smsRememberSent(leadId, +comp.dataset.tpl);
-        setTimeout(() => { if (comp.querySelector('.js-sms-status').textContent.indexOf('Sent') === 0) smsSetStatusLine(comp, ''); }, 4000);
+        setTimeout(() => { if (comp.querySelector('.ia-sms-status').textContent.indexOf('Sent') === 0) smsSetStatusLine(comp, ''); }, 4000);
         if (r.data && r.data.list) chat.__jsSmsList = r.data.list;
       } else if (r.error === 'unconfirmed' || r.error === 'loading') {
         // Might have gone out: never offer a one-click resend for this one.
@@ -9117,13 +9020,13 @@ function __jsEnsureSharedObserver() {
 
   function smsOpenEditor(comp, i) {
     const t = smsTemplates();
-    const ed = comp.querySelector('.js-sms-editor');
+    const ed = comp.querySelector('.ia-sms-editor');
     ed.hidden = false;
     ed.dataset.i = String(i);
-    ed.querySelector('.js-sms-ed-name').value = t[i].name;
-    ed.querySelector('.js-sms-ed-text').value = t[i].text;
-    smsGrow(ed.querySelector('.js-sms-ed-text'));
-    ed.querySelector('.js-sms-ed-text').focus();
+    ed.querySelector('.ia-sms-ed-name').value = t[i].name;
+    ed.querySelector('.ia-sms-ed-text').value = t[i].text;
+    smsGrow(ed.querySelector('.ia-sms-ed-text'));
+    ed.querySelector('.ia-sms-ed-text').focus();
   }
   // Follow-ups already sent to this lead are greyed out (with a tick), and
   // the next one to send is highlighted. "Sent" = remembered from sending
@@ -9146,7 +9049,7 @@ function __jsEnsureSharedObserver() {
     const outs = [];
     (chat.__jsSmsList || []).forEach((m) => { if (m.dir === 'Outbound') outs.push(smsKey(m.text)); });
     (smsLocal.get(leadId) || []).forEach((m) => { if (m.state === 'sent') outs.push(smsKey(m.text)); });
-    chat.querySelectorAll('.chat__message--my-side:not(.js-sms-msg) .chat__message__part').forEach((p) => outs.push(smsKey(p.textContent)));
+    chat.querySelectorAll('.chat__message--my-side:not(.ia-sms-msg) .chat__message__part').forEach((p) => outs.push(smsKey(p.textContent)));
     smsTemplates().forEach((t, i) => {
       const k = smsKey(smsFill(t.text, leadId, chat)).slice(0, 60);
       if (k.length >= 20 && outs.some((o) => o.indexOf(k) === 0)) sent.add(i);
@@ -9154,26 +9057,26 @@ function __jsEnsureSharedObserver() {
     return sent;
   }
   function smsUpdateChips(chat, leadId) {
-    const comp = chat.querySelector('.js-sms');
+    const comp = chat.querySelector('.ia-sms');
     if (!comp) return;
     const sent = smsSentSet(chat, leadId);
-    const chips = Array.from(comp.querySelectorAll('.js-sms-chip'));
+    const chips = Array.from(comp.querySelectorAll('.ia-sms-chip'));
     const next = chips.find((c) => !sent.has(+c.dataset.i));
     chips.forEach((c) => {
       const isSent = sent.has(+c.dataset.i);
-      c.classList.toggle('js-sms-chip--sent', isSent);
-      c.classList.toggle('js-sms-chip--next', c === next);
-      const tick = c.querySelector('.js-sms-chip__tick');
+      c.classList.toggle('ia-sms-chip--sent', isSent);
+      c.classList.toggle('ia-sms-chip--next', c === next);
+      const tick = c.querySelector('.ia-sms-chip__tick');
       if (tick) tick.hidden = !isSent;
     });
   }
   function smsRefreshChips() {
-    document.querySelectorAll('.js-sms').forEach((comp) => {
+    document.querySelectorAll('.ia-sms').forEach((comp) => {
       const t = smsTemplates();
-      comp.querySelectorAll('.js-sms-chip').forEach((c) => {
+      comp.querySelectorAll('.ia-sms-chip').forEach((c) => {
         const x = t[+c.dataset.i];
         if (!x) return;
-        c.querySelector('.js-sms-chip__name').textContent = x.name;
+        c.querySelector('.ia-sms-chip__name').textContent = x.name;
         c.title = x.text;
       });
       const chat = comp.closest('.chat[id^="sms-chat-"]');
@@ -9190,12 +9093,12 @@ function __jsEnsureSharedObserver() {
 
   function smsWire(comp, chat, leadId) {
     comp.addEventListener('click', (e) => {
-      const ed = comp.querySelector('.js-sms-editor');
-      const edit = e.target.closest('.js-sms-chip__edit');
-      if (edit) { smsOpenEditor(comp, +edit.closest('.js-sms-chip').dataset.i); return; }
-      const chip = e.target.closest('.js-sms-chip');
+      const ed = comp.querySelector('.ia-sms-editor');
+      const edit = e.target.closest('.ia-sms-chip__edit');
+      if (edit) { smsOpenEditor(comp, +edit.closest('.ia-sms-chip').dataset.i); return; }
+      const chip = e.target.closest('.ia-sms-chip');
       if (chip) {
-        const ta = comp.querySelector('.js-sms-text');
+        const ta = comp.querySelector('.ia-sms-text');
         ta.value = smsFill(smsTemplates()[+chip.dataset.i].text, leadId, chat);
         smsGrow(ta);
         comp.dataset.tpl = chip.dataset.i;
@@ -9209,35 +9112,35 @@ function __jsEnsureSharedObserver() {
         smsRenderLive(chat, leadId, chat.__jsSmsList);
         return;
       }
-      if (e.target.closest('.js-sms-ed-cancel')) { ed.hidden = true; return; }
-      if (e.target.closest('.js-sms-ed-reset')) {
+      if (e.target.closest('.ia-sms-ed-cancel')) { ed.hidden = true; return; }
+      if (e.target.closest('.ia-sms-ed-reset')) {
         const d = SMS_DEFAULT_TPL[+ed.dataset.i];
-        ed.querySelector('.js-sms-ed-name').value = d.name;
-        ed.querySelector('.js-sms-ed-text').value = d.text;
+        ed.querySelector('.ia-sms-ed-name').value = d.name;
+        ed.querySelector('.ia-sms-ed-text').value = d.text;
         return;
       }
-      if (e.target.closest('.js-sms-ed-save')) {
+      if (e.target.closest('.ia-sms-ed-save')) {
         const t = smsTemplates();
         const i = +ed.dataset.i;
-        t[i] = { name: ed.querySelector('.js-sms-ed-name').value.trim() || SMS_DEFAULT_TPL[i].name, text: ed.querySelector('.js-sms-ed-text').value };
+        t[i] = { name: ed.querySelector('.ia-sms-ed-name').value.trim() || SMS_DEFAULT_TPL[i].name, text: ed.querySelector('.ia-sms-ed-text').value };
         saveSmsTemplates(t);
         ed.hidden = true;
         smsRefreshChips();
         return;
       }
-      if (e.target.closest('.js-sms-send')) {
+      if (e.target.closest('.ia-sms-send')) {
         if (!comp.dataset.signed) {
           if (typeof setRcPanelOpen === 'function') setRcPanelOpen(true);
           smsStatus = null;
           setTimeout(() => smsLoad(chat, leadId, false, true), 1500);
           return;
         }
-        smsSend(chat, leadId, comp.querySelector('.js-sms-text').value);
+        smsSend(chat, leadId, comp.querySelector('.ia-sms-text').value);
       }
     });
     comp.querySelectorAll('textarea').forEach((t) => t.addEventListener('input', () => smsGrow(t)));
-    comp.querySelector('.js-sms-text').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); comp.querySelector('.js-sms-send').click(); }
+    comp.querySelector('.ia-sms-text').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); comp.querySelector('.ia-sms-send').click(); }
     });
   }
 
@@ -9249,14 +9152,14 @@ function __jsEnsureSharedObserver() {
     document.querySelectorAll('.chat[id^="sms-chat-"]').forEach((chat) => {
       const leadId = chat.id.replace('sms-chat-', '');
       if (!/^\d+$/.test(leadId)) return;
-      const bar = Array.from(chat.querySelectorAll('.chat__input')).find((b) => !b.classList.contains('js-sms') && /only view this chat/i.test(b.textContent));
-      let comp = chat.querySelector('.js-sms');
+      const bar = Array.from(chat.querySelectorAll('.chat__input')).find((b) => !b.classList.contains('ia-sms') && /only view this chat/i.test(b.textContent));
+      let comp = chat.querySelector('.ia-sms');
       if (bar) {
-        bar.classList.add('js-sms-hidden');
+        bar.classList.add('ia-sms-hidden');
         if (!comp || comp.previousElementSibling !== bar) {
           if (comp) comp.remove();
           comp = document.createElement('div');
-          comp.className = 'js-sms';
+          comp.className = 'ia-sms';
           comp.innerHTML = smsComposerHtml();
           bar.insertAdjacentElement('afterend', comp);
           smsWire(comp, chat, leadId);
@@ -9265,7 +9168,7 @@ function __jsEnsureSharedObserver() {
         }
       }
       if (!comp) return;
-      if (!chat.querySelector('.js-sms-live') && (smsView() === 'rc' || (chat.__jsSmsList && smsUnsynced(chat, chat.__jsSmsList).length))) smsRenderLive(chat, leadId, chat.__jsSmsList);
+      if (!chat.querySelector('.ia-sms-live') && (smsView() === 'rc' || (chat.__jsSmsList && smsUnsynced(chat, chat.__jsSmsList).length))) smsRenderLive(chat, leadId, chat.__jsSmsList);
       if (chat.getClientRects().length && !chat.__jsSmsLoadedAt) { chat.__jsSmsLoadedAt = Date.now(); smsLoad(chat, leadId, false, true); }
     });
   }
@@ -9276,7 +9179,7 @@ function __jsEnsureSharedObserver() {
     smsRefreshTimer = setTimeout(() => {
       smsRefreshTimer = null;
       smsChats().forEach((chat) => {
-        const comp = chat.querySelector('.js-sms');
+        const comp = chat.querySelector('.ia-sms');
         if (!comp) return;
         if (statusToo) { smsStatus = null; smsApplyStatus(comp, true); }
         smsLoad(chat, chat.id.replace('sms-chat-', ''), true, false);
@@ -9286,59 +9189,59 @@ function __jsEnsureSharedObserver() {
 
   __jsRegisterScan(smsScan);
   // Live: refresh every 15s while the RC tab is on screen.
-  setInterval(() => { if (!document.hidden && smsChats().some((c) => c.querySelector('.js-sms'))) smsRefreshAll(false); }, 15000);
+  setInterval(() => { if (!document.hidden && smsChats().some((c) => c.querySelector('.ia-sms'))) smsRefreshAll(false); }, 15000);
 
   GM_addStyle(`
-    .chat__input.js-sms-hidden, .chat__screen .js-sms-hidden { display: none !important; }
-    .js-sms-rcview .chat__messages > :not(.js-sms-live) { display: none !important; }
-    .js-sms-rcview .js-sms-tag { display: none; }
-    .js-sms-note { padding: 24px 12px; text-align: center; opacity: .7; font-style: italic; }
+    .chat__input.ia-sms-hidden, .chat__screen .ia-sms-hidden { display: none !important; }
+    .ia-sms-rcview .chat__messages > :not(.ia-sms-live) { display: none !important; }
+    .ia-sms-rcview .ia-sms-tag { display: none; }
+    .ia-sms-note { padding: 24px 12px; text-align: center; opacity: .7; font-style: italic; }
     .js-sms-view { margin-left: 10px; padding: 1px 8px; border-radius: 4px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; cursor: pointer; font-size: 11px; font-weight: 600; }
     .js-sms-view:hover { border-color: #3b82f6; color: #3b82f6; }
-    .js-sms { padding: 8px 12px 10px; border-top: 1px solid rgba(127,127,127,.25); font-size: 13px; }
-    .js-sms-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
-    .js-sms-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 4px 5px 13px; border-radius: 999px;
+    .ia-sms { padding: 8px 12px 10px; border-top: 1px solid rgba(127,127,127,.25); font-size: 13px; }
+    .ia-sms-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .ia-sms-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 4px 5px 13px; border-radius: 999px;
       border: 1px solid rgba(148,163,184,.55); color: inherit; background: rgba(148,163,184,.12); cursor: pointer;
       font-weight: 600; font-size: 12.5px; line-height: 1; user-select: none; transition: background .15s, border-color .15s, opacity .15s; }
-    .js-sms-chip:hover { border-color: #3b82f6; background: rgba(59,130,246,.18); }
-    .js-sms-chip__edit { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px;
+    .ia-sms-chip:hover { border-color: #3b82f6; background: rgba(59,130,246,.18); }
+    .ia-sms-chip__edit { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px;
       font-weight: 400; font-size: 12px; opacity: .65; border-left: 0; }
-    .js-sms-chip__edit:hover { opacity: 1; background: rgba(255,255,255,.18); }
-    .js-sms-chip__tick { font-weight: 800; }
-    .js-sms-chip__tick[hidden] { display: none; }
-    .js-sms-chip--next { background: #5b5bd6; border-color: #5b5bd6; color: #fff; box-shadow: 0 1px 6px rgba(37,99,235,.45); }
-    .js-sms-chip--next:hover { background: #1d4ed8; border-color: #1d4ed8; }
-    .js-sms-chip--sent { opacity: .42; background: transparent; border-style: dashed; }
-    .js-sms-chip--sent:hover { opacity: .8; }
-    .js-sms-chip--sent .js-sms-chip__tick { color: #22c55e; }
-    .js-sms-row { display: flex; gap: 8px; align-items: flex-end; }
-    .js-sms textarea { flex: 1; width: 100%; resize: none; overflow: hidden; box-sizing: border-box; min-height: 38px; padding: 6px 8px; border-radius: 6px;
+    .ia-sms-chip__edit:hover { opacity: 1; background: rgba(255,255,255,.18); }
+    .ia-sms-chip__tick { font-weight: 800; }
+    .ia-sms-chip__tick[hidden] { display: none; }
+    .ia-sms-chip--next { background: #5b5bd6; border-color: #5b5bd6; color: #fff; box-shadow: 0 1px 6px rgba(37,99,235,.45); }
+    .ia-sms-chip--next:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .ia-sms-chip--sent { opacity: .42; background: transparent; border-style: dashed; }
+    .ia-sms-chip--sent:hover { opacity: .8; }
+    .ia-sms-chip--sent .ia-sms-chip__tick { color: #22c55e; }
+    .ia-sms-row { display: flex; gap: 8px; align-items: flex-end; }
+    .ia-sms textarea { flex: 1; width: 100%; resize: none; overflow: hidden; box-sizing: border-box; min-height: 38px; padding: 6px 8px; border-radius: 6px;
       border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; font: inherit; line-height: 1.35; }
-    .js-sms textarea:focus { outline: none; border-color: #3b82f6; }
-    .js-sms-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; cursor: pointer; font-weight: 600; font-size: 12px; white-space: nowrap; }
-    .js-sms-btn--go { background: #5b5bd6; border-color: #5b5bd6; color: #fff; }
-    .js-sms-btn--go:hover { background: #4b4bc4; }
-    .js-sms-btn--go:disabled { opacity: .55; cursor: default; }
-    .js-sms-btn--signin { background: #f97316; border-color: #f97316; }
-    .js-sms-btn--signin:hover { background: #ea580c; }
-    .js-sms-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; min-height: 16px; font-size: 11px; opacity: .85; }
-    .js-sms-status--err { color: #dc2626; }
-    .js-sms-via { margin-left: auto; opacity: .6; }
-    .js-sms-editor { margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px dashed rgba(59,130,246,.5); display: flex; flex-direction: column; gap: 6px; }
-    .js-sms-editor[hidden] { display: none; }
-    .js-sms-ed-name { width: 160px; padding: 3px 6px; border-radius: 4px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; font: inherit; font-weight: 600; }
-    .js-sms-ed-row { display: flex; gap: 6px; align-items: center; }
-    .js-sms-hint { margin-right: auto; font-size: 11px; opacity: .7; font-family: ui-monospace, monospace; }
-    .js-sms-tag { margin-left: 6px; padding: 0 4px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: .03em; background: rgba(249,115,22,.15); color: #ea580c; vertical-align: middle; }
-    .js-sms-state { font-style: italic; opacity: .8; }
-    .js-sms-state--err { color: #dc2626; font-style: normal; font-weight: 600; }
-    .js-sms-msg--sending { opacity: .6; }
-    .js-sms-msg--failed { cursor: pointer; }
+    .ia-sms textarea:focus { outline: none; border-color: #3b82f6; }
+    .ia-sms-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; cursor: pointer; font-weight: 600; font-size: 12px; white-space: nowrap; }
+    .ia-sms-btn--go { background: #5b5bd6; border-color: #5b5bd6; color: #fff; }
+    .ia-sms-btn--go:hover { background: #4b4bc4; }
+    .ia-sms-btn--go:disabled { opacity: .55; cursor: default; }
+    .ia-sms-btn--signin { background: #f97316; border-color: #f97316; }
+    .ia-sms-btn--signin:hover { background: #ea580c; }
+    .ia-sms-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; min-height: 16px; font-size: 11px; opacity: .85; }
+    .ia-sms-status--err { color: #dc2626; }
+    .ia-sms-via { margin-left: auto; opacity: .6; }
+    .ia-sms-editor { margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px dashed rgba(59,130,246,.5); display: flex; flex-direction: column; gap: 6px; }
+    .ia-sms-editor[hidden] { display: none; }
+    .ia-sms-ed-name { width: 160px; padding: 3px 6px; border-radius: 4px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; font: inherit; font-weight: 600; }
+    .ia-sms-ed-row { display: flex; gap: 6px; align-items: center; }
+    .ia-sms-hint { margin-right: auto; font-size: 11px; opacity: .7; font-family: ui-monospace, monospace; }
+    .ia-sms-tag { margin-left: 6px; padding: 0 4px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: .03em; background: rgba(249,115,22,.15); color: #ea580c; vertical-align: middle; }
+    .ia-sms-state { font-style: italic; opacity: .8; }
+    .ia-sms-state--err { color: #dc2626; font-style: normal; font-weight: 600; }
+    .ia-sms-msg--sending { opacity: .6; }
+    .ia-sms-msg--failed { cursor: pointer; }
   `);
 
   function setPanelStatus(text) {
     const el = ensureBmo();
-    const statusEl = el.querySelector('.bmo-screen-info__status');
+    const statusEl = el.querySelector('.ia-screen-info__status');
     if (!statusEl) return;
     statusEl.textContent = text || '';
     // Collapses to zero height when empty (the common case) instead of
@@ -9347,7 +9250,7 @@ function __jsEnsureSharedObserver() {
     statusEl.style.display = text ? '' : 'none';
   }
 
-  // The row currently on display in BMO's screen — the single source of
+  // The row currently on display in Pip's screen — the single source of
   // truth for who Call will actually dial. Call never recomputes "who's
   // next" independently of what's shown; it always acts on exactly this
   // reference, so there's no way for what's displayed and what gets dialed
@@ -9363,8 +9266,8 @@ function __jsEnsureSharedObserver() {
     currentPanelRow = row;
     currentRowDialed = !!dialed;
     const el = ensureBmo();
-    const face = el.querySelector('.bmo-face');
-    const info = el.querySelector('.bmo-screen-info');
+    const face = el.querySelector('.ia-face');
+    const info = el.querySelector('.ia-screen-info');
     if (!row) {
       face.style.display = '';
       info.style.display = 'none';
@@ -9373,11 +9276,11 @@ function __jsEnsureSharedObserver() {
     face.style.display = 'none';
     info.style.display = '';
     const leadInfo = getLeadInfo(row);
-    el.querySelector('.bmo-screen-info__label').textContent = dialed ? 'Currently calling' : 'Up next';
-    const clientEl = el.querySelector('.bmo-screen-info__client');
+    el.querySelector('.ia-screen-info__label').textContent = dialed ? 'Currently calling' : 'Up next';
+    const clientEl = el.querySelector('.ia-screen-info__client');
     clientEl.textContent = leadInfo.clientName || ('Lead ' + leadInfo.leadId);
     clientEl.href = leadInfo.href;
-    el.querySelector('.bmo-screen-info__route').textContent = [leadInfo.origin, leadInfo.dest].filter(Boolean).join(' \u2192 ');
+    el.querySelector('.ia-screen-info__route').textContent = [leadInfo.origin, leadInfo.dest].filter(Boolean).join(' \u2192 ');
     setPanelStatus('');
     updateProgress(row);
   }
@@ -9385,7 +9288,7 @@ function __jsEnsureSharedObserver() {
   // "Lead 4 of 23" — position among this page's leads that have a timer
   // running (the ones the dialer works through); page shown after page 1.
   function updateProgress(row) {
-    const out = bmoWidget && bmoWidget.querySelector('.ia-progress');
+    const out = iaWidget && iaWidget.querySelector('.ia-progress');
     if (!out) return;
     const rows = getLeadRows().filter((r) => hasTimerRunning(r));
     const idx = rows.indexOf(row);
@@ -9409,8 +9312,8 @@ function __jsEnsureSharedObserver() {
   let lastCalledInfo = null; // { number, leadId, href, clientName, origin, dest }
 
   function updateDoubleDialButton() {
-    const btn = bmoWidget && bmoWidget.querySelector('.bmo-btn-doubledial');
-    if (btn) btn.classList.toggle('bmo-btn--disabled', !lastCalledInfo);
+    const btn = iaWidget && iaWidget.querySelector('.ia-btn-doubledial');
+    if (btn) btn.classList.toggle('ia-btn--disabled', !lastCalledInfo);
   }
 
   // Guards against a second Call press starting while the first is still
@@ -9479,7 +9382,7 @@ function __jsEnsureSharedObserver() {
       markCalled(info.leadId);
       markStartedToday();
       // NOW, and only now — after the tel: link has actually fired — does
-      // the label flip to "Currently calling". BMO's screen then
+      // the label flip to "Currently calling". Pip's screen then
       // deliberately keeps showing this same lead for however long the
       // real call actually takes, which the script has no way to
       // observe. It only moves on once Call is pressed again — the
@@ -9503,7 +9406,7 @@ function __jsEnsureSharedObserver() {
   // Every lead on every page is done for the current round.
   // Level-up only when EVERY lead on EVERY page is green/yellow:
   //  1st Call with nothing left → re-checks all pages from page 1.
-  //  2nd Call, still nothing left → Super BMO + round 2 (marks go red).
+  //  2nd Call, still nothing left → Super Pip + round 2 (marks go red).
   async function onAllLeadsDone() {
     stopAutoRun();
     if (pendingScanState === 'pageFail') {
@@ -9535,15 +9438,15 @@ function __jsEnsureSharedObserver() {
     }
   }
 
-  // --- Super BMO: rainbow body for finishing the day's follow-up -------
+  // --- Super Pip: rainbow body for finishing the day's follow-up -------
   function superUnlockedToday() {
     try { return !!GM_getValue(SUPER_STORAGE_PREFIX + todayKey(), false); } catch (e) { return false; }
   }
   function applySuperState() {
     // Earned today (first follow-up done) AND actively calling → rainbow.
     // Stopped → back to whatever color the user picked.
-    const running = !!(bmoWidget && bmoWidget.classList.contains('bmo-widget--running'));
-    if (bmoWidget) bmoWidget.classList.toggle('bmo-widget--super', (superUnlockedToday() && running) || rainbowTheme);
+    const running = !!(iaWidget && iaWidget.classList.contains('ia-widget--running'));
+    if (iaWidget) iaWidget.classList.toggle('ia-widget--super', (superUnlockedToday() && running) || rainbowTheme);
   }
   function unlockSuper() {
     const first = !superUnlockedToday();
@@ -9554,7 +9457,7 @@ function __jsEnsureSharedObserver() {
   // Rainbow ends by itself when the follow-up day rolls over (2pm GMT).
   setInterval(applySuperState, 60 * 1000);
 
-  // Takes over BMO's screen to unambiguously show who's actually being
+  // Takes over Pip's screen to unambiguously show who's actually being
   // redialed, then hands it back to whatever Call is next ready for once
   // done — rather than leaving whoever Call last advanced to on screen
   // while this rings a completely different, earlier lead underneath it.
@@ -9566,13 +9469,13 @@ function __jsEnsureSharedObserver() {
       dialNumber(lastCalledInfo.number, true);
 
       const el = ensureBmo();
-      el.querySelector('.bmo-face').style.display = 'none';
-      el.querySelector('.bmo-screen-info').style.display = '';
-      el.querySelector('.bmo-screen-info__label').textContent = 'Redialing';
-      const clientEl = el.querySelector('.bmo-screen-info__client');
+      el.querySelector('.ia-face').style.display = 'none';
+      el.querySelector('.ia-screen-info').style.display = '';
+      el.querySelector('.ia-screen-info__label').textContent = 'Redialing';
+      const clientEl = el.querySelector('.ia-screen-info__client');
       clientEl.textContent = lastCalledInfo.clientName || ('Lead ' + lastCalledInfo.leadId);
       clientEl.href = lastCalledInfo.href;
-      el.querySelector('.bmo-screen-info__route').textContent = [lastCalledInfo.origin, lastCalledInfo.dest].filter(Boolean).join(' \u2192 ');
+      el.querySelector('.ia-screen-info__route').textContent = [lastCalledInfo.origin, lastCalledInfo.dest].filter(Boolean).join(' \u2192 ');
 
       await wait(1800);
       renderPanelForRow(currentPanelRow, currentRowDialed); // restores exactly whatever was shown before, label included
@@ -9617,9 +9520,9 @@ function __jsEnsureSharedObserver() {
 
   function showReminder() {
     const el = ensureBmo();
-    const bubble = el.querySelector('.bmo-reminder');
+    const bubble = el.querySelector('.ia-reminder');
     const wasAlreadyShowing = bubble.style.display !== 'none';
-    bubble.querySelector('.bmo-reminder__text').textContent = startedToday()
+    bubble.querySelector('.ia-reminder__text').textContent = startedToday()
       ? 'Continue your daily follow up'
       : 'Start your daily follow up';
     bubble.style.display = '';
@@ -9631,8 +9534,8 @@ function __jsEnsureSharedObserver() {
   }
 
   function hideReminderBubble() {
-    if (!bmoWidget) return;
-    const bubble = bmoWidget.querySelector('.bmo-reminder');
+    if (!iaWidget) return;
+    const bubble = iaWidget.querySelector('.ia-reminder');
     if (bubble) bubble.style.display = 'none';
   }
 
@@ -9676,7 +9579,7 @@ function __jsEnsureSharedObserver() {
     .dialer-called-dot.is-skipped { background: #f1c40f; border-color: #f1c40f; box-shadow: 0 0 5px rgba(241,196,15,.8); }
     .dialer-called-dot.is-called2 { background: #e53935; border-color: #e53935; box-shadow: 0 0 5px rgba(229,57,53,.85); }
 
-    .bmo-widget {
+    .ia-widget {
       position: fixed;
       right: 20px;
       bottom: 20px;
@@ -9691,52 +9594,52 @@ function __jsEnsureSharedObserver() {
          a point far from where it visually sits, instead of reading as
          the bubble itself leaning in place. */
       transform-origin: 83% 88%;
-      --bmo-body: #13b3a0;
-      --bmo-side: #0c8a7b;
-      --bmo-dark: #0d6e63;
-      --bmo-screen: #dcf3ef;
-      --bmo-text: #0b3b34;
+      --ia-pip-body: #13b3a0;
+      --ia-pip-side: #0c8a7b;
+      --ia-pip-dark: #0d6e63;
+      --ia-pip-screen: #dcf3ef;
+      --ia-pip-text: #0b3b34;
     }
-    .bmo-widget--pink {
-      --bmo-body: #ec4899;
-      --bmo-side: #c42f78;
-      --bmo-dark: #9d174d;
-      --bmo-screen: #fce7f3;
-      --bmo-text: #831843;
+    .ia-widget--pink {
+      --ia-pip-body: #ec4899;
+      --ia-pip-side: #c42f78;
+      --ia-pip-dark: #9d174d;
+      --ia-pip-screen: #fce7f3;
+      --ia-pip-text: #831843;
     }
-    .bmo-widget--black {
-      --bmo-body: #26282b;
-      --bmo-side: #141517;
-      --bmo-dark: #0a0a0a;
-      --bmo-screen: #e5e5e5;
-      --bmo-text: #1a1a1a;
+    .ia-widget--black {
+      --ia-pip-body: #26282b;
+      --ia-pip-side: #141517;
+      --ia-pip-dark: #0a0a0a;
+      --ia-pip-screen: #e5e5e5;
+      --ia-pip-text: #1a1a1a;
     }
-    .bmo-widget--midnight {
-      --bmo-body: #1e293b;
-      --bmo-side: #0b1120;
-      --bmo-dark: #0f172a;
-      --bmo-screen: #cffafe;
-      --bmo-text: #083344;
+    .ia-widget--midnight {
+      --ia-pip-body: #1e293b;
+      --ia-pip-side: #0b1120;
+      --ia-pip-dark: #0f172a;
+      --ia-pip-screen: #cffafe;
+      --ia-pip-text: #083344;
     }
-    .bmo-headset { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
-    .bmo-widget--pink .bmo-headset { opacity: 1; }
-    .bmo-widget--gold {
-      --bmo-body: #d4a52a;
-      --bmo-side: #a9801a;
-      --bmo-dark: #8a6508;
-      --bmo-screen: #fff6d6;
-      --bmo-text: #5c4200;
+    .ia-headset { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+    .ia-widget--pink .ia-headset { opacity: 1; }
+    .ia-widget--gold {
+      --ia-pip-body: #d4a52a;
+      --ia-pip-side: #a9801a;
+      --ia-pip-dark: #8a6508;
+      --ia-pip-screen: #fff6d6;
+      --ia-pip-text: #5c4200;
     }
-    .bmo-crown { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
-    .bmo-widget--gold .bmo-crown { opacity: 1; }
-    .bmo-widget--gold .bmo-bubble,
-    .bmo-widget--gold .bmo-full { animation: bmo-gold-shine 2.4s ease-in-out infinite; }
-    @keyframes bmo-gold-shine {
+    .ia-crown { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+    .ia-widget--gold .ia-crown { opacity: 1; }
+    .ia-widget--gold .ia-bubble,
+    .ia-widget--gold .ia-full { animation: ia-gold-shine 2.4s ease-in-out infinite; }
+    @keyframes ia-gold-shine {
       0%, 100% { filter: drop-shadow(0 0 2px rgba(255, 215, 0, .35)); }
       50% { filter: drop-shadow(0 0 10px rgba(255, 215, 0, .9)); }
     }
-    .bmo-widget--gold-unlock .bmo-full { animation: bmo-gold-burst 1.5s ease-out 1; }
-    @keyframes bmo-gold-burst {
+    .ia-widget--gold-unlock .ia-full { animation: ia-gold-burst 1.5s ease-out 1; }
+    @keyframes ia-gold-burst {
       0% { filter: drop-shadow(0 0 0 rgba(255, 215, 0, 0)) brightness(1); }
       25% { filter: drop-shadow(0 0 28px rgba(255, 215, 0, 1)) brightness(1.5); }
       100% { filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4)) brightness(1); }
@@ -9747,193 +9650,193 @@ function __jsEnsureSharedObserver() {
        theme the instant Alt+Z turns the sniper back off. Placed after all
        three theme blocks so it wins the cascade regardless of which
        theme class is also present. */
-    .bmo-widget--sniping {
-      --bmo-body: #dc2626;
-      --bmo-side: #a51d1d;
-      --bmo-dark: #7f1d1d;
-      --bmo-screen: #fee2e2;
-      --bmo-text: #450a0a;
+    .ia-widget--sniping {
+      --ia-pip-body: #dc2626;
+      --ia-pip-side: #a51d1d;
+      --ia-pip-dark: #7f1d1d;
+      --ia-pip-screen: #fee2e2;
+      --ia-pip-text: #450a0a;
     }
     /* Stop button goes light so it stands out on the dark red body. */
-    .bmo-widget--sniping .bmo-stop-face { fill: #fee2e2; }
-    .bmo-widget--sniping .bmo-stop-base { fill: #d9a3a3 !important; }
-    .bmo-widget--sniping .bmo-btn-stop .bmo-btn-label { fill: #c26a6a; }
+    .ia-widget--sniping .ia-stop-face { fill: #fee2e2; }
+    .ia-widget--sniping .ia-stop-base { fill: #d9a3a3 !important; }
+    .ia-widget--sniping .ia-btn-stop .ia-btn-label { fill: #c26a6a; }
     /* Challenging squint while sniping: eyes narrow, and a slanted lid (in
        the screen's own color) cuts the top of each eye down toward the
        middle. No eyebrows, same smile. */
-    .bmo-lid { opacity: 0; fill: var(--bmo-screen); transition: fill .6s ease, opacity 1.3s ease; }
-    .bmo-eye { transform-box: fill-box; transform-origin: center; transition: transform 1.3s ease; }
-    .bmo-widget--sniping .bmo-eye { transform: scaleY(.85); }
-    .bmo-widget--sniping .bmo-lid { opacity: 1; }
+    .ia-lid { opacity: 0; fill: var(--ia-pip-screen); transition: fill .6s ease, opacity 1.3s ease; }
+    .ia-eye { transform-box: fill-box; transform-origin: center; transition: transform 1.3s ease; }
+    .ia-widget--sniping .ia-eye { transform: scaleY(.85); }
+    .ia-widget--sniping .ia-lid { opacity: 1; }
 
     /* --- 3D look: light from above, everything casts its shadow down --- */
-    .bmo-bodygrp { filter: drop-shadow(0 6px 5px rgba(0,0,0,.22)); }
-    .bmo-rim { fill: none; stroke: #fff; stroke-opacity: .25; stroke-width: 1.5; stroke-linecap: round; pointer-events: none; }
-    .bmo-lip { fill: none; stroke: #fff; stroke-opacity: .28; stroke-width: 1.5; pointer-events: none; }
-    .bmo-glare { fill: #fff; opacity: .35; pointer-events: none; }
-    .bmo-hl { fill: none; stroke: #fff; stroke-opacity: .5; stroke-width: 1.6; stroke-linecap: round; pointer-events: none; }
-    .bmo-pill { transition: fill .6s ease; }
+    .ia-bodygrp { filter: drop-shadow(0 6px 5px rgba(0,0,0,.22)); }
+    .ia-rim { fill: none; stroke: #fff; stroke-opacity: .25; stroke-width: 1.5; stroke-linecap: round; pointer-events: none; }
+    .ia-lip { fill: none; stroke: #fff; stroke-opacity: .28; stroke-width: 1.5; pointer-events: none; }
+    .ia-glare { fill: #fff; opacity: .35; pointer-events: none; }
+    .ia-hl { fill: none; stroke: #fff; stroke-opacity: .5; stroke-width: 1.6; stroke-linecap: round; pointer-events: none; }
+    .ia-pill { transition: fill .6s ease; }
 
     /* Button bases: darker shade of each button, with a soft shadow
        directly underneath. */
-    .bmo-base { filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); transition: fill .6s ease; }
-    .bmo-cross-base rect { fill: #c99a12; }
-    .bmo-btn-skip .bmo-base { fill: #2f86ad; stroke: #2f86ad; }
-    .bmo-btn-skip polygon { stroke-width: 3; stroke-linejoin: round; }
-    .bmo-btn-doubledial .bmo-base { fill: #6aa83a; }
-    .bmo-stop-base { fill: #b8301f; }
-    .bmo-stop-face { transition: fill .6s ease; }
+    .ia-base { filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); transition: fill .6s ease; }
+    .ia-cross-base rect { fill: #c99a12; }
+    .ia-btn-skip .ia-base { fill: #2f86ad; stroke: #2f86ad; }
+    .ia-btn-skip polygon { stroke-width: 3; stroke-linejoin: round; }
+    .ia-btn-doubledial .ia-base { fill: #6aa83a; }
+    .ia-stop-base { fill: #b8301f; }
+    .ia-stop-face { transition: fill .6s ease; }
 
     /* Pressing: the button sinks onto its base. */
-    .bmo-top, .bmo-btn-label { transition: transform .1s ease, fill .6s ease; }
-    .bmo-btn:active .bmo-top, .bmo-btn:active .bmo-btn-label { transform: translateY(2px); }
+    .ia-top, .ia-btn-label { transition: transform .1s ease, fill .6s ease; }
+    .ia-btn:active .ia-top, .ia-btn:active .ia-btn-label { transform: translateY(2px); }
 
     /* Labels are engraved into each button: the letters are a darker
        shade of the button's own color, with a thin light edge along their
        bottom (light from above catching the lower lip of the cut). */
-    .bmo-btn-label {
+    .ia-btn-label {
       font-weight: 700 !important;
       filter: drop-shadow(0 .8px 0 rgba(255,255,255,.55)) drop-shadow(0 -.6px 0 rgba(0,0,0,.25));
     }
-    .bmo-label-call { fill: #9a7400; }
-    .bmo-label-skip { fill: #1d6b8f; color: #1d6b8f; }
-    .bmo-label-2x { fill: #3f7419; }
+    .ia-label-call { fill: #9a7400; }
+    .ia-label-skip { fill: #1d6b8f; color: #1d6b8f; }
+    .ia-label-2x { fill: #3f7419; }
     /* Rainbow: a deep violet bottom edge reads better under the rainbow. */
-    .bmo-widget--super:not(.bmo-widget--sniping) { --bmo-side: #5b3a8c; }
-    .bmo-label-stop { fill: #9b2010; filter: drop-shadow(0 .8px 0 rgba(255,255,255,.4)) drop-shadow(0 -.6px 0 rgba(0,0,0,.3)); }
+    .ia-widget--super:not(.ia-widget--sniping) { --ia-pip-side: #5b3a8c; }
+    .ia-label-stop { fill: #9b2010; filter: drop-shadow(0 .8px 0 rgba(255,255,255,.4)) drop-shadow(0 -.6px 0 rgba(0,0,0,.3)); }
 
     /* Double-dial switch: the small dot by 2X is a red lamp. Off = dark,
        unlit red. On = lit, glowing red. */
-    .bmo-dd-toggle { cursor: pointer; }
-    .bmo-led { font-family: system-ui, sans-serif; font-size: 7.4px; font-weight: 700; letter-spacing: .05px; fill: var(--bmo-text); transition: fill .6s ease; pointer-events: none; }
+    .ia-dd-toggle { cursor: pointer; }
+    .ia-led { font-family: system-ui, sans-serif; font-size: 7.4px; font-weight: 700; letter-spacing: .05px; fill: var(--ia-pip-text); transition: fill .6s ease; pointer-events: none; }
     /* Name strip: rests centered, scrolls off to the left, comes back in
        from the right and settles centered again. */
     /* 10s resting centered, ~3s out to the left, ~3s back in. */
     /* Moved as one flat layer (no re-snapping of the letters each step),
        so the text glides sideways without bobbing up and down. */
-    .bmo-led-move { animation: bmo-led-lap 16s linear infinite; will-change: transform; }
-    @keyframes bmo-led-lap {
+    .ia-led-move { animation: ia-led-lap 16s linear infinite; will-change: transform; }
+    @keyframes ia-led-lap {
       0% { transform: translateX(0); }
       62.5% { transform: translateX(0); }
       81.25% { transform: translateX(-58px); }
       81.26% { transform: translateX(58px); }
       100% { transform: translateX(0); }
     }
-    .bmo-dd-dot { fill: #6b1414; stroke: #3a0606; stroke-width: 1; transition: fill .6s ease, filter .6s ease !important; }
-    .bmo-dd-shine { fill: #fff; opacity: .15; pointer-events: none; transition: opacity .6s ease; }
-    .bmo-widget--dd-on .bmo-dd-dot { fill: #ff2a2a; filter: drop-shadow(0 0 3px rgba(255,40,40,.95)) drop-shadow(0 0 6px rgba(255,40,40,.6)); }
-    .bmo-widget--dd-on .bmo-dd-shine { opacity: .75; }
+    .ia-dd-dot { fill: #6b1414; stroke: #3a0606; stroke-width: 1; transition: fill .6s ease, filter .6s ease !important; }
+    .ia-dd-shine { fill: #fff; opacity: .15; pointer-events: none; transition: opacity .6s ease; }
+    .ia-widget--dd-on .ia-dd-dot { fill: #ff2a2a; filter: drop-shadow(0 0 3px rgba(255,40,40,.95)) drop-shadow(0 0 6px rgba(255,40,40,.6)); }
+    .ia-widget--dd-on .ia-dd-shine { opacity: .75; }
 
-    /* Super BMO: flowing rainbow body once the day's follow-up is done. */
-    .bmo-rainbow { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
-    .bmo-widget--super .bmo-rainbow { opacity: 1; }
-    .bmo-widget--super.bmo-widget--sniping .bmo-rainbow { opacity: 0; }
+    /* Super Pip: flowing rainbow body once the day's follow-up is done. */
+    .ia-rainbow { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+    .ia-widget--super .ia-rainbow { opacity: 1; }
+    .ia-widget--super.ia-widget--sniping .ia-rainbow { opacity: 0; }
     /* Bubble rainbow sits on a layer under the screen that fades in/out at
        the same .6s as everything else (a gradient background would snap). */
-    .bmo-bubble::after {
+    .ia-bubble::after {
       content: ''; position: absolute; inset: 0 0 4px 0; border-radius: inherit; z-index: 0;
       background: linear-gradient(135deg, #ff3b3b, #ff9f1c, #ffe14d, #3ddc84, #3fa9f5, #9b5de5, #ff3b3b, #ff9f1c, #ffe14d);
       background-size: 400% 400%;
-      animation: bmo-rainbow-flow 4s linear infinite;
+      animation: ia-rainbow-flow 4s linear infinite;
       opacity: 0; transition: opacity .6s ease; pointer-events: none;
     }
-    .bmo-bubble > svg { position: relative; z-index: 1; }
-    .bmo-widget--super:not(.bmo-widget--sniping) .bmo-bubble::after { opacity: 1; }
-    @keyframes bmo-rainbow-flow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
+    .ia-bubble > svg { position: relative; z-index: 1; }
+    .ia-widget--super:not(.ia-widget--sniping) .ia-bubble::after { opacity: 1; }
+    @keyframes ia-rainbow-flow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
     /* Keep button labels readable on the rainbow. The outlines always
        exist but are fully transparent until the rainbow is on, so they fade
        in and out at the same .6s speed as the body instead of snapping. */
-    .bmo-btn-label { stroke: rgba(0,0,0,0); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; }
-    .bmo-cross rect { stroke: rgba(0,0,0,0); stroke-width: 1.2px; }
-    .bmo-btn-label, .bmo-cross rect { transition: stroke .6s ease, fill .6s ease, transform .1s ease !important; }
-    .bmo-widget--super:not(.bmo-widget--sniping) .bmo-btn-label { stroke: rgba(0,0,0,0); }
-    .bmo-widget--super .bmo-btn-doubledial .bmo-btn-label { stroke: rgba(0,0,0,0); }
-    .bmo-widget--super:not(.bmo-widget--sniping) .bmo-cross rect { stroke: rgba(0,0,0,0); }
+    .ia-btn-label { stroke: rgba(0,0,0,0); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; }
+    .ia-cross rect { stroke: rgba(0,0,0,0); stroke-width: 1.2px; }
+    .ia-btn-label, .ia-cross rect { transition: stroke .6s ease, fill .6s ease, transform .1s ease !important; }
+    .ia-widget--super:not(.ia-widget--sniping) .ia-btn-label { stroke: rgba(0,0,0,0); }
+    .ia-widget--super .ia-btn-doubledial .ia-btn-label { stroke: rgba(0,0,0,0); }
+    .ia-widget--super:not(.ia-widget--sniping) .ia-cross rect { stroke: rgba(0,0,0,0); }
 
-    /* Locked color button wiggle (Super BMO day). */
-    .bmo-locked-wiggle { transform-box: fill-box; transform-origin: center; animation: bmo-wiggle .45s ease 1; }
-    @keyframes bmo-wiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 50% { transform: rotate(8deg); } 75% { transform: rotate(-5deg); } }
+    /* Locked color button wiggle (Super Pip day). */
+    .ia-locked-wiggle { transform-box: fill-box; transform-origin: center; animation: ia-wiggle .45s ease 1; }
+    @keyframes ia-wiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 50% { transform: rotate(8deg); } 75% { transform: rotate(-5deg); } }
 
-    /* Level-up celebration: BMO hops, a light ring bursts, sparks fly
+    /* Level-up celebration: Pip hops, a light ring bursts, sparks fly
        out and "LEVEL UP!" pops above his head. */
-    .bmo-levelup {
+    .ia-levelup {
       position: absolute; right: 0; bottom: 0; width: 280px; height: 331px;
       pointer-events: none; display: none; z-index: 5;
     }
-    .bmo-widget--levelup .bmo-levelup { display: block; }
-    .bmo-levelup__text, .bmo-levelup__sub {
+    .ia-widget--levelup .ia-levelup { display: block; }
+    .ia-levelup__text, .ia-levelup__sub {
       position: absolute; left: 50%; top: 2px; transform: translateX(-50%);
       font: 900 26px/1 'Bahnschrift', 'Segoe UI', system-ui, sans-serif; letter-spacing: .04em;
       white-space: nowrap;
       background: linear-gradient(90deg, #ff3b3b, #ff9f1c, #ffe14d, #3ddc84, #3fa9f5, #9b5de5);
       -webkit-background-clip: text; background-clip: text; color: transparent;
       filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)) drop-shadow(0 0 6px rgba(255,255,255,.9));
-      opacity: 0; animation: bmo-lvl-text 2.4s cubic-bezier(.2,1.4,.4,1) forwards;
+      opacity: 0; animation: ia-lvl-text 2.4s cubic-bezier(.2,1.4,.4,1) forwards;
     }
-    .bmo-levelup__sub {
+    .ia-levelup__sub {
       top: 34px; font-size: 12px; letter-spacing: .25em; display: none;
       animation-delay: .25s;
     }
-    .bmo-widget--levelup-sub .bmo-levelup__sub { display: block; }
-    @keyframes bmo-lvl-text {
+    .ia-widget--levelup-sub .ia-levelup__sub { display: block; }
+    @keyframes ia-lvl-text {
       0% { opacity: 0; transform: translateX(-50%) translateY(30px) scale(.3); }
       20% { opacity: 1; transform: translateX(-50%) translateY(-6px) scale(1.18); }
       32% { transform: translateX(-50%) translateY(0) scale(1); }
       80% { opacity: 1; transform: translateX(-50%) translateY(-4px) scale(1); }
       100% { opacity: 0; transform: translateX(-50%) translateY(-22px) scale(1); }
     }
-    .bmo-levelup__ring {
+    .ia-levelup__ring {
       position: absolute; left: 50%; top: 52%; width: 40px; height: 40px; margin: -20px 0 0 -20px;
       border-radius: 50%; border: 4px solid rgba(255,255,255,.95);
       box-shadow: 0 0 18px 6px rgba(255,225,77,.8), inset 0 0 12px rgba(255,255,255,.8);
-      opacity: 0; animation: bmo-lvl-ring 1s ease-out forwards;
+      opacity: 0; animation: ia-lvl-ring 1s ease-out forwards;
     }
-    @keyframes bmo-lvl-ring {
+    @keyframes ia-lvl-ring {
       0% { opacity: 1; transform: scale(.2); }
       100% { opacity: 0; transform: scale(7); }
     }
-    .bmo-levelup__spark {
+    .ia-levelup__spark {
       position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px;
       background: #fff6b0;
       clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
       filter: drop-shadow(0 0 4px #ffd84d);
-      opacity: 0; animation: bmo-lvl-spark 1.3s ease-out forwards;
+      opacity: 0; animation: ia-lvl-spark 1.3s ease-out forwards;
     }
-    .bmo-levelup__spark:nth-child(odd) { background: #b9f3ff; filter: drop-shadow(0 0 4px #5ec8f0); }
-    @keyframes bmo-lvl-spark {
+    .ia-levelup__spark:nth-child(odd) { background: #b9f3ff; filter: drop-shadow(0 0 4px #5ec8f0); }
+    @keyframes ia-lvl-spark {
       0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(.4); }
       70% { opacity: 1; }
       100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1.2) rotate(180deg); }
     }
-    .bmo-widget--levelup .bmo-full { animation: bmo-lvl-hop .7s cubic-bezier(.3,1.6,.5,1) 1 !important; }
-    @keyframes bmo-lvl-hop {
+    .ia-widget--levelup .ia-full { animation: ia-lvl-hop .7s cubic-bezier(.3,1.6,.5,1) 1 !important; }
+    @keyframes ia-lvl-hop {
       0% { translate: 0 0; } 30% { translate: 0 -16px; } 55% { translate: 0 0; } 75% { translate: 0 -5px; } 100% { translate: 0 0; }
     }
 
     /* Easter egg: cracked screen. */
-    .bmo-crack { opacity: 0; pointer-events: none; transition: opacity .5s ease; }
-    .bmo-crack path { fill: none; stroke: #2b2b2b; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
-    .bmo-widget--cracked .bmo-crack { opacity: .9; transition: none; }
+    .ia-crack { opacity: 0; pointer-events: none; transition: opacity .5s ease; }
+    .ia-crack path { fill: none; stroke: #2b2b2b; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .ia-widget--cracked .ia-crack { opacity: .9; transition: none; }
     /* Cracked = sad: frown, droopy brows and a tear instead of the smile. */
-    .bmo-sad, .bmo-sad-tear { display: none; }
-    .bmo-sad { fill: none; stroke: #1a1a1a; stroke-width: 3.5; stroke-linecap: round; }
-    .bmo-sad-tear { fill: #5ec8f0; }
-    .bmo-widget--cracked .bmo-smile, .bmo-widget--cracked .bmo-lid { display: none; }
-    .bmo-widget--cracked .bmo-sad, .bmo-widget--cracked .bmo-sad-tear { display: inline; }
-    .bmo-widget--cracked .bmo-full, .bmo-widget--cracked .bmo-bubble { animation: bmo-impact .35s ease-out 1; }
-    @keyframes bmo-impact {
+    .ia-sad, .ia-sad-tear { display: none; }
+    .ia-sad { fill: none; stroke: #1a1a1a; stroke-width: 3.5; stroke-linecap: round; }
+    .ia-sad-tear { fill: #5ec8f0; }
+    .ia-widget--cracked .ia-smile, .ia-widget--cracked .ia-lid { display: none; }
+    .ia-widget--cracked .ia-sad, .ia-widget--cracked .ia-sad-tear { display: inline; }
+    .ia-widget--cracked .ia-full, .ia-widget--cracked .ia-bubble { animation: ia-impact .35s ease-out 1; }
+    @keyframes ia-impact {
       0% { translate: 0 0; } 20% { translate: -4px 2px; } 40% { translate: 4px -2px; }
       60% { translate: -2px 1px; } 80% { translate: 2px 0; } 100% { translate: 0 0; }
     }
 
     /* Stop pressed while running: a clear "stopped" flash. */
-    .bmo-widget--stop-flash .bmo-stop-face { animation: bmo-stop-flash .9s ease-out 1; }
-    @keyframes bmo-stop-flash { 0% { fill: #ffffff; } 100% { } }
-    .bmo-widget--sniping .bmo-bubble,
-    .bmo-widget--sniping .bmo-full {
-      animation: bmo-sniping-pulse 1s ease-in-out infinite;
+    .ia-widget--stop-flash .ia-stop-face { animation: ia-old-stop-flash .9s ease-out 1; }
+    @keyframes ia-old-stop-flash { 0% { fill: #ffffff; } 100% { } }
+    .ia-widget--sniping .ia-bubble,
+    .ia-widget--sniping .ia-full {
+      animation: ia-sniping-pulse 1s ease-in-out infinite;
     }
-    @keyframes bmo-sniping-pulse {
+    @keyframes ia-sniping-pulse {
       0%, 100% { filter: drop-shadow(0 0 0 rgba(220, 38, 38, 0)); }
       50% { filter: drop-shadow(0 0 8px rgba(220, 38, 38, .85)); }
     }
@@ -9941,25 +9844,25 @@ function __jsEnsureSharedObserver() {
        the palette reads as one smooth cross-fade across the whole
        character rather than separate pieces changing at different
        times. */
-    .bmo-themed { transition: fill .6s ease, stroke .6s ease; }
-    .bmo-bubble {
+    .ia-themed { transition: fill .6s ease, stroke .6s ease; }
+    .ia-bubble {
       position: absolute;
       right: 0;
       bottom: 0;
       width: 96px;
       height: 76px;
       border-radius: 16px;
-      background: var(--bmo-body);
+      background: var(--ia-pip-body);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: inset 0 -4px 0 var(--bmo-side), inset 0 1.5px 0 rgba(255,255,255,.25), 0 6px 12px rgba(0,0,0,.3);
+      box-shadow: inset 0 -4px 0 var(--ia-pip-side), inset 0 1.5px 0 rgba(255,255,255,.25), 0 6px 12px rgba(0,0,0,.3);
       cursor: grab;
       pointer-events: auto;
       transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .2s, background .6s ease;
     }
-    .bmo-bubble:active { cursor: grabbing; }
-    .bmo-full {
+    .ia-bubble:active { cursor: grabbing; }
+    .ia-full {
       position: absolute;
       right: 0;
       bottom: 0;
@@ -9971,91 +9874,91 @@ function __jsEnsureSharedObserver() {
       overflow: visible;
     }
     /* Invisible 16px grab zone around the minimized bubble */
-    .bmo-bubble::before {
+    .ia-bubble::before {
       content: '';
       position: absolute;
       inset: -16px;
       border-radius: 28px;
     }
-    .bmo-widget--maximized .bmo-full { transform: scale(1); opacity: 1; pointer-events: none; }
-    /* Only BMO's actual body (and what's on it) can be grabbed/clicked —
+    .ia-widget--maximized .ia-full { transform: scale(1); opacity: 1; pointer-events: none; }
+    /* Only Pip's actual body (and what's on it) can be grabbed/clicked —
        not the empty space around him, his hidden arms or accessories. */
-    .bmo-widget--maximized .bmo-full > :not(.bmo-arm-left):not(.bmo-arm-right):not(.bmo-headset):not(.bmo-crown):not(defs) { pointer-events: auto; cursor: grab; }
-    .bmo-widget--maximized .bmo-full .bmo-btn, .bmo-widget--maximized .bmo-full .bmo-btn *, .bmo-widget--maximized .bmo-full .bmo-dd-toggle,
-    .bmo-widget--maximized .bmo-screen-info__client, .bmo-widget--maximized .bmo-reminder { cursor: pointer !important; }
-    .bmo-widget--maximized .bmo-bubble { transform: scale(0.15); opacity: 0; pointer-events: none; }
-    .bmo-widget--dragging,
-    .bmo-widget--dragging * { cursor: grabbing !important; }
+    .ia-widget--maximized .ia-full > :not(.ia-arm-left):not(.ia-arm-right):not(.ia-headset):not(.ia-crown):not(defs) { pointer-events: auto; cursor: grab; }
+    .ia-widget--maximized .ia-full .ia-btn, .ia-widget--maximized .ia-full .ia-btn *, .ia-widget--maximized .ia-full .ia-dd-toggle,
+    .ia-widget--maximized .ia-screen-info__client, .ia-widget--maximized .ia-reminder { cursor: pointer !important; }
+    .ia-widget--maximized .ia-bubble { transform: scale(0.15); opacity: 0; pointer-events: none; }
+    .ia-widget--dragging,
+    .ia-widget--dragging * { cursor: grabbing !important; }
     /* A "peek" shows the full character the same way maximizing does,
        but stays non-interactive (pointer-events stays off) and doesn't
-       touch bmoMaximized — used only for the hourly reminder's
-       attention-grabbing wave when BMO is currently minimized, so the
+       touch iaMaximized — used only for the hourly reminder's
+       attention-grabbing wave when Pip is currently minimized, so the
        wave has an actual character to play on without it counting as
-       BMO being genuinely opened. */
-    .bmo-widget--peeking .bmo-full { transform: scale(1); opacity: 1; }
-    .bmo-widget--peeking .bmo-bubble { transform: scale(0.15); opacity: 0; }
-    .bmo-btn { cursor: pointer; }
-    .bmo-btn--disabled { opacity: .4; pointer-events: none; }
-    /* While auto-dialing, the red Stop button pulses so it's obvious BMO
+       Pip being genuinely opened. */
+    .ia-widget--peeking .ia-full { transform: scale(1); opacity: 1; }
+    .ia-widget--peeking .ia-bubble { transform: scale(0.15); opacity: 0; }
+    .ia-btn { cursor: pointer; }
+    .ia-btn--disabled { opacity: .4; pointer-events: none; }
+    /* While auto-dialing, the red Stop button pulses so it's obvious Pip
        is running on his own and how to halt him. */
-    .bmo-widget--running .bmo-stop-face { animation: bmo-stop-pulse 1.2s ease-in-out infinite; }
-    @keyframes bmo-stop-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+    .ia-widget--running .ia-stop-face { animation: ia-stop-pulse 1.2s ease-in-out infinite; }
+    @keyframes ia-stop-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
     /* Fonts already built into Windows — no downloads, no permission
        prompts. Bahnschrift is Windows' modern geometric font. */
-    .bmo-btn-label { font-family: 'Bahnschrift', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-kerning: normal; pointer-events: none; }
-    .bmo-eye { fill: #1a1a1a; }
-    .bmo-smile { fill: none; stroke: #1a1a1a; stroke-width: 4; stroke-linecap: round; }
+    .ia-btn-label { font-family: 'Bahnschrift', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif; font-weight: 600; font-kerning: normal; pointer-events: none; }
+    .ia-eye { fill: #1a1a1a; }
+    .ia-smile { fill: none; stroke: #1a1a1a; stroke-width: 4; stroke-linecap: round; }
 
     /* Dead face — shown for 2s after a vicious shake, on top of whichever
        face (bubble or full) is currently visible, and hides the normal
        one underneath it. */
-    .bmo-dead-face, .bmo-bubble-dead-face { display: none; }
-    .bmo-widget--dead .bmo-face, .bmo-widget--dead .bmo-bubble-face { display: none; }
-    .bmo-widget--dead .bmo-dead-face, .bmo-widget--dead .bmo-bubble-dead-face { display: inline; }
-    .bmo-dead-eye { fill: none; stroke: #1a1a1a; stroke-width: 3; stroke-linecap: round; }
-    .bmo-dead-mouth { fill: none; stroke: #1a1a1a; stroke-width: 4; stroke-linecap: round; }
-    .bmo-dead-tongue { fill: #ff6b8a; stroke: #c2455f; stroke-width: 1.5; }
+    .ia-dead-face, .ia-bubble-dead-face { display: none; }
+    .ia-widget--dead .ia-face, .ia-widget--dead .ia-bubble-face { display: none; }
+    .ia-widget--dead .ia-dead-face, .ia-widget--dead .ia-bubble-dead-face { display: inline; }
+    .ia-dead-eye { fill: none; stroke: #1a1a1a; stroke-width: 3; stroke-linecap: round; }
+    .ia-dead-mouth { fill: none; stroke: #1a1a1a; stroke-width: 4; stroke-linecap: round; }
+    .ia-dead-tongue { fill: #ff6b8a; stroke: #c2455f; stroke-width: 1.5; }
     /* Arms are invisible by default now -- they only ever exist on
        screen for the duration of a wave: fading in, waving, then fading
        back out, rather than sitting there permanently. Both arms share
        the same fade; only the right one also rotates. */
-    .bmo-arm-left, .bmo-arm-right { opacity: 0; }
-    .bmo-arm-left.bmo-waving { animation: bmo-arm-fade 2.2s ease-in-out 1; }
-    .bmo-arm-right.bmo-waving {
+    .ia-arm-left, .ia-arm-right { opacity: 0; }
+    .ia-arm-left.ia-waving { animation: ia-arm-fade 2.2s ease-in-out 1; }
+    .ia-arm-right.ia-waving {
       transform-origin: 168px 103px;
-      animation: bmo-arm-fade 2.2s ease-in-out 1, bmo-wave-rotate 2.2s ease-in-out 1;
+      animation: ia-arm-fade 2.2s ease-in-out 1, ia-wave-rotate 2.2s ease-in-out 1;
     }
-    @keyframes bmo-arm-fade {
+    @keyframes ia-arm-fade {
       0% { opacity: 0; }
       10% { opacity: 1; }
       85% { opacity: 1; }
       100% { opacity: 0; }
     }
-    @keyframes bmo-wave-rotate {
+    @keyframes ia-wave-rotate {
       0%, 10%, 85%, 100% { transform: rotate(0deg); }
       25% { transform: rotate(-22deg); }
       40% { transform: rotate(10deg); }
       55% { transform: rotate(-16deg); }
       70% { transform: rotate(4deg); }
     }
-    /* pointer-events is only re-enabled while BMO is actually maximized.
-       .bmo-full itself is pointer-events:none while minimized/peeking,
+    /* pointer-events is only re-enabled while Pip is actually maximized.
+       .ia-full itself is pointer-events:none while minimized/peeking,
        but that's just an ancestor default — an explicit pointer-events
        on a descendant (this foreignObject content) overrides it, so
        without scoping this to --maximized, the client link underneath
        the invisible, scaled-down full body would still catch clicks
        landing on the minimized bubble (right around where the eyes
        are) and open the lead instead of letting the bubble's own click
-       handler maximize BMO. */
-    .bmo-screen-info { font-family: system-ui, sans-serif; color: var(--bmo-text); pointer-events: none; transition: color .6s ease; }
-    .bmo-widget--maximized .bmo-screen-info { pointer-events: auto; }
+       handler maximize Pip. */
+    .ia-screen-info { font-family: system-ui, sans-serif; color: var(--ia-pip-text); pointer-events: none; transition: color .6s ease; }
+    .ia-widget--maximized .ia-screen-info { pointer-events: auto; }
     /* The screen's text box (an HTML island inside the SVG) doesn't scale
-       smoothly with the body in Chrome and visibly jumps while BMO grows
+       smoothly with the body in Chrome and visibly jumps while Pip grows
        or shrinks — so it fades out at once on minimize and only fades in
        once he's fully open. */
-    .bmo-widget:not(.bmo-widget--maximized):not(.bmo-widget--peeking) .bmo-screen-info { opacity: 0; transition: opacity .08s ease, color .6s ease; }
-    .bmo-widget--maximized .bmo-screen-info, .bmo-widget--peeking .bmo-screen-info { opacity: 1; transition: opacity .2s ease .3s, color .6s ease; }
-    .bmo-screen-info__label { font-size: 8px; line-height: 1.1; text-transform: uppercase; opacity: .65; letter-spacing: .03em; white-space: nowrap; }
+    .ia-widget:not(.ia-widget--maximized):not(.ia-widget--peeking) .ia-screen-info { opacity: 0; transition: opacity .08s ease, color .6s ease; }
+    .ia-widget--maximized .ia-screen-info, .ia-widget--peeking .ia-screen-info { opacity: 1; transition: opacity .2s ease .3s, color .6s ease; }
+    .ia-screen-info__label { font-size: 8px; line-height: 1.1; text-transform: uppercase; opacity: .65; letter-spacing: .03em; white-space: nowrap; }
     /* Was using -webkit-line-clamp (display:-webkit-box) to cap this at
        2 lines — that hack's height computation isn't reliable inside an
        SVG foreignObject specifically, unlike in a normal HTML document,
@@ -10076,36 +9979,36 @@ function __jsEnsureSharedObserver() {
        line is given first claim on whatever space is left after the
        label and the (capped) name, so it is never the one that gets
        clipped. */
-    .bmo-screen-info__client {
+    .ia-screen-info__client {
       display: block;
       max-height: 30px;
       overflow: hidden;
       font-weight: 700;
       font-size: 13px;
       margin-top: 1px;
-      color: var(--bmo-text);
+      color: var(--ia-pip-text);
       text-decoration: none;
       line-height: 1.15;
       transition: color .6s ease;
     }
-    .bmo-screen-info__client:hover { text-decoration: underline; }
-    .bmo-screen-info__route { font-size: 10px; line-height: 1.15; opacity: .8; margin-top: 1px; }
-    .bmo-screen-info__status { font-size: 8px; line-height: 1.1; opacity: .7; margin-top: 2px; }
-    .bmo-screen-info__status:empty { display: none; margin-top: 0; }
+    .ia-screen-info__client:hover { text-decoration: underline; }
+    .ia-screen-info__route { font-size: 10px; line-height: 1.15; opacity: .8; margin-top: 1px; }
+    .ia-screen-info__status { font-size: 8px; line-height: 1.1; opacity: .7; margin-top: 2px; }
+    .ia-screen-info__status:empty { display: none; margin-top: 0; }
 
-    .bmo-reminder {
+    .ia-reminder {
       position: absolute;
       right: 4px;
       /* Follows whichever face is actually showing: parked just above
          the small minimized bubble by default, and only jumps up above
          the full 331px-tall body while it's actually on screen (maximized,
-         or mid-"peek") -- see the .bmo-widget--maximized/--peeking
+         or mid-"peek") -- see the .ia-widget--maximized/--peeking
          overrides below. Both the box and the bubble stay a fixed size
          either way, so these are plain fixed offsets, not something that
          needs recalculating in JS. */
       bottom: 86px;
       width: 190px;
-      background: var(--bmo-body);
+      background: var(--ia-pip-body);
       color: #fff;
       border-radius: 10px;
       padding: 10px 12px;
@@ -10118,12 +10021,12 @@ function __jsEnsureSharedObserver() {
       gap: 8px;
       transition: background .6s ease, bottom .25s ease;
     }
-    .bmo-widget--maximized .bmo-reminder,
-    .bmo-widget--peeking .bmo-reminder {
+    .ia-widget--maximized .ia-reminder,
+    .ia-widget--peeking .ia-reminder {
       bottom: 341px;
     }
-    .bmo-reminder__text { flex: 1; }
-    .bmo-reminder__dismiss {
+    .ia-reminder__text { flex: 1; }
+    .ia-reminder__dismiss {
       background: none;
       border: none;
       color: #fff;
@@ -10133,7 +10036,7 @@ function __jsEnsureSharedObserver() {
       cursor: pointer;
       padding: 0 2px;
     }
-    .bmo-reminder__dismiss:hover { opacity: 1; }
+    .ia-reminder__dismiss:hover { opacity: 1; }
   `);
 
 
@@ -10143,28 +10046,28 @@ function __jsEnsureSharedObserver() {
   // Colours mirror IA_MODES / IA_ACCENTS at the top of the file.
   // ------------------------------------------------------------------
   GM_addStyle(`
-    .bmo-widget { font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif; }
-    .bmo-widget.ia-mode-dark { --ia-bg:#0e0f13; --ia-card:transparent; --ia-cardbd:#23252d; --ia-field:#15171d; --ia-line:#23252d; --ia-line2:#2c2f38; --ia-text:#e8e8ed; --ia-title:#f4f4f7; --ia-muted:#8a8d98; --ia-sec:#c9cad3; --ia-head:#e8e8ed; --ia-eye:#0e0f13; --ia-onacc:#0e0f13; --ia-ok:#4ade80; --ia-bad:#f8717f; --ia-stop:#e5484d; --ia-foot:#5d6070; --ia-shadow:0 18px 44px rgba(0,0,0,.55); --acc:#2dd4bf; }
-    .bmo-widget.ia-mode-light { --ia-bg:#ffffff; --ia-card:#f6f6f8; --ia-cardbd:#f6f6f8; --ia-field:#f6f6f8; --ia-line:#e4e4e9; --ia-line2:#e4e4e9; --ia-text:#18181b; --ia-title:#18181b; --ia-muted:#6b6b76; --ia-sec:#3f3f46; --ia-head:#3f3f46; --ia-eye:#ffffff; --ia-onacc:#ffffff; --ia-ok:#16a34a; --ia-bad:#dc3e42; --ia-stop:#dc3e42; --ia-foot:#a1a1aa; --ia-shadow:0 14px 36px rgba(15,23,42,.18); --acc:#0f766e; }
-    .bmo-widget.ia-mode-navy { --ia-bg:#0b1628; --ia-card:#10203a; --ia-cardbd:#1c2e4d; --ia-field:#10203a; --ia-line:#1c2e4d; --ia-line2:#23395e; --ia-text:#e6edf7; --ia-title:#f1f5fb; --ia-muted:#8aa0bf; --ia-sec:#c4d2e6; --ia-head:#e6edf7; --ia-eye:#0b1628; --ia-onacc:#0b1628; --ia-ok:#4ade80; --ia-bad:#ff8a8a; --ia-stop:#e5484d; --ia-foot:#5b7092; --ia-shadow:0 18px 44px rgba(2,8,23,.6); --acc:#5eead4; }
-    .bmo-widget.ia-mode-dark.bmo-widget--midnight { --acc:#7c7cf8; }
-    .bmo-widget.ia-mode-light.bmo-widget--midnight { --acc:#5b5bd6; }
-    .bmo-widget.ia-mode-navy.bmo-widget--midnight { --acc:#7c9cff; }
-    .bmo-widget.ia-mode-dark.bmo-widget--pink { --acc:#f472b6; }
-    .bmo-widget.ia-mode-light.bmo-widget--pink { --acc:#db2777; }
-    .bmo-widget.ia-mode-navy.bmo-widget--pink { --acc:#f9a8d4; }
-    .bmo-widget.ia-mode-dark.bmo-widget--black { --acc:#e4e4e7; }
-    .bmo-widget.ia-mode-light.bmo-widget--black { --acc:#27272a; }
-    .bmo-widget.ia-mode-navy.bmo-widget--black { --acc:#e6edf7; }
-    .bmo-widget.ia-mode-dark.bmo-widget--gold { --acc:#f5b544; }
-    .bmo-widget.ia-mode-light.bmo-widget--gold { --acc:#b45309; }
-    .bmo-widget.ia-mode-navy.bmo-widget--gold { --acc:#fcd34d; }
-    .bmo-widget.ia-mode-dark.bmo-widget--super { --acc:#a78bfa; }
-    .bmo-widget.ia-mode-light.bmo-widget--super { --acc:#7c3aed; }
-    .bmo-widget.ia-mode-navy.bmo-widget--super { --acc:#c4b5fd; }
-    .bmo-widget.ia-mode-dark.bmo-widget--sniping { --acc:#f8717f; }
-    .bmo-widget.ia-mode-light.bmo-widget--sniping { --acc:#dc3e42; }
-    .bmo-widget.ia-mode-navy.bmo-widget--sniping { --acc:#ff8a8a; }
+    .ia-widget { font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    .ia-widget.ia-mode-dark { --ia-bg:#0e0f13; --ia-card:transparent; --ia-cardbd:#23252d; --ia-field:#15171d; --ia-line:#23252d; --ia-line2:#2c2f38; --ia-text:#e8e8ed; --ia-title:#f4f4f7; --ia-muted:#8a8d98; --ia-sec:#c9cad3; --ia-head:#e8e8ed; --ia-eye:#0e0f13; --ia-onacc:#0e0f13; --ia-ok:#4ade80; --ia-bad:#f8717f; --ia-stop:#e5484d; --ia-foot:#5d6070; --ia-shadow:0 18px 44px rgba(0,0,0,.55); --acc:#2dd4bf; }
+    .ia-widget.ia-mode-light { --ia-bg:#ffffff; --ia-card:#f6f6f8; --ia-cardbd:#f6f6f8; --ia-field:#f6f6f8; --ia-line:#e4e4e9; --ia-line2:#e4e4e9; --ia-text:#18181b; --ia-title:#18181b; --ia-muted:#6b6b76; --ia-sec:#3f3f46; --ia-head:#3f3f46; --ia-eye:#ffffff; --ia-onacc:#ffffff; --ia-ok:#16a34a; --ia-bad:#dc3e42; --ia-stop:#dc3e42; --ia-foot:#a1a1aa; --ia-shadow:0 14px 36px rgba(15,23,42,.18); --acc:#0f766e; }
+    .ia-widget.ia-mode-navy { --ia-bg:#0b1628; --ia-card:#10203a; --ia-cardbd:#1c2e4d; --ia-field:#10203a; --ia-line:#1c2e4d; --ia-line2:#23395e; --ia-text:#e6edf7; --ia-title:#f1f5fb; --ia-muted:#8aa0bf; --ia-sec:#c4d2e6; --ia-head:#e6edf7; --ia-eye:#0b1628; --ia-onacc:#0b1628; --ia-ok:#4ade80; --ia-bad:#ff8a8a; --ia-stop:#e5484d; --ia-foot:#5b7092; --ia-shadow:0 18px 44px rgba(2,8,23,.6); --acc:#5eead4; }
+    .ia-widget.ia-mode-dark.ia-widget--midnight { --acc:#7c7cf8; }
+    .ia-widget.ia-mode-light.ia-widget--midnight { --acc:#5b5bd6; }
+    .ia-widget.ia-mode-navy.ia-widget--midnight { --acc:#7c9cff; }
+    .ia-widget.ia-mode-dark.ia-widget--pink { --acc:#f472b6; }
+    .ia-widget.ia-mode-light.ia-widget--pink { --acc:#db2777; }
+    .ia-widget.ia-mode-navy.ia-widget--pink { --acc:#f9a8d4; }
+    .ia-widget.ia-mode-dark.ia-widget--black { --acc:#e4e4e7; }
+    .ia-widget.ia-mode-light.ia-widget--black { --acc:#27272a; }
+    .ia-widget.ia-mode-navy.ia-widget--black { --acc:#e6edf7; }
+    .ia-widget.ia-mode-dark.ia-widget--gold { --acc:#f5b544; }
+    .ia-widget.ia-mode-light.ia-widget--gold { --acc:#b45309; }
+    .ia-widget.ia-mode-navy.ia-widget--gold { --acc:#fcd34d; }
+    .ia-widget.ia-mode-dark.ia-widget--super { --acc:#a78bfa; }
+    .ia-widget.ia-mode-light.ia-widget--super { --acc:#7c3aed; }
+    .ia-widget.ia-mode-navy.ia-widget--super { --acc:#c4b5fd; }
+    .ia-widget.ia-mode-dark.ia-widget--sniping { --acc:#f8717f; }
+    .ia-widget.ia-mode-light.ia-widget--sniping { --acc:#dc3e42; }
+    .ia-widget.ia-mode-navy.ia-widget--sniping { --acc:#ff8a8a; }
 
     /* Pip */
     .pip { display: block; flex: none; }
@@ -10177,36 +10080,36 @@ function __jsEnsureSharedObserver() {
     .pip .pip-wave { fill: none; stroke: var(--ia-ok); stroke-width: 2.4; stroke-linecap: round; animation: pip-wave 1.2s ease-in-out infinite; }
     @keyframes pip-wave { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
     .pip .pip-f-call, .pip .pip-f-snipe { display: none; }
-    .bmo-widget--oncall .pip .pip-f-idle { display: none; }
-    .bmo-widget--oncall .pip .pip-f-call { display: inline; }
-    .bmo-widget--sniping .pip .pip-f-idle, .bmo-widget--sniping .pip .pip-f-call { display: none; }
-    .bmo-widget--sniping .pip .pip-f-snipe { display: inline; }
-    .bmo-widget--levelup .pip { animation: pip-bounce .7s cubic-bezier(.3,1.6,.5,1) 2; }
+    .ia-widget--oncall .pip .pip-f-idle { display: none; }
+    .ia-widget--oncall .pip .pip-f-call { display: inline; }
+    .ia-widget--sniping .pip .pip-f-idle, .ia-widget--sniping .pip .pip-f-call { display: none; }
+    .ia-widget--sniping .pip .pip-f-snipe { display: inline; }
+    .ia-widget--levelup .pip { animation: pip-bounce .7s cubic-bezier(.3,1.6,.5,1) 2; }
     @keyframes pip-bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
 
     /* Minimized tile (96 x 76) */
-    .bmo-widget .bmo-bubble { background: var(--ia-bg); border: 1px solid var(--ia-line); border-radius: 14px; box-sizing: border-box;
+    .ia-widget .ia-bubble { background: var(--ia-bg); border: 1px solid var(--ia-line); border-radius: 14px; box-sizing: border-box;
       box-shadow: var(--ia-shadow); transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .2s, background .3s, border-color .3s; }
-    .bmo-widget .bmo-bubble::after { display: none; }
-    .bmo-widget .bmo-bubble:hover { border-color: var(--acc); }
-    .bmo-widget--sniping .bmo-bubble { border-color: var(--acc); }
+    .ia-widget .ia-bubble::after { display: none; }
+    .ia-widget .ia-bubble:hover { border-color: var(--acc); }
+    .ia-widget--sniping .ia-bubble { border-color: var(--acc); }
     .ia-mini { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
     .ia-mini__dot { position: absolute; top: -9px; right: -16px; }
     .ia-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ia-line2); flex: none; transition: background .3s; }
-    .bmo-widget--running .ia-dot { background: var(--ia-ok); animation: ia-pulse 1.6s ease-in-out infinite; }
-    .bmo-widget--sniping .ia-dot { background: var(--acc); animation: ia-pulse 1s ease-in-out infinite; }
+    .ia-widget--running .ia-dot { background: var(--ia-ok); animation: ia-pulse 1.6s ease-in-out infinite; }
+    .ia-widget--sniping .ia-dot { background: var(--acc); animation: ia-pulse 1s ease-in-out infinite; }
     @keyframes ia-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
     /* Open panel (280 x 331) */
-    .bmo-widget .ia-panel { width: 280px; height: 331px; box-sizing: border-box; padding: 13px; display: flex; flex-direction: column; gap: 9px;
+    .ia-widget .ia-panel { width: 280px; height: 331px; box-sizing: border-box; padding: 13px; display: flex; flex-direction: column; gap: 9px;
       background: var(--ia-bg); color: var(--ia-text); border: 1px solid var(--ia-line); border-radius: 14px;
       box-shadow: var(--ia-shadow); overflow: hidden; transition: transform .3s cubic-bezier(.34,1.3,.64,1), opacity .2s, background .3s, border-color .3s, color .3s; }
-    .bmo-widget--maximized .ia-panel { cursor: grab; pointer-events: auto; }
+    .ia-widget--maximized .ia-panel { cursor: grab; pointer-events: auto; }
     .ia-head { display: flex; align-items: center; gap: 7px; height: 32px; flex: none; }
     .ia-head__txt { flex: 1; min-width: 0; }
     .ia-head__title { font-size: 13.5px; font-weight: 600; color: var(--ia-title); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ia-head__greet { font-size: 11px; color: var(--ia-muted); line-height: 1.25; height: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .ia-head__greet .bmo-led { font: inherit; letter-spacing: 0; fill: currentColor; }
+    .ia-head__greet .ia-led { font: inherit; letter-spacing: 0; fill: currentColor; }
     .ia-iconbtn { width: 24px; height: 24px; border-radius: 6px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex: none;
       color: var(--ia-muted); border: 1px solid transparent; font-size: 15px; line-height: 1; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
     .ia-iconbtn:hover { border-color: var(--ia-line2); color: var(--ia-title); }
@@ -10221,17 +10124,17 @@ function __jsEnsureSharedObserver() {
     .ia-idle__icon { display: inline-flex; color: var(--acc); margin-bottom: 4px; }
     .ia-idle__t { font-size: 14px; font-weight: 600; color: var(--ia-title); }
     .ia-idle__s { font-size: 11.5px; color: var(--ia-muted); margin-top: 2px; }
-    .ia-panel .bmo-screen-info { color: var(--ia-text); display: flex; flex-direction: column; height: 100%; }
-    .ia-panel .bmo-screen-info[style*="none"] { display: none !important; }
-    .ia-panel .bmo-screen-info__label { font-size: 11px; color: var(--acc); opacity: 1; font-weight: 600; line-height: 1.2; text-transform: none; letter-spacing: 0; }
-    .ia-panel .bmo-screen-info__client { font-size: 17px; font-weight: 600; color: var(--ia-title); max-height: 42px; line-height: 1.22; margin-top: 5px; }
-    .ia-panel .bmo-screen-info__route { font-size: 12.5px; color: var(--ia-muted); opacity: 1; margin-top: 3px; font-variant-numeric: tabular-nums; }
+    .ia-panel .ia-screen-info { color: var(--ia-text); display: flex; flex-direction: column; height: 100%; }
+    .ia-panel .ia-screen-info[style*="none"] { display: none !important; }
+    .ia-panel .ia-screen-info__label { font-size: 11px; color: var(--acc); opacity: 1; font-weight: 600; line-height: 1.2; text-transform: none; letter-spacing: 0; }
+    .ia-panel .ia-screen-info__client { font-size: 17px; font-weight: 600; color: var(--ia-title); max-height: 42px; line-height: 1.22; margin-top: 5px; }
+    .ia-panel .ia-screen-info__route { font-size: 12.5px; color: var(--ia-muted); opacity: 1; margin-top: 3px; font-variant-numeric: tabular-nums; }
     .ia-card-foot { margin-top: auto; padding-top: 7px; border-top: 1px solid var(--ia-line); display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; }
-    .ia-panel .bmo-screen-info__status { color: var(--ia-sec); opacity: 1; margin: 0; padding: 0; border: 0; line-height: 1.3; flex: 1; min-width: 0; }
+    .ia-panel .ia-screen-info__status { color: var(--ia-sec); opacity: 1; margin: 0; padding: 0; border: 0; line-height: 1.3; flex: 1; min-width: 0; }
     .ia-progress { margin-left: auto; color: var(--ia-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .ia-card-foot:has(.bmo-screen-info__status[style*="none"]):has(.ia-progress:empty) { display: none; }
+    .ia-card-foot:has(.ia-screen-info__status[style*="none"]):has(.ia-progress:empty) { display: none; }
 
-    .ia-panel button.bmo-btn { font: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border-radius: 8px; transition: filter .15s, background .15s, border-color .15s, color .15s, opacity .2s; }
+    .ia-panel button.ia-btn { font: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border-radius: 8px; transition: filter .15s, background .15s, border-color .15s, color .15s, opacity .2s; }
     .ia-call { height: 42px; flex: none; border: 0; border-radius: 9px !important; background: var(--acc); color: var(--ia-onacc); font-size: 14px !important; font-weight: 600 !important; }
     .ia-call:hover { filter: brightness(1.08); }
     .ia-call:active, .ia-sec:active, .ia-stop:active { transform: translateY(1px); }
@@ -10241,38 +10144,38 @@ function __jsEnsureSharedObserver() {
     .ia-sec:hover { border-color: var(--acc); color: var(--ia-title); }
     .ia-stop { background: transparent; color: var(--ia-bad); border: 1px solid var(--ia-line2); }
     .ia-stop:hover { border-color: var(--ia-stop); }
-    .bmo-widget--running .ia-stop { background: var(--ia-stop); color: #fff; border-color: var(--ia-stop); }
-    .bmo-widget--stop-flash .ia-stop { animation: ia-stop-flash .9s ease-out 1; }
+    .ia-widget--running .ia-stop { background: var(--ia-stop); color: #fff; border-color: var(--ia-stop); }
+    .ia-widget--stop-flash .ia-stop { animation: ia-stop-flash .9s ease-out 1; }
     @keyframes ia-stop-flash { 0% { background: var(--ia-stop); color: #fff; } 100% { } }
-    .ia-panel .bmo-btn--disabled { opacity: .4; }
+    .ia-panel .ia-btn--disabled { opacity: .4; }
 
     .ia-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: none; }
     .ia-toggle { display: flex; align-items: center; justify-content: space-between; height: 22px; font-size: 12px; color: var(--ia-sec); cursor: pointer; }
     .ia-switch { position: relative; width: 28px; height: 16px; border-radius: 8px; background: var(--ia-line2); transition: background .2s; }
     .ia-switch span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--ia-bg); transition: transform .2s, background .2s; }
     .ia-mode-light .ia-switch span { background: #ffffff; }
-    .bmo-widget--dd-on .ia-toggle--dd .ia-switch { background: var(--acc); }
-    .bmo-widget--dd-on .ia-toggle--dd .ia-switch span { transform: translateX(12px); background: var(--ia-onacc); }
+    .ia-widget--dd-on .ia-toggle--dd .ia-switch { background: var(--acc); }
+    .ia-widget--dd-on .ia-toggle--dd .ia-switch span { transform: translateX(12px); background: var(--ia-onacc); }
     .ia-foot { height: 12px; flex: none; text-align: right; font-size: 10px; color: var(--ia-foot); line-height: 12px; margin-top: -4px; }
 
     /* Reminder card */
-    .bmo-widget .bmo-reminder { background: var(--ia-bg); color: var(--ia-text); border: 1px solid var(--ia-line); border-radius: 10px;
+    .ia-widget .ia-reminder { background: var(--ia-bg); color: var(--ia-text); border: 1px solid var(--ia-line); border-radius: 10px;
       box-shadow: var(--ia-shadow); font-family: inherit; }
-    .bmo-widget .bmo-reminder__dismiss { color: var(--ia-muted); }
+    .ia-widget .ia-reminder__dismiss { color: var(--ia-muted); }
 
     /* Round-complete banner instead of the game "level up" */
-    .bmo-widget .bmo-levelup__text { top: -46px; font: 600 12px/1 Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: 0;
+    .ia-widget .ia-levelup__text { top: -46px; font: 600 12px/1 Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: 0;
       background: var(--ia-bg); -webkit-background-clip: border-box; background-clip: border-box; color: var(--ia-title);
       border: 1px solid var(--acc); padding: 9px 12px; border-radius: 8px; filter: none;
       box-shadow: var(--ia-shadow); animation: ia-banner 2.4s ease forwards; }
     @keyframes ia-banner { 0% { opacity: 0; transform: translateX(-50%) translateY(8px); } 12%, 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-6px); } }
-    .bmo-widget--levelup .bmo-full { animation: none !important; }
+    .ia-widget--levelup .ia-full { animation: none !important; }
 
     /* Switch off the old character-only effects */
-    .bmo-widget--gold .bmo-bubble, .bmo-widget--gold .bmo-full,
-    .bmo-widget--gold-unlock .bmo-full,
-    .bmo-widget--cracked .bmo-full, .bmo-widget--cracked .bmo-bubble,
-    .bmo-widget--sniping .bmo-bubble, .bmo-widget--sniping .bmo-full { animation: none !important; filter: none !important; }
+    .ia-widget--gold .ia-bubble, .ia-widget--gold .ia-full,
+    .ia-widget--gold-unlock .ia-full,
+    .ia-widget--cracked .ia-full, .ia-widget--cracked .ia-bubble,
+    .ia-widget--sniping .ia-bubble, .ia-widget--sniping .ia-full { animation: none !important; filter: none !important; }
   `);
 
   // Shares PART 2/3/4's single observer instead of keeping its own —
@@ -10283,15 +10186,15 @@ function __jsEnsureSharedObserver() {
 })();
 
 // ====================================================================
-// PART 5 — Lead sniper (Alt+Z or Alt+X)
+// SECTION 5 · Lead sniper (Alt+Z or Alt+X)
 // ====================================================================
 // Sniper logic taken from the standalone "CRM Master Sniper & Sales
 // Analytics" v2.2 script (10ms polling + 20ms Enter confirm). The old
-// "Lead Sniper: ON/OFF (MAX SPEED)" popup is gone — BMO turning red
-// (PART 4 listens for the iansassistant:sniper-state event) is the only
+// "Lead Sniper: ON/OFF (MAX SPEED)" popup is gone — Pip turning red
+// (SECTION 4 listens for the iansassistant:sniper-state event) is the only
 // on/off indicator. Kept as its own IIFE so it's independent of the
-// BMO/power-dialer domain guard above — it runs on tmgbo.com too, where
-// BMO doesn't exist at all.
+// Pip/power-dialer domain guard above — it runs on tmgbo.com too, where
+// Pip doesn't exist at all.
 (function () {
   'use strict';
 
@@ -10315,7 +10218,7 @@ function __jsEnsureSharedObserver() {
 
   // Listen for hotkeys
   document.addEventListener('keydown', function (e) {
-    // ALT + Z or ALT + X: toggle the Lead Sniper (BMO turns red while ON)
+    // ALT + Z or ALT + X: toggle the Lead Sniper (Pip turns red while ON)
     if (e.altKey && (e.code === 'KeyZ' || e.code === 'KeyX')) {
       e.preventDefault();
       setSniperActive(!sniperActive);
@@ -10379,7 +10282,7 @@ function __jsEnsureSharedObserver() {
 
 
 // ====================================================================
-// PART 6 — Keep the RingCentral widget signed in
+// SECTION 6 · Keep the RingCentral widget signed in
 // ====================================================================
 // Runs only INSIDE the RingCentral phone frame. Chrome sometimes wipes the
 // widget's saved sign-in (third-party storage clearing, "clear on close",
@@ -10446,7 +10349,7 @@ function __jsEnsureSharedObserver() {
 })();
 
 // ====================================================================
-// PART 8 — RC tab texts: the RingCentral side
+// SECTION 8 · RC tab texts: the RingCentral side
 // ====================================================================
 // Runs only INSIDE the RingCentral phone frame, and only answers the BO's
 // own pages. Works purely through the phone's own screen: it reads the
@@ -10580,7 +10483,7 @@ function __jsEnsureSharedObserver() {
   async function freshScreen(phone) {
     return until(() => {
       const p = panel();
-      if (p && !p.hasAttribute('data-js-old')) {
+      if (p && !p.hasAttribute('data-ia-old')) {
         const n = p.querySelector('[data-sign="currentName"]');
         const shown = n ? digits((n.getAttribute('title') || '') + ' ' + n.textContent) : '';
         // A plain number on screen must be the lead's; a saved contact name
@@ -10590,7 +10493,7 @@ function __jsEnsureSharedObserver() {
       }
       if (p) return null;
       const ta = msgBox(document);
-      if (!ta || ta.hasAttribute('data-js-old')) return null;
+      if (!ta || ta.hasAttribute('data-ia-old')) return null;
       if (!composeShowsNumber(phone)) return null;
       return { kind: 'compose', root: document.body };
     }, 10000);
@@ -10607,7 +10510,7 @@ function __jsEnsureSharedObserver() {
     if (d.op === 'status') return status();
     if (status().signedIn !== true) throw err('signedout', 'RingCentral is signed out');
     if (d.op === 'mark') {
-      document.querySelectorAll('[data-sign="conversationPanel"], textarea').forEach((p) => p.setAttribute('data-js-old', '1'));
+      document.querySelectorAll('[data-sign="conversationPanel"], textarea').forEach((p) => p.setAttribute('data-ia-old', '1'));
       return {};
     }
     if (d.op === 'read') {
@@ -10634,7 +10537,7 @@ function __jsEnsureSharedObserver() {
       if (!sc) throw err('nopanel', 'Couldn\u2019t open the conversation in RingCentral \u2014 not sent');
       const root = sc.root;
       if (sc.kind === 'conv') await settled(root);
-      const ta = await until(() => { const t = msgBox(root); return t && !t.hasAttribute('data-js-old') ? t : null; }, 4000);
+      const ta = await until(() => { const t = msgBox(root); return t && !t.hasAttribute('data-ia-old') ? t : null; }, 4000);
       if (!ta) throw err('http', 'RingCentral message box not found \u2014 not sent');
       const outsNow = () => Array.from(document.querySelectorAll('[data-sign="OutboundText"]'));
       const before = outsNow().filter((o) => o.textContent.trim() === text).length;
@@ -10669,7 +10572,7 @@ function __jsEnsureSharedObserver() {
 })();
 
 // ====================================================================
-// PART 7 — Airport-change (self-transfer) detector on lead options
+// SECTION 7 · Airport-change (self-transfer) detector on lead options
 // ====================================================================
 // Reads each flight option's segment lines on a lead (e.g.
 // "1   KL 602   J 25JUL   LAX AMS   150P 905A¥1") and looks at every
@@ -10776,42 +10679,42 @@ function __jsEnsureSharedObserver() {
       const texts = pres.map((p) => (p.querySelector('.overflow-hidden') || p).textContent.trim());
       const signature = texts.join('|');
       const holder = box.closest('.lead-option-segment') || box.parentElement;
-      if (box.dataset.jsApcSig === signature && (!box.dataset.jsApcHit || holder.querySelector(':scope > .js-apc-flag'))) return;
+      if (box.dataset.jsApcSig === signature && (!box.dataset.jsApcHit || holder.querySelector(':scope > .ia-apc-flag'))) return;
       box.dataset.jsApcSig = signature;
 
-      const old = holder.querySelector(':scope > .js-apc-flag');
+      const old = holder.querySelector(':scope > .ia-apc-flag');
       if (old) old.remove();
-      pres.forEach((p) => p.classList.remove('js-apc-row'));
+      pres.forEach((p) => p.classList.remove('ia-apc-row'));
 
       const changes = findAirportChanges(parseLegs(texts));
       box.dataset.jsApcHit = changes.length ? '1' : '';
       if (!changes.length) return;
 
       const flag = document.createElement('div');
-      flag.className = 'js-apc-flag';
+      flag.className = 'ia-apc-flag';
       changes.forEach((c) => {
         const tag = document.createElement('span');
-        tag.className = 'js-apc-tag';
-        tag.appendChild(sadBmoFace(17));
+        tag.className = 'ia-apc-tag';
+        tag.appendChild(worriedPip(17));
         tag.appendChild(document.createTextNode(c.from + ' & ' + c.to));
         tag.title = 'Airport change: arrives ' + c.from + ', next flight departs ' + c.to;
         flag.appendChild(tag);
-        if (pres[c.rowA]) pres[c.rowA].classList.add('js-apc-row');
-        if (pres[c.rowB]) pres[c.rowB].classList.add('js-apc-row');
+        if (pres[c.rowA]) pres[c.rowA].classList.add('ia-apc-row');
+        if (pres[c.rowB]) pres[c.rowB].classList.add('ia-apc-row');
       });
       holder.insertBefore(flag, holder.firstChild);
     });
   }
 
   GM_addStyle(`
-    .js-apc-flag { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px 0; }
-    .js-apc-tag {
+    .ia-apc-flag { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px 0; }
+    .ia-apc-tag {
       display: inline-flex; align-items: center; gap: 4px; line-height: 16px;
       background: #dc2626; color: #fff; font-weight: 700; font-size: 12px;
       padding: 1px 7px 1px 2px; border-radius: 4px; font-family: system-ui, sans-serif;
       letter-spacing: .02em;
     }
-    pre.js-apc-row { box-shadow: inset 3px 0 0 #dc2626; }
+    pre.ia-apc-row { box-shadow: inset 3px 0 0 #dc2626; }
   `);
 
   __jsRegisterScan(scanOptions);

@@ -36,7 +36,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). **Open all** opens every site you tick in its ▾ menu, and **↻** re-reads the lead.
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -52,6 +52,11 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**1.6.0 — search panel**
+- Search links open in a new tab behind the BO, so you stay on the lead.
+- Basis and PointsYeah: Both opens both legs at once, and Ctrl+click opens one leg while keeping the menu open for the next.
+- The search panel has a fresh look that follows your Dark, Light or Navy mode.
 
 **1.5.0 — new features**
 - Set the sell price while adding an option from a flight site. Net + 10% is filled in for you, or type your own.
