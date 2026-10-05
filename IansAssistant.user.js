@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.4.1
+// @version      1.5.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -368,7 +368,7 @@ const EQUIP_FAMILY_DEFAULTS = [
 const CARRIER_WIDEBODY_DEFAULT = {
     AA: '772', DL: '359', UA: '789', BA: '789', LH: '359', AF: '772', KL: '772',
     EK: '77W', QR: '359', SQ: '359', CX: '359', JL: '789', NH: '789',
-    AC: '789', QF: '789', VS: '789', EY: '789', TK: '359',
+    AC: '789', QF: '789', VS: '789', EY: '789', TK: '359', PR: '333',
   };
 
 function guessEquipCode(leg) {
@@ -399,6 +399,27 @@ function equipCode(leg) {
     const match = key.match(/(\d{3})/);
     return match ? match[1] : guessEquipCode(leg);
   }
+
+// Worried Pip for warnings (airport change, rush only, $0.00).
+function sadBmoFace(width) {
+  const el = document.createElement('span');
+  el.className = 'js-sadbmo';
+  el.setAttribute('aria-hidden', 'true');
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '10 10 76 80');
+  svg.setAttribute('width', String(width));
+  svg.setAttribute('height', String(Math.round(width * 80 / 76)));
+  svg.style.display = 'block';
+  const add = (tag, attrs) => { const n = document.createElementNS(NS, tag); Object.keys(attrs).forEach((k) => n.setAttribute(k, attrs[k])); svg.appendChild(n); };
+  add('path', { d: 'M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z', fill: '#fecaca' });
+  add('path', { d: 'M35 41 L44 44 M61 41 L52 44', stroke: '#7f1d1d', 'stroke-width': '3.4', 'stroke-linecap': 'round', fill: 'none' });
+  add('circle', { cx: '40', cy: '50', r: '4', fill: '#7f1d1d' });
+  add('circle', { cx: '56', cy: '50', r: '4', fill: '#7f1d1d' });
+  add('path', { d: 'M40 64 Q48 57 56 64', stroke: '#7f1d1d', 'stroke-width': '3.2', 'stroke-linecap': 'round', fill: 'none' });
+  el.appendChild(svg);
+  return el;
+}
 
 const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES SM';
 
@@ -710,8 +731,12 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
   // fallback), but keeps the field populated with something plausible
   // rather than "???".
 
+  // Premium economy class letter for carriers that don't use W.
+  const PREMIUM_CLASS_BY_CARRIER = { PR: 'N' };
   function bookingClass(leg) {
-    return leg.bookingCode || CONFIG.DEFAULT_BOOKING_BY_CABIN[leg.cabin] || 'Y';
+    if (leg.bookingCode) return leg.bookingCode;
+    if (leg.cabin === 'w' && leg.airline && PREMIUM_CLASS_BY_CARRIER[leg.airline.code]) return PREMIUM_CLASS_BY_CARRIER[leg.airline.code];
+    return CONFIG.DEFAULT_BOOKING_BY_CABIN[leg.cabin] || 'Y';
   }
 
   // ------------------------------------------------------------------
@@ -824,7 +849,21 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
   let gdsCaptureResolve = null;
   let gdsCopyListener = null;
 
+  // Never copy or send a broken *IA: every flight line must have its
+  // airline, flight number, class, date and route. If a site changed its
+  // page and something wasn't read, it fails loudly instead.
+  function gdsTextProblem(text) {
+    const m = String(text || '').match(/^\*IA\n([\s\S]*?)\n\nVI\*/);
+    if (!m) return null; // not *IA output
+    const rows = m[1].split('\n').filter((l) => l.trim());
+    if (!rows.length) return 'No flights read';
+    const ok = /^\s*\d+ [A-Z0-9]{2} *\d{1,5}[A-Z] \d{2}[A-Z]{3} [A-Z] [A-Z]{6} [A-Z]{2}\d+ +\d{3,4}[AP] +\d{3,4}[AP]/;
+    return rows.every((r) => ok.test(r)) ? null : 'Flight details missing';
+  }
+
   function flashButton(btn, textToCopy, showBig) {
+    const problem = gdsTextProblem(textToCopy);
+    if (problem) { flashError(btn, '❌ ' + problem + ' — not copied'); return; }
     if (gdsCaptureResolve) { const r = gdsCaptureResolve; gdsCaptureResolve = null; r({ ok: true, text: textToCopy }); return; }
     if (gdsCopyListener) gdsCopyListener(true);
     copyText(textToCopy);
@@ -1452,48 +1491,62 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     return adults + children;
   }
 
+  // Reads every flight in an expanded PointsYeah itinerary. PointsYeah has
+  // shown the flight line ("PR101 · Boeing 777" or just "PR101 ·"), the
+  // cabin and the flight time both AFTER the arrival and BETWEEN departure
+  // and arrival, so each flight's details are looked for anywhere in its
+  // own block (from its departure up to the next flight's departure),
+  // never at one fixed position.
   function pyParseDetailLegs(detailEl) {
-    const lines = detailEl.innerText.split('\n').map((s) => s.trim()).filter(Boolean);
-    const dtRe = /^[A-Za-z]{3},\s*[A-Za-z]{3}\s+\d{1,2}\s+\d{4}\s+\d{1,2}:\d{2}\s*(am|pm)$/i;
+    const lines = detailEl.innerText.split('\n').map((s) => s.replace(/ /g, ' ').trim()).filter(Boolean);
+    const dtRe = /^[A-Za-z]{3},\s*[A-Za-z]{3}\s+\d{1,2},?\s+\d{4}\s+\d{1,2}:\d{2}\s*(am|pm)$/i;
     const stationRe = /\(([A-Z]{3})\)\s*$/;
-    const flightRe = /^([A-Z]{2}\d+)\s*[\u00b7\u2022]\s*(.+)$/;
-    const cabinWords = Object.keys(CABIN_WORD_TO_CODE);
-    const layoverRe = /^layover:/i;
+    const flightRe = /^([A-Z0-9]{2})\s?(\d{1,4})(?![\dhm])\s*(?:[·•|]\s*(.*))?$/;
+    const cabinRe = /^(premium economy|premium|economy|coach|business|first)\b(?:.*?\(([A-Z])\))?/i;
+    const durRe = /^(\d{1,2})\s*h(?:\s*(\d{1,2})\s*m)?$/i;
 
+    // Departure/arrival pairs: a date-time line followed by "Airport (XXX)".
+    const stamps = [];
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (dtRe.test(lines[i]) && stationRe.test(lines[i + 1])) stamps.push(i);
+    }
     const legs = [];
-    let i = 0;
-    while (i < lines.length) {
-      if (dtRe.test(lines[i]) && stationRe.test(lines[i + 1] || '')) {
-        const depDT = lines[i];
-        const depCode = lines[i + 1].match(stationRe)[1];
-        i += 2;
-        while (i < lines.length && !dtRe.test(lines[i])) i++;
-        if (i >= lines.length || !stationRe.test(lines[i + 1] || '')) break;
-        const arrDT = lines[i];
-        const arrCode = lines[i + 1].match(stationRe)[1];
-        i += 2;
-
-        let flightNo = '', aircraft = '', cabin = '';
-        while (i < lines.length && !flightRe.test(lines[i]) && !layoverRe.test(lines[i]) && !dtRe.test(lines[i])) i++;
-        if (i < lines.length && flightRe.test(lines[i])) {
-          const m = lines[i].match(flightRe);
-          flightNo = m[1];
-          aircraft = m[2];
-          i++;
-          if (i < lines.length && cabinWords.some((w) => lines[i].toLowerCase() === w)) {
-            cabin = lines[i].toLowerCase();
-            i++;
-          }
-        }
-        while (i < lines.length && (flightRe.test(lines[i]) || cabinWords.includes(lines[i].toLowerCase()))) i++;
-        if (i < lines.length && layoverRe.test(lines[i])) i++;
-
-        legs.push({ depDT, depCode, arrDT, arrCode, flightNo, aircraft, cabin });
-      } else {
-        i++;
+    for (let k = 0; k + 1 < stamps.length; k += 2) {
+      const di = stamps[k];
+      const ai = stamps[k + 1];
+      const end = k + 2 < stamps.length ? stamps[k + 2] : lines.length;
+      let flightNo = '', aircraft = '', cabin = '', bookingCode = '', durMin = 0;
+      for (let j = di + 2; j < end; j++) {
+        if (j === ai || j === ai + 1) continue;
+        const t = lines[j];
+        if (j > ai && /^layover/i.test(t)) break;
+        const dm = !durMin && t.match(durRe);
+        if (dm) { durMin = parseInt(dm[1], 10) * 60 + (parseInt(dm[2] || '0', 10) || 0); continue; }
+        const fm = !flightNo && t.match(flightRe);
+        if (fm) { flightNo = fm[1] + fm[2]; aircraft = (fm[3] || '').trim(); continue; }
+        const cm = !cabin && t.match(cabinRe);
+        if (cm) { cabin = /^premium/i.test(cm[1]) ? 'premium economy' : cm[1].toLowerCase(); if (cm[2]) bookingCode = cm[2]; }
       }
+      legs.push({ depDT: lines[di], depCode: lines[di + 1].match(stationRe)[1], arrDT: lines[ai], arrCode: lines[ai + 1].match(stationRe)[1], flightNo, aircraft, cabin, bookingCode, durMin });
     }
     return legs;
+  }
+
+  // Flight numbers from the card header ("Philippine Airlines - PR101"),
+  // for when the expanded block doesn't show them.
+  function pyHeaderFlightNos(anchorEl) {
+    let card = anchorEl;
+    for (let i = 0; i < 8 && card && card.parentElement; i++) card = card.parentElement;
+    const text = card ? card.innerText : '';
+    return Array.from(text.matchAll(/ - ([A-Z0-9]{2})\s?(\d{1,4})\b/g)).map((m) => m[1] + m[2]);
+  }
+
+  function pyTzDuration(leg) {
+    const plain = Math.round((leg.arrival - leg.departure) / 60000);
+    const o1 = estimateUtcOffset(leg.origin.iata);
+    const o2 = estimateUtcOffset(leg.destination.iata);
+    if (o1 == null || o2 == null) return Math.max(0, plain);
+    return Math.max(0, plain - (o2 - o1) * 60);
   }
 
   function pyToDate(dtStr) {
@@ -1523,23 +1576,25 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     if (!rawLegs.length) return null;
 
     const pax = pyParsePax();
-    const legs = rawLegs.map((rl) => {
-      const carrier = rl.flightNo.slice(0, 2);
-      const num = rl.flightNo.slice(2);
-      return {
-        airline: { code: carrier },
-        flightNumber: num,
+    const headerNos = pyHeaderFlightNos(anchorEl);
+    const legs = rawLegs.map((rl, i) => {
+      const fno = rl.flightNo || (headerNos.length === rawLegs.length ? headerNos[i] : '');
+      const leg = {
+        airline: { code: fno.slice(0, 2) },
+        flightNumber: fno.slice(2),
         cabin: CABIN_WORD_TO_CODE[rl.cabin] || 'y',
         aircraft: rl.aircraft,
         origin: { iata: rl.depCode },
         destination: { iata: rl.arrCode },
         departure: pyToDate(rl.depDT),
         arrival: pyToDate(rl.arrDT),
-        duration: 0,
+        duration: rl.durMin || 0,
       };
-    });
-    legs.forEach((leg) => {
-      leg.duration = Math.max(0, Math.round((leg.arrival - leg.departure) / 60000));
+      // No duration shown: work it out with both airports' time zones
+      // (plain subtraction of two local times is wrong across zones).
+      if (!leg.duration) leg.duration = pyTzDuration(leg);
+      if (rl.bookingCode) leg.bookingCode = rl.bookingCode;
+      return leg;
     });
 
     return { flights: [{ legs }], pax };
@@ -2576,6 +2631,28 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     return Math.round(parseFloat(m[1]) * (m[2] ? 1000 : 1));
   }
 
+  // FlyBasis's advanced detail page: a "Program | Cost | Points | Taxes |
+  // Link" table instead of the result card's data. Cheapest supported
+  // program first, the rest selectable in the dropdown.
+  function fbDetailPrices() {
+    const out = [];
+    document.querySelectorAll('.divide-y > div').forEach((row) => {
+      const cells = Array.from(row.children);
+      if (cells.length < 4) return;
+      const program = cells[0].textContent.trim();
+      if (!/^[A-Z0-9]{2}$/.test(program)) return;
+      const cost = parseMoney(cells[1].textContent);
+      const points = parsePoints(cells[2].textContent);
+      const taxes = parseMoney(cells[3].textContent);
+      if (!points) return;
+      out.push({ kind: 'award', points, taxes: taxes || { amount: 0, currency: 'USD' }, program, _cost: cost ? cost.amount : Infinity });
+    });
+    const ok = (o) => (BO_PROGRAMS.includes(programCode(o.program)) ? 0 : 1);
+    out.sort((a, b) => ok(a) - ok(b) || a._cost - b._cost);
+    out.forEach((o) => delete o._cost);
+    return out;
+  }
+
   // --- Price readers, one per site. Each returns a list of choices:
   // { kind:'cash', money } or { kind:'award', points, taxes(money), program }
   function readPrice(origBtn) {
@@ -2605,7 +2682,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       }
       if (host.includes('flybasis.com') || host.includes('agentsearch.vercel.app')) {
         const card = origBtn.closest('[data-json]');
-        if (!card) return [];
+        if (!card) return fbDetailPrices();
         const it = JSON.parse(card.dataset.json);
         const f = (it.flights || [])[0] || {};
         // Every program offered for this flight (primary + duplicates);
@@ -2838,6 +2915,19 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     .lead.bad { border-color: ${th.stop}; color: ${th.bad}; }
     .lead::placeholder { color: ${th.muted}; letter-spacing: .14em; font-weight: 600; }
     .lead:disabled { opacity: .6; }
+    .sellrow { width: fit-content; margin: 8px auto 0; display: flex; align-items: center; gap: 4px; height: 30px; border-radius: 8px; padding: 0 10px;
+      background: ${th.field}; border: 1px solid ${th.line2}; transition: border-color .15s; }
+    .sellrow:focus-within { border-color: ${th.acc}; }
+    .sellrow.bad { border-color: ${th.stop}; }
+    .sell-l { font-weight: 600; font-size: 10px; line-height: 1; letter-spacing: .12em; color: ${th.muted}; }
+    .sell-d { font: 600 14px/1 ui-monospace, 'Cascadia Mono', Consolas, monospace; color: ${th.muted}; margin-left: 8px; }
+    .sell-on { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .sell-cb { width: 14px; height: 14px; margin: 0; accent-color: ${th.acc}; cursor: pointer; }
+    .sellrow.off .sell-d, .sellrow.off .sell { opacity: .35; }
+    .sell { width: 62px; flex: none; border: 0; outline: none; background: transparent; text-align: right; color: ${th.title};
+      font: 600 14px/28px ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: .04em; padding: 0; }
+    .sell::placeholder { color: ${th.muted}; font-style: italic; font-weight: 500; letter-spacing: 0; }
+    .sell:disabled { opacity: .6; }
     .price { margin-top: 8px; font-size: 11.5px; color: ${th.sec}; text-align: center; min-height: 14px; }
     select.pick { margin-top: 6px; width: 100%; font: 11.5px inherit; border-radius: 6px; border: 1px solid ${th.line2}; background: ${th.field}; color: ${th.text}; padding: 4px; }
     .warn { margin-top: 7px; padding: 4px 6px; border-radius: 6px; border: 1px solid ${th.stop}; color: ${th.bad}; font-weight: 600; font-size: 11px; text-align: center; }
@@ -2866,6 +2956,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       <div class="wrap"><div class="body"><div class="title"><svg width="18" height="19" viewBox="10 10 76 80" aria-hidden="true">${PIP_MINI(th)}</svg>Ian's Assistant</div><div class="screen">
         <button class="gds" type="button">GDS</button>
         <input class="lead" type="text" inputmode="numeric" placeholder="LEAD ID" autocomplete="off" spellcheck="false">
+        <div class="sellrow"><label class="sell-on" title="Set the sell price when adding (off = $0.00 as usual)"><input class="sell-cb" type="checkbox"><span class="sell-l">SELL</span></label><span class="sell-d">$</span><input class="sell" type="text" inputmode="decimal" maxlength="9" placeholder="auto" autocomplete="off" spellcheck="false"></div>
         <div class="price"></div>
         <div class="extra"></div>
         <div class="status"></div>
@@ -2905,9 +2996,48 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     function setStatus(text, cls) { status.className = 'status' + (cls ? ' ' + cls : ''); setMarkup(status, text || ''); }
     state.setStatus = setStatus;
 
+    // Sell box: Net + 10% rounded up to a price ending in 88-92. Cash is
+    // worked out right here; award Net is only known once the BO prices
+    // the miles, so it's done there ("auto"). Typing a price overrides.
+    const sellIn = root.querySelector('.sell');
+    const sellRow = root.querySelector('.sellrow');
+    state.sellEnding = [88, 89, 90, 91, 92][Math.floor(Math.random() * 5)];
+    state.sellAuto = true;
+    const roundSellP = (x) => { let v = Math.floor(x / 100) * 100 + state.sellEnding; if (v < x) v += 100; return v; };
+    function autoSell() {
+      if (!state.sellAuto) return;
+      const c = state.choices[state.choiceIdx];
+      const u = c && c.kind === 'cash' ? toUsd(c.money) : null;
+      sellIn.value = u && !u.error && u.usd > 0 ? String(roundSellP(u.usd * 1.1)) : '';
+      sellIn.placeholder = 'auto';
+    }
+    sellIn.addEventListener('input', () => {
+      state.sellAuto = !sellIn.value.trim();
+      sellRow.classList.remove('bad');
+      if (state.sellAuto) autoSell();
+    });
+    sellIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') lead.focus(); });
+    // Tick = set the sell price; untick = leave it $0.00 as usual. Remembered.
+    const sellCb = root.querySelector('.sell-cb');
+    let sellOn = true;
+    try { sellOn = GM_getValue('js-sell-on', true) !== false; } catch (e) { sellOn = true; }
+    const applyOn = () => { sellCb.checked = sellOn; sellRow.classList.toggle('off', !sellOn); sellIn.disabled = !sellOn; };
+    applyOn();
+    sellCb.addEventListener('change', () => { sellOn = sellCb.checked; try { GM_setValue('js-sell-on', sellOn); } catch (e) { /* ignore */ } applyOn(); });
+    state.sellSpec = () => {
+      if (!sellOn) return null;
+      if (state.sellAuto) return { value: null, ending: state.sellEnding };
+      const t = sellIn.value.trim().replace(/^\$\s*/, '').replace(/,(?=\d{3}\b)/g, '');
+      if (!/^\d+(\.\d{1,2})?$/.test(t)) return { bad: true };
+      return { value: Math.round(parseFloat(t) * 100) / 100, ending: state.sellEnding };
+    };
+
     function renderChoice() {
       const c = state.choices[state.choiceIdx];
+      // With a dropdown, the dropdown itself shows the price: no repeat line.
       priceEl.textContent = c ? describeChoice(c) : 'Price not found on this result';
+      priceEl.style.display = c && state.choices.length > 1 ? 'none' : '';
+      autoSell();
       extra.querySelectorAll('.warn').forEach((w) => w.remove());
       const code = c && c.kind === 'award' ? programCode(c.program) : null;
       const unsupported = !!c && !programSupported(c);
@@ -2930,7 +3060,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       if (state.choices.length > 1) {
         const sel = document.createElement('select');
         sel.className = 'pick';
-        state.choices.forEach((c, i) => { const o = document.createElement('option'); o.value = i; o.textContent = describeChoice(c) + (programSupported(c) ? '' : ' (not supported)'); sel.appendChild(o); });
+        state.choices.forEach((c, i) => { const o = document.createElement('option'); o.value = i; o.textContent = describeChoice(c).replace(' / person', '') + (programSupported(c) ? '' : ' (not supported)'); sel.appendChild(o); });
         sel.value = String(state.choiceIdx);
         sel.addEventListener('change', () => { state.choiceIdx = parseInt(sel.value, 10); renderChoice(); });
         extra.appendChild(sel);
@@ -2991,6 +3121,8 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     lead.disabled = true;
     const done = (html, cls) => { setStatus(html, cls); state.busy = false; lead.disabled = false; };
 
+    const sellSpec = state.sellSpec ? state.sellSpec() : null;
+    if (sellSpec && sellSpec.bad) { root.querySelector('.sellrow').classList.add('bad'); return done('Sell price: numbers only, e.g. 4890', 'err'); }
     setStatus('Reading option<span class="dots"></span>');
     const cap = await captureGds(origBtn);
     if (!cap.ok) return done(cap.error || 'Could not read the flights', 'err');
@@ -3054,15 +3186,25 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       if (st.phase === 'claimed') {
         claimed = true;
         setStatus('Opening lead ' + leadId + '<span class="dots"></span>');
+        // The BO tab runs whatever version was installed when it was loaded.
+        const mine = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '';
+        if (mine && st.v !== mine) state.boStale = true;
       } else if (st.phase === 'lead') {
         claimed = true;
         onLeadInfo(st);
       } else if (st.phase === 'saving') {
         setStatus('Adding to lead ' + leadId + '<span class="dots"></span>');
+      } else if (st.phase === 'selling') {
+        setStatus('Setting sell price<span class="dots"></span>');
       } else if (st.phase === 'done') {
         clearTimeout(overall);
         cleanup();
-        done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : ''), 'ok');
+        const sv = st.sell && st.sell.ADT;
+        if (sv) { const si = root.querySelector('.sell'); si.value = String(sv); }
+        const sellTxt = sv ? ' · Sell $' + Number(sv).toLocaleString('en-US') : '';
+        if (state.boStale) { done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + '<br>Your BO tab runs an older Ian\'s Assistant \u2014 reload it (F5)', 'err'); return; }
+        if (st.sell && st.sell.error) done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + '<br>Sell price not set: ' + st.sell.error, 'err');
+        else done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + sellTxt, 'ok');
       } else if (st.phase === 'error') {
         clearTimeout(overall);
         cleanup();
@@ -3096,6 +3238,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
         if (pax.infants) flags.push('Infant added at ' + INFANT_AWARD_MILES.toLocaleString('en-US') + ' miles + same taxes as adult');
       }
       fill.flags = flags;
+      if (sellSpec) fill.sell = sellSpec;
       if (price.kind === 'award') {
         const rush = [...new Set(price.parts.map((p) => p.program))].filter((c) => RUSH_PROGRAMS[c]);
         if (rush.length) fill.rush = rush.map((c) => RUSH_PROGRAMS[c]).join(' & ') + ' Detected, Rush flight only';
@@ -4059,8 +4202,12 @@ function __jsEnsureSharedObserver() {
     CABIN_NAME: { y: "ECONOMY", w: "PREMIUM ECONOMY", s: "PREMIUM ECONOMY", j: "BUSINESS", b: "BUSINESS", f: "FIRST", e: "ECONOMY", c: "BUSINESS" },
   };
 
+  // Premium economy class letter for carriers that don't use W.
+  const PREMIUM_CLASS_BY_CARRIER = { PR: 'N' };
   function bookingClass(leg) {
-    return leg.bookingCode || CONFIG.DEFAULT_BOOKING_BY_CABIN[leg.cabin] || 'Y';
+    if (leg.bookingCode) return leg.bookingCode;
+    if (leg.cabin === 'w' && leg.airline && PREMIUM_CLASS_BY_CARRIER[leg.airline.code]) return PREMIUM_CLASS_BY_CARRIER[leg.airline.code];
+    return CONFIG.DEFAULT_BOOKING_BY_CABIN[leg.cabin] || 'Y';
   }
 
   function buildIALine(leg, idx, pax) {
@@ -5013,22 +5160,138 @@ function __jsEnsureSharedObserver() {
         return fail('Net price field not found');
       }
       await wait(300);
+      let sell = null;
+      if (fill.sell) {
+        try { sell = await fillModalSell(modal, fill.sell); } catch (e) { sell = { error: (e && e.message) || String(e) }; }
+      }
 
       const saveBtn = await waitFor(() => Array.from(modal.querySelectorAll('button.btn-primary')).find((b) => b.textContent.trim() === 'Save' && !b.disabled), 6000);
       if (!saveBtn) return fail('Save button not available (form not complete?)');
       saveBtn.click();
 
-      const newId = await waitFor(() => Array.from(existingOptionIds()).find((id) => !before.has(id)), 30000, 200);
+      // The new option = an option that wasn't there before AND shows
+      // exactly the flights just sent (an older option that only finished
+      // loading late must never be taken for it).
+      const jobSigs = gdsJobSigs(job.gds);
+      const newId = await waitFor(() => {
+        const fresh = Array.from(existingOptionIds()).filter((id) => !before.has(id));
+        if (!jobSigs.length) return fresh.length === 1 ? fresh[0] : null;
+        const hits = fresh.filter((id) => { const sg = optionSigsById(id); return sg && sg.join('|') === jobSigs.join('|'); });
+        if (hits.length) return hits.map(Number).sort((a, b) => b - a)[0].toString();
+        return null;
+      }, 30000, 200) || (() => {
+        // Flights shown differently than sent: accept only a single new
+        // option that is also the newest one on the lead.
+        const all = Array.from(existingOptionIds()).map(Number);
+        const fresh = all.filter((id) => !before.has(String(id)));
+        return fresh.length === 1 && fresh[0] === Math.max(...all) ? String(fresh[0]) : null;
+      })();
       sendJobActive = false;
-      if (!newId) return fail('Saved, but the new option did not show up — please check the lead');
+      if (!newId) return fail('Saved, but the new option could not be confirmed \u2014 please check the lead');
       saveOptionFlags(newId, fill);
       saveOptionRaw(newId, job.gds);
       saveOptionCost(newId, fill);
-      jobStatus(jobId, { phase: 'done', optionId: newId });
+      jobStatus(jobId, { phase: 'done', optionId: newId, sell });
       closeTab(1500);
     } catch (e) {
       fail('Error: ' + (e && e.message ? e.message : e));
     }
+  }
+
+  // Sell price for an option just added: what you typed in the Pip pop-up,
+  // or else the option's Net (as the lead page shows it) + 10%, rounded up
+  // to a price ending in 88-92 (e.g. Net 4,400 -> 4,890). Children get the
+  // same as adults when you typed a price, infants get their Net + 10%.
+  function roundSell(x, ending) {
+    let v = Math.floor(x / 100) * 100 + ending;
+    if (v < x) v += 100;
+    return v;
+  }
+  // Fills "Sell price*" in the Add option form, from the form's own Net
+  // (per passenger type; with Multiple Tkt, the total is shared out by
+  // each ticket's Net). Done before Save, so nothing is changed later.
+  async function fillModalSell(modal, spec) {
+    const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r : null; };
+    const leaf = (re) => Array.from(modal.querySelectorAll('label, .form-label, div, span')).filter((l) => l.children.length === 0 && re.test(l.textContent.trim()) && vis(l));
+    const read = () => {
+      const sellLabels = leaf(/^sell price\*?$/i).sort((x, y) => vis(x).top - vis(y).top);
+      if (!sellLabels.length) return null;
+      const netLabels = leaf(/^net\*?$/i);
+      const inputs = Array.from(modal.querySelectorAll('input')).filter((i) => i.type !== 'checkbox' && i.type !== 'radio' && vis(i));
+      const blocks = sellLabels.map((sl, i) => {
+        const sr = vis(sl);
+        const yMax = sellLabels[i + 1] ? vis(sellLabels[i + 1]).top - 2 : Infinity;
+        const nl = netLabels.filter((n) => Math.abs(vis(n).top - sr.top) < 12).sort((x, y) => Math.abs(vis(x).left - sr.left) - Math.abs(vis(y).left - sr.left))[0];
+        if (!nl) return null;
+        const nr = vis(nl);
+        const sx = sr.left + sr.width / 2, nx = nr.left + nr.width / 2;
+        const rows = {};
+        ['ADT', 'CHD', 'INF'].forEach((type) => {
+          const lab = Array.from(modal.querySelectorAll('*')).find((e) => e.children.length === 0 && e.textContent.trim().toUpperCase() === type && vis(e) && vis(e).top > sr.top && vis(e).top < yMax);
+          if (!lab) return;
+          const lr = vis(lab);
+          const ly = lr.top + lr.height / 2;
+          const at = (x) => inputs.find((inp) => { const r = vis(inp); return Math.abs(r.top + r.height / 2 - ly) < 14 && r.left - 6 <= x && r.right + 6 >= x; });
+          const sellIn = at(sx), netIn = at(nx);
+          if (sellIn && netIn && sellIn !== netIn) rows[type] = { sellIn, net: parseFloat(String(netIn.value).replace(/[^\d.-]/g, '')) || 0 };
+        });
+        return rows;
+      }).filter(Boolean);
+      return blocks.length ? blocks : null;
+    };
+    // Award Net is worked out by the form once miles/program are in.
+    const blocks = await waitFor(() => { const b = read(); return b && b.some((x) => x.ADT && x.ADT.net > 0) ? b : null; }, 5000, 150) || read();
+    if (!blocks) throw new Error('Sell price field not found');
+    const ending = [88, 89, 90, 91, 92].includes(spec.ending) ? spec.ending : 90;
+    const out = {};
+    ['ADT', 'CHD', 'INF'].forEach((type) => {
+      const parts = blocks.map((b) => b[type]).filter(Boolean);
+      if (!parts.length) return;
+      const net = parts.reduce((t, p) => t + p.net, 0);
+      let total;
+      if (type === 'INF') total = net > 0 ? Math.ceil(net * 1.1) : 0;
+      else if (spec.value > 0) total = spec.value;
+      else total = net > 0 ? roundSell(net * 1.1, ending) : 0;
+      if (!total) return;
+      let left = total;
+      parts.forEach((p, i) => {
+        const v = i === parts.length - 1 ? Math.round(left * 100) / 100 : Math.round((net ? total * p.net / net : total / parts.length) * 100) / 100;
+        left -= v;
+        setField(p.sellIn, v);
+      });
+      out[type] = total;
+    });
+    if (!out.ADT) throw new Error('Net not shown in the form');
+    await wait(150);
+    return { ADT: out.ADT, all: out };
+  }
+
+  // Flight fingerprints ("PR101 08OCT HNLMNL") of the *IA lines sent.
+  function gdsJobSigs(gds) {
+    const ia = (String(gds || '').split(/\n\s*VI\*/)[0] || '');
+    return ia.split('\n').map((l) => {
+      const m = l.match(/^\s*\d+\s+([A-Z0-9]{2})\s*(\d{1,5})[A-Z]\s+(\d{2}[A-Z]{3})\s+[A-Z]\s+([A-Z]{3})([A-Z]{3})\b/);
+      return m ? m[1] + parseInt(m[2], 10) + ' ' + m[3] + ' ' + m[4] + m[5] : null;
+    }).filter(Boolean);
+  }
+  // The flights an option's card shows on the lead page.
+  function optionCardById(id) {
+    const cb = document.getElementById('checkbox-switch-' + id);
+    if (!cb) return null;
+    const opt = cb.closest('.lead-option');
+    if (opt) return opt;
+    for (let up = cb.parentElement; up && up !== document.body; up = up.parentElement) {
+      if (up.querySelectorAll('input[id^="checkbox-switch-"]').length > 1) return null;
+      if (up.querySelector('.lead-option-segment-segments')) return up;
+    }
+    return null;
+  }
+  function optionSigsById(id) {
+    const card = optionCardById(id);
+    const box = card && card.querySelector('.lead-option-segment-segments');
+    if (!box) return null;
+    const sigs = Array.from(box.querySelectorAll(':scope > pre')).map((p) => segSig((p.querySelector('.overflow-hidden') || p).textContent)).filter(Boolean);
+    return sigs.length ? sigs : null;
   }
 
   // Fallback mode: a background tab opened with ?jsjob=<id>.
@@ -5167,7 +5430,7 @@ function __jsEnsureSharedObserver() {
       const claimKey = 'js-sendjob-claim-' + req.id;
       if (GM_getValue(claimKey, null)) return;
       GM_setValue(claimKey, tabToken);
-      jobStatus(req.id, { phase: 'claimed' });
+      jobStatus(req.id, { phase: 'claimed', v: (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '' });
       try { GM_setValue(LAST_LEAD_KEY, req.leadId); } catch (e) { /* ignore */ }
 
       const f = ensureFrame(req.leadId);
@@ -5891,6 +6154,19 @@ function __jsEnsureSharedObserver() {
         const img = cell && cell.querySelector('img[alt]');
         hits.push(img ? img.getAttribute('alt') : 'a quote');
       });
+      // The other email design: "$0.00 USD" in a bold <p>, with "Total per
+      // adult" under it and the airline's logo (carrier_img/PR.png) above.
+      d.querySelectorAll('p').forEach((p) => {
+        if (p.closest('b.n')) return;
+        const t = p.textContent.replace(/\s+/g, ' ').trim();
+        if (!/^\$\s?0(\.0+)?(\s?[A-Z]{3})?$/.test(t)) return;
+        const cell = p.closest('td') || p.parentElement;
+        if (!cell || !/total per|per (adult|person|passenger)/i.test(cell.textContent)) return;
+        const img = cell.querySelector('img');
+        const alt = img && img.getAttribute('alt');
+        const code = img && ((img.getAttribute('src') || '').match(/carrier_img\/([A-Z0-9]{2})\./i) || [])[1];
+        hits.push(alt || (code ? code.toUpperCase() : 'a quote'));
+      });
     });
     return hits;
   }
@@ -5910,7 +6186,8 @@ function __jsEnsureSharedObserver() {
       box.className = 'js-zero-box';
       const h = document.createElement('div');
       h.className = 'js-zero-title';
-      h.textContent = '\u26a0 $0.00 price in this send';
+      h.textContent = '$0.00 price in this send';
+      box.appendChild(sadBmoFace(84));
       const p2 = document.createElement('div');
       p2.className = 'js-zero-text';
       p2.textContent = (hits.length === 1 ? '1 quote shows' : hits.length + ' quotes show') + ' $0.00 to the client (' + hits.join(', ') + '). Set the Sell price before sending.';
@@ -6235,7 +6512,7 @@ function __jsEnsureSharedObserver() {
     const payload = {
       type: multi ? 'multi-city' : (segs[0].returnDate ? 'round-trip' : 'one-way'),
       slices,
-      options: { cabin: (mixDep || mixRet) ? 'COACH' : (cabinMap[cab] || 'BUSINESS'), stops: '-1', extraStops: '1', allowAirportChanges: 'true', showOnlyAvailable: 'true' },
+      options: { cabin: (mixDep || mixRet) ? 'COACH' : (cabinMap[cab] || 'BUSINESS'), stops: '-1', extraStops: '1', allowAirportChanges: 'true', showOnlyAvailable: 'true', currency: { displayName: 'United States Dollar (USD)', code: 'USD' } },
       pax,
     };
     return 'https://matrix.itasoftware.com/search?search=' + encodeURIComponent(btoa(JSON.stringify(payload)));
@@ -6286,9 +6563,23 @@ function __jsEnsureSharedObserver() {
       const a = document.createElement('span');
       a.textContent = it.label;
       const b = document.createElement('small');
-      b.textContent = it.note || '';
+      b.textContent = it.selected ? '\u2713' : (it.note || '');
+      if (it.selected) row.classList.add('is-sel');
+      if (it.toggle) {
+        // Checkbox row: ticks on and off, the menu stays open.
+        const box = document.createElement('span');
+        box.className = 'js-fxp-chk';
+        const paint = () => { const on = it.checked(); box.classList.toggle('on', on); box.textContent = on ? '\u2713' : ''; row.classList.toggle('is-off', !on); };
+        paint();
+        row.classList.add('js-fxp-menu-c');
+        a.prepend(box);
+        row.append(a, b);
+        row.addEventListener('click', (e) => { e.stopPropagation(); it.toggle(); paint(); });
+        el.appendChild(row);
+        return;
+      }
       row.append(a, b);
-      row.addEventListener('click', (e) => { e.stopPropagation(); fxpCloseMenu(); fxpOpen(it.url()); });
+      row.addEventListener('click', (e) => { e.stopPropagation(); fxpCloseMenu(); if (it.pick) it.pick(); else fxpOpen(it.url()); });
       el.appendChild(row);
     });
     document.body.appendChild(el);
@@ -6306,6 +6597,13 @@ function __jsEnsureSharedObserver() {
   }
 
   const fxpState = { cab: null, flex: 0 };
+  // What "Open all" opens (ticked in its ▾ menu). Remembered.
+  const FXP_OPENALL = [['g', 'Google', ''], ['e', 'ELR', ''], ['m', 'Matrix', ''], ['py', 'PointsYeah', 'each leg'], ['fb', 'Basis', 'each leg'], ['k', 'Kayak', '']];
+  function fxpOpenAllSet() {
+    try { const v = JSON.parse(GM_getValue('js-fxp-openall', 'null')); if (Array.isArray(v)) return v; } catch (e) { /* default */ }
+    return ['m', 'k'];
+  }
+  function fxpSaveOpenAll(list) { try { GM_setValue('js-fxp-openall', JSON.stringify(list)); } catch (e) { /* ignore */ } }
 
   function wireSearchPanels() {
     if (window.top !== window) return;
@@ -6316,16 +6614,27 @@ function __jsEnsureSharedObserver() {
       // Re-read the lead each time the BO re-renders the box (its Matrix
       // link carries the route, dates and passengers).
       const fresh = fxpLeadFromBox(box);
-      if (fresh) box._fxpLead = fresh;
+      if (fresh) {
+        // The BO switched this box to other data (another lead, new dates):
+        // rebuild the panel for it, with that lead's own cabin.
+        const key = JSON.stringify(fresh);
+        if (box._fxpKey !== key) {
+          body.querySelectorAll(':scope > .js-fxp-panel').forEach((n) => n.remove());
+          foot.querySelectorAll(':scope > .js-fxp-foot').forEach((n) => n.remove());
+          box._fxpCab = fresh.cabin || 'B';
+        }
+        box._fxpKey = key;
+        box._fxpLead = fresh;
+      }
       const lead = box._fxpLead;
       if (!lead) return;
       box.classList.add('js-fxp');
       if (body.querySelector(':scope > .js-fxp-panel') && foot.querySelector(':scope > .js-fxp-foot')) return;
       body.querySelectorAll(':scope > .js-fxp-panel').forEach((n) => n.remove());
       foot.querySelectorAll(':scope > .js-fxp-foot').forEach((n) => n.remove());
-      if (!fxpState.cab) fxpState.cab = lead.cabin || 'B';
+      if (!box._fxpCab) box._fxpCab = lead.cabin || 'B';
       const L = () => box._fxpLead;
-      const cab = () => fxpState.cab;
+      const cab = () => box._fxpCab;
       const flex = () => fxpState.flex;
 
       const panel = document.createElement('div');
@@ -6365,32 +6674,93 @@ function __jsEnsureSharedObserver() {
       fwrap.className = 'js-fxp-foot';
       const left = document.createElement('div');
       left.className = 'js-fxp-foot-l';
-      const selCab = document.createElement('select');
-      selCab.className = 'js-fxp-sel';
-      [['B', 'Business'], ['W', 'Premium'], ['F', 'First'], ['Y', 'Economy']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; selCab.appendChild(o); });
-      selCab.value = fxpState.cab;
-      selCab.addEventListener('change', () => { fxpState.cab = selCab.value; fxpCloseMenu(); });
-      const selFlex = document.createElement('select');
-      selFlex.className = 'js-fxp-sel';
-      [[0, 'Exact'], [1, '±1 day'], [2, '±2 days'], [3, '±3 days'], [5, '±5 days'], [7, '±7 days']].forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; selFlex.appendChild(o); });
-      selFlex.value = String(fxpState.flex);
-      selFlex.addEventListener('change', () => { fxpState.flex = parseInt(selFlex.value, 10) || 0; });
-      [selCab, selFlex].forEach((s) => ['click', 'mousedown'].forEach((t) => s.addEventListener(t, (e) => e.stopPropagation())));
+      // Cabin and date-range pickers, in the panel's own menu style.
+      const picker = (kind, title, opts, get, set) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'js-fxp-pick';
+        b.dataset.kind = kind;
+        const show = () => { const o = opts.find((x) => x[0] === get()); b.textContent = (o ? o[1] : opts[0][1]) + ' \u25be'; };
+        show();
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          fxpShowMenu(b, title, opts.map(([v, t]) => ({ label: t, selected: v === get(), pick: () => { set(v); show(); } })));
+        });
+        ['mousedown'].forEach((t) => b.addEventListener(t, (e) => e.stopPropagation()));
+        return b;
+      };
+      const selCab = picker('cab', 'Cabin', [['B', 'Business'], ['W', 'Premium'], ['F', 'First'], ['Y', 'Economy']], () => box._fxpCab, (v) => { box._fxpCab = v; });
+      const selFlex = picker('flex', 'Dates', [[0, 'Fixed'], [1, '\u00b11 day'], [2, '\u00b12 days'], [3, '\u00b13 days'], [5, '\u00b15 days'], [7, '\u00b17 days']], () => fxpState.flex, (v) => { fxpState.flex = v; });
       left.append(selCab, selFlex);
       const all = document.createElement('button');
       all.type = 'button';
       all.className = 'js-fxp-all';
-      all.title = 'Opens Kayak and ITA Matrix in background tabs — you stay here';
+      all.title = 'Opens the sites ticked in \u25be in background tabs \u2014 you stay here';
       all.textContent = 'Open all ↗';
       all.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        fxpOpenBg(fxpKayak(L(), flex(), cab()));
-        fxpOpenBg(fxpMatrix(L(), cab(), null, null, flex()));
-        all.textContent = '✓ Opened';
+        const on = fxpOpenAllSet();
+        const legs = fxpLegs(L()).filter((l) => l.date);
+        const urls = [];
+        FXP_OPENALL.forEach(([k]) => {
+          if (!on.includes(k)) return;
+          if (k === 'g') urls.push(fxpGoogle(L(), false, cab()));
+          if (k === 'e') urls.push(fxpGoogle(L(), true, cab()));
+          if (k === 'm') urls.push(fxpMatrix(L(), cab(), null, null, flex()));
+          if (k === 'py') legs.forEach((lg) => urls.push(fxpPointsYeah(L(), lg, flex(), cab())));
+          if (k === 'fb') legs.forEach((lg) => urls.push(fxpBasis(L(), lg, cab())));
+          if (k === 'k') urls.push(fxpKayak(L(), flex(), cab()));
+        });
+        if (!urls.length) { all.textContent = 'Nothing ticked'; setTimeout(() => { all.textContent = 'Open all ↗'; }, 1400); return; }
+        urls.forEach((u) => fxpOpenBg(u));
+        all.textContent = '✓ Opened ' + urls.length;
         setTimeout(() => { all.textContent = 'Open all ↗'; }, 1400);
       });
-      fwrap.append(left, all);
+      const allMenu = document.createElement('button');
+      allMenu.type = 'button';
+      allMenu.className = 'js-fxp-allm';
+      allMenu.dataset.kind = 'all';
+      allMenu.title = 'Choose what Open all opens';
+      allMenu.textContent = '\u25be';
+      allMenu.addEventListener('mousedown', (e) => e.stopPropagation());
+      allMenu.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fxpShowMenu(allMenu, 'Open all opens', FXP_OPENALL.map(([k, label, note]) => ({
+          label, note,
+          checked: () => fxpOpenAllSet().includes(k),
+          toggle: () => { const cur = fxpOpenAllSet(); fxpSaveOpenAll(cur.includes(k) ? cur.filter((x) => x !== k) : cur.concat(k)); },
+        })));
+      });
+      const allWrap = document.createElement('span');
+      allWrap.className = 'js-fxp-allwrap';
+      allWrap.append(all, allMenu);
+      // Refresh: read the lead again from the BO (route, dates, passengers,
+      // cabin) and rebuild the panel from scratch.
+      const re = document.createElement('button');
+      re.type = 'button';
+      re.className = 'js-fxp-re';
+      re.title = 'Refresh — re-read this lead\u2019s route, dates, passengers and cabin';
+      re.textContent = '\u21bb';
+      re.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fxpCloseMenu();
+        box._fxpLead = null;
+        box._fxpKey = null;
+        box._fxpCab = null;
+        body.querySelectorAll(':scope > .js-fxp-panel').forEach((n) => n.remove());
+        foot.querySelectorAll(':scope > .js-fxp-foot').forEach((n) => n.remove());
+        wireSearchPanels();
+        const nb = foot.querySelector('.js-fxp-re');
+        if (nb) { nb.classList.add('spin'); setTimeout(() => nb.classList.remove('spin'), 600); }
+      });
+      const right = document.createElement('div');
+      right.className = 'js-fxp-foot-r';
+      right.append(re, allWrap);
+      fwrap.append(left, right);
       foot.appendChild(fwrap);
     });
   }
@@ -6418,13 +6788,19 @@ function __jsEnsureSharedObserver() {
       if (!cb) return;
       const id = cb.id.replace('checkbox-switch-', '');
       const holder = opt.querySelector('.lead-option-segment') || opt.querySelector('.lead-option-price');
-      if (!holder || holder.querySelector(':scope > .js-optflags')) return;
+      if (!holder) return;
+      // The BO reuses option cards for different options when its list
+      // changes (e.g. a new option added on top), so a tag is only kept
+      // while the card still shows the option it was made for.
+      const old = holder.querySelector(':scope > .js-optflags');
+      if (old) { if (old.getAttribute('data-for') === id) return; old.remove(); }
       if (all === null) { try { all = JSON.parse(GM_getValue(OPTION_FLAGS_KEY, '{}')) || {}; } catch (e) { all = {}; } }
       const info = all[id];
       if (!info) return;
       const box = document.createElement('div');
       box.className = 'js-optflags';
-      if (info.rush) { const t = document.createElement('span'); t.className = 'js-optflag js-optflag--rush'; t.textContent = info.rush; box.appendChild(t); }
+      box.setAttribute('data-for', id);
+      if (info.rush) { const t = document.createElement('span'); t.className = 'js-optflag js-optflag--rush'; t.appendChild(sadBmoFace(17)); t.appendChild(document.createTextNode(info.rush)); box.appendChild(t); }
       // Child/infant heads-ups show on BMO's popover only, not in the BO.
       if (!info.rush) return;
       holder.insertBefore(box, holder.firstChild);
@@ -6436,7 +6812,9 @@ function __jsEnsureSharedObserver() {
        segments). */
     .js-optflags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px 0; }
     .js-optflag { background: #f59e0b; color: #1a1a1a; font-weight: 700; font-size: 12px; padding: 1px 7px; border-radius: 4px; font-family: system-ui, sans-serif; letter-spacing: .02em; }
-    .js-optflag--rush { background: #dc2626; color: #fff; }
+    .js-optflag--rush { background: #dc2626; color: #fff; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; padding: 1px 7px 1px 2px; }
+    .js-sadbmo { display: inline-block; flex: none; line-height: 0; }
+    .js-zero-box .js-sadbmo { display: block; width: fit-content; margin: 2px auto 10px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
     [data-js-idcopy]:hover { text-decoration: underline dotted; }
     .js-idcopied { color: #16a34a !important; transition: color .2s; }
     .js-sell-pen { display: inline-flex; vertical-align: middle; margin-right: 4px; color: #94a3b8; opacity: .75; }
@@ -6448,6 +6826,11 @@ function __jsEnsureSharedObserver() {
     .kayak-offers.js-fxp > .kayak-offers-body { max-height: none !important; height: auto !important; overflow: visible !important; }
     .kayak-offers.js-fxp > .kayak-offers-body > :not(.js-fxp-panel) { display: none !important; }
     .kayak-offers.js-fxp > .kayak-offers-footer > :not(.js-fxp-foot) { display: none !important; }
+    .js-fxp-foot-r { display: flex; align-items: center; gap: 8px; }
+    .js-fxp-re { border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+    .js-fxp-re:hover { opacity: 1; background: rgba(148,163,184,.18); }
+    .js-fxp-re.spin { animation: jsFxpSpin .6s ease; }
+    @keyframes jsFxpSpin { to { transform: rotate(360deg); } }
     .js-fxp-panel { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 28px; gap: 6px; padding: 6px; }
     .js-fxp-b { border-radius: 6px; border: 1px solid #445071; background: rgba(15,20,35,.35); color: #e5e7eb; font: 800 11.5px/1 system-ui, sans-serif; cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s; }
     .js-fxp-b:hover { background: rgba(255,255,255,.07); }
@@ -6461,6 +6844,19 @@ function __jsEnsureSharedObserver() {
     .js-fxp-b.is-open { background: rgba(255,255,255,.12); }
     .js-fxp-foot { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
     .js-fxp-foot-l { display: flex; gap: 6px; }
+    .js-fxp-pick { border: 1px solid #445071; background: #1b2132; color: #e5e7eb; border-radius: 6px; padding: 4px 10px; font: 700 11px system-ui, sans-serif; cursor: pointer; min-width: 74px; text-align: left; transition: border-color .15s, background .15s; }
+    .js-fxp-pick:hover, .js-fxp-pick.is-open { border-color: #7c8db5; background: #232a40; }
+    .js-fxp-menu.js-fxp-menu--cab, .js-fxp-menu.js-fxp-menu--flex { min-width: 140px; }
+    .js-fxp-allwrap { display: inline-flex; align-items: center; gap: 2px; }
+    .js-fxp-allm { border: 0; background: transparent; color: #c4b5fd; cursor: pointer; font-size: 11px; padding: 3px 5px; border-radius: 4px; line-height: 1; }
+    .js-fxp-allm:hover, .js-fxp-allm.is-open { background: rgba(148,163,184,.18); }
+    .js-fxp-menu.js-fxp-menu--all { min-width: 170px; }
+    .js-fxp-menu-c span { display: inline-flex; align-items: center; gap: 8px; }
+    .js-fxp-menu-c.is-off span { color: #8b93a7; }
+    .js-fxp-chk { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid #5b6787; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; color: #fff; flex: none; }
+    .js-fxp-chk.on { background: #7c3aed; border-color: #7c3aed; }
+    .js-fxp-menu-i.is-sel { background: rgba(59,130,246,.18); color: #93c5fd; }
+    .js-fxp-menu-i.is-sel small { color: #93c5fd; font-weight: 800; }
     .js-fxp-sel { border: 1px solid #445071; background: rgba(15,20,35,.45); color: #e5e7eb; border-radius: 5px; padding: 2px 6px; font: 700 11px system-ui, sans-serif; cursor: pointer; }
     .js-fxp-all { background: none; border: 0; color: #c4b5fd; font: 800 12px system-ui, sans-serif; cursor: pointer; padding: 2px 4px; }
     .js-fxp-all:hover { text-decoration: underline; }
@@ -6472,8 +6868,8 @@ function __jsEnsureSharedObserver() {
     .js-fxp-menu-i:hover { background: #2c3550; }
     .js-zero-back { position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; }
     .js-zero-box { width: 380px; max-width: calc(100vw - 32px); background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 12px; padding: 18px 18px 14px; box-shadow: 0 20px 50px rgba(0,0,0,.35); font-family: system-ui, sans-serif; border-top: 5px solid #dc2626; }
-    .js-zero-title { font-weight: 800; font-size: 16px; color: #b91c1c; margin-bottom: 8px; }
-    .js-zero-text { font-size: 13.5px; line-height: 1.45; margin-bottom: 14px; }
+    .js-zero-title { font-weight: 800; font-size: 16px; color: #b91c1c; margin-bottom: 8px; text-align: center; }
+    .js-zero-text { font-size: 13.5px; line-height: 1.45; margin-bottom: 14px; text-align: center; }
     .js-zero-row { display: flex; gap: 8px; justify-content: flex-end; }
     .js-zero-row button { border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
     .js-zero-no { background: #5b5bd6; color: #fff; }
@@ -8361,25 +8757,52 @@ function __jsEnsureSharedObserver() {
       .replace(/[ \t]{2,}/g, ' ');
   }
 
-  // The lead's phone number in the customer bar. Masked until clicked once.
+  // The lead's phone number on the page. Any country, any format
+  // ("+1302****569", "+52 55 3233 7745", "(302) 312-4569"...). Masked until
+  // clicked once. The click-to-reveal element in the customer bar is
+  // preferred; anything clickable that looks like a phone number is next.
+  const SMS_PHONE_LIKE = /^\+?[\d*][\d*\s().-]{5,}[\d*]$/;
+  function smsPhoneText(el) { return (el.textContent || '').replace(/ /g, ' ').trim(); }
+  function smsLooksPhone(t) { return SMS_PHONE_LIKE.test(t) && t.replace(/[^\d*]/g, '').length >= 7 && t.replace(/[^\d*]/g, '').length <= 16; }
+  function smsIsRevealed(t) { return smsLooksPhone(t) && t.indexOf('*') < 0; }
   function smsPhoneCell() {
-    return Array.from(document.querySelectorAll('div.cursor-pointer.truncate')).find((el) => {
-      const t = el.textContent.trim();
-      return el.classList.contains('ml-2') && (PHONE_MASKED_RE.test(t) || PHONE_REVEALED_RE.test(t));
-    }) || null;
+    const all = Array.from(document.querySelectorAll('.cursor-pointer')).filter((el) => el.children.length === 0 && smsLooksPhone(smsPhoneText(el)) && !el.closest('.chat, .js-sms, .bmo-widget, table'));
+    return all.find((el) => el.classList.contains('truncate') && el.classList.contains('ml-2'))
+      || all.find((el) => el.classList.contains('truncate'))
+      || all[0] || null;
+  }
+  function smsNormalizeNumber(t) {
+    const d = String(t || '').replace(/\D/g, '');
+    if (!d) return null;
+    if (/^\s*\+/.test(t)) return '+' + d;
+    if (d.length === 10) return '+1' + d; // US/Canada written without +1
+    if (d.length === 11 && d.charAt(0) === '1') return '+' + d;
+    return '+' + d;
   }
   const smsNumbers = new Map(); // leadId -> full number (this page session only)
   async function smsRevealNumber(leadId) {
     if (smsNumbers.has(leadId)) return smsNumbers.get(leadId);
-    const cell = smsPhoneCell();
-    if (!cell) return null;
-    let t = cell.textContent.trim();
-    if (!PHONE_REVEALED_RE.test(t)) {
+    let t = null;
+    for (let attempt = 0; attempt < 2 && !t; attempt++) {
+      const cell = smsPhoneCell();
+      if (!cell) {
+        const tel = document.querySelector('a[href^="tel:"]');
+        if (tel) t = decodeURIComponent(tel.getAttribute('href').slice(4));
+        break;
+      }
+      const now = smsPhoneText(cell);
+      if (smsIsRevealed(now)) { t = now; break; }
       cell.click();
-      t = await waitForRevealedNumber(cell, 4000);
+      const end = Date.now() + 6000;
+      while (Date.now() < end) {
+        await new Promise((r) => setTimeout(r, 150));
+        const c2 = smsPhoneCell();
+        const v = c2 ? smsPhoneText(c2) : '';
+        if (smsIsRevealed(v)) { t = v; break; }
+      }
     }
-    if (!t) return null;
-    const num = t.charAt(0) === '+' ? t : '+' + t;
+    const num = smsNormalizeNumber(t);
+    if (!num) return null;
     smsNumbers.set(leadId, num);
     return num;
   }
@@ -8504,8 +8927,31 @@ function __jsEnsureSharedObserver() {
   const SMS_VIEW_KEY = 'js-sms-view';
   function smsView() { try { return GM_getValue(SMS_VIEW_KEY, 'rc') === 'bo' ? 'bo' : 'rc'; } catch (e) { return 'rc'; } }
 
+  // Where texts go: the BO's message list, or, on a lead the BO has no
+  // history for ("No messages"), a list of our own in the chat area.
+  function smsMessageBox(chat) {
+    const own = chat.querySelector('.chat__messages');
+    if (own) { const extra = chat.querySelector(':scope .js-sms-ownbox'); if (extra && extra !== own) extra.remove(); return own; }
+    let box = chat.querySelector('.js-sms-ownbox');
+    if (box && box.isConnected) return box;
+    const host = chat.querySelector('.chat__body') || chat.querySelector('.chat__body-wrapper') || chat.querySelector('.chat__screen');
+    if (!host) return null;
+    box = document.createElement('div');
+    box.className = 'js-sms-ownbox';
+    const bar = host.classList.contains('chat__screen') ? host.querySelector(':scope > .chat__input') : null;
+    if (bar) host.insertBefore(box, bar); else host.appendChild(box);
+    return box;
+  }
+  // The BO's own "No messages" placeholder is hidden while texts show.
+  function smsToggleEmpty(chat, hasTexts) {
+    chat.querySelectorAll('.chat__screen *').forEach((el) => {
+      if (el.children.length || el.closest('.js-sms, .js-sms-live, .js-sms-ownbox')) return;
+      if (/^no messages\.?$/i.test(el.textContent.trim())) el.classList.toggle('js-sms-hidden', hasTexts);
+    });
+  }
+
   function smsRenderLive(chat, leadId, list) {
-    const box = chat.querySelector('.chat__messages');
+    const box = smsMessageBox(chat);
     if (!box) return;
     const rcView = smsView() === 'rc';
     chat.classList.toggle('js-sms-rcview', rcView);
@@ -8536,6 +8982,7 @@ function __jsEnsureSharedObserver() {
       if (note && !(list && list.length) && !all.length) html = '<div class="js-sms-note">' + smsEsc(note) + '</div>';
     }
     smsUpdateChips(chat, leadId);
+    smsToggleEmpty(chat, !!html);
     if (!html) { if (live) live.remove(); return; }
     if (!live) {
       live = document.createElement('div');
@@ -8641,7 +9088,7 @@ function __jsEnsureSharedObserver() {
       const msg = retryOf || { localId: 'l' + Date.now(), dir: 'Outbound', text, time: new Date().toISOString() };
       msg.state = 'sending';
       msg.time = new Date().toISOString();
-      if (!retryOf) { locals.push(msg); smsLocal.set(leadId, locals); comp.querySelector('.js-sms-text').value = ''; }
+      if (!retryOf) { locals.push(msg); smsLocal.set(leadId, locals); comp.querySelector('.js-sms-text').value = ''; smsGrow(comp.querySelector('.js-sms-text')); }
       smsRenderLive(chat, leadId, chat.__jsSmsList);
       await smsRcOpen(num, text);
       const r = await smsRc('send', { phone: num, text }, 45000);
@@ -8675,6 +9122,7 @@ function __jsEnsureSharedObserver() {
     ed.dataset.i = String(i);
     ed.querySelector('.js-sms-ed-name').value = t[i].name;
     ed.querySelector('.js-sms-ed-text').value = t[i].text;
+    smsGrow(ed.querySelector('.js-sms-ed-text'));
     ed.querySelector('.js-sms-ed-text').focus();
   }
   // Follow-ups already sent to this lead are greyed out (with a tick), and
@@ -8734,6 +9182,12 @@ function __jsEnsureSharedObserver() {
   }
   try { GM_addValueChangeListener(SMS_TPL_KEY, () => smsRefreshChips()); } catch (e) { /* other tabs refresh on reload */ }
 
+  // Message boxes grow with the text instead of scrolling inside.
+  function smsGrow(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = (ta.scrollHeight + 2) + 'px';
+  }
+
   function smsWire(comp, chat, leadId) {
     comp.addEventListener('click', (e) => {
       const ed = comp.querySelector('.js-sms-editor');
@@ -8743,6 +9197,7 @@ function __jsEnsureSharedObserver() {
       if (chip) {
         const ta = comp.querySelector('.js-sms-text');
         ta.value = smsFill(smsTemplates()[+chip.dataset.i].text, leadId, chat);
+        smsGrow(ta);
         comp.dataset.tpl = chip.dataset.i;
         comp.dataset.tplKey = smsKey(ta.value).slice(0, 40);
         ta.focus();
@@ -8780,6 +9235,7 @@ function __jsEnsureSharedObserver() {
         smsSend(chat, leadId, comp.querySelector('.js-sms-text').value);
       }
     });
+    comp.querySelectorAll('textarea').forEach((t) => t.addEventListener('input', () => smsGrow(t)));
     comp.querySelector('.js-sms-text').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); comp.querySelector('.js-sms-send').click(); }
     });
@@ -8809,7 +9265,7 @@ function __jsEnsureSharedObserver() {
         }
       }
       if (!comp) return;
-      if (!chat.querySelector('.chat__messages > .js-sms-live') && (smsView() === 'rc' || (chat.__jsSmsList && smsUnsynced(chat, chat.__jsSmsList).length))) smsRenderLive(chat, leadId, chat.__jsSmsList);
+      if (!chat.querySelector('.js-sms-live') && (smsView() === 'rc' || (chat.__jsSmsList && smsUnsynced(chat, chat.__jsSmsList).length))) smsRenderLive(chat, leadId, chat.__jsSmsList);
       if (chat.getClientRects().length && !chat.__jsSmsLoadedAt) { chat.__jsSmsLoadedAt = Date.now(); smsLoad(chat, leadId, false, true); }
     });
   }
@@ -8833,7 +9289,7 @@ function __jsEnsureSharedObserver() {
   setInterval(() => { if (!document.hidden && smsChats().some((c) => c.querySelector('.js-sms'))) smsRefreshAll(false); }, 15000);
 
   GM_addStyle(`
-    .chat__input.js-sms-hidden { display: none !important; }
+    .chat__input.js-sms-hidden, .chat__screen .js-sms-hidden { display: none !important; }
     .js-sms-rcview .chat__messages > :not(.js-sms-live) { display: none !important; }
     .js-sms-rcview .js-sms-tag { display: none; }
     .js-sms-note { padding: 24px 12px; text-align: center; opacity: .7; font-style: italic; }
@@ -8856,7 +9312,7 @@ function __jsEnsureSharedObserver() {
     .js-sms-chip--sent:hover { opacity: .8; }
     .js-sms-chip--sent .js-sms-chip__tick { color: #22c55e; }
     .js-sms-row { display: flex; gap: 8px; align-items: flex-end; }
-    .js-sms textarea { flex: 1; width: 100%; resize: vertical; min-height: 38px; padding: 6px 8px; border-radius: 6px;
+    .js-sms textarea { flex: 1; width: 100%; resize: none; overflow: hidden; box-sizing: border-box; min-height: 38px; padding: 6px 8px; border-radius: 6px;
       border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; font: inherit; line-height: 1.35; }
     .js-sms textarea:focus { outline: none; border-color: #3b82f6; }
     .js-sms-btn { padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; cursor: pointer; font-weight: 600; font-size: 12px; white-space: nowrap; }
@@ -10336,7 +10792,8 @@ function __jsEnsureSharedObserver() {
       changes.forEach((c) => {
         const tag = document.createElement('span');
         tag.className = 'js-apc-tag';
-        tag.textContent = c.from + ' & ' + c.to;
+        tag.appendChild(sadBmoFace(17));
+        tag.appendChild(document.createTextNode(c.from + ' & ' + c.to));
         tag.title = 'Airport change: arrives ' + c.from + ', next flight departs ' + c.to;
         flag.appendChild(tag);
         if (pres[c.rowA]) pres[c.rowA].classList.add('js-apc-row');
@@ -10349,8 +10806,9 @@ function __jsEnsureSharedObserver() {
   GM_addStyle(`
     .js-apc-flag { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px 0; }
     .js-apc-tag {
+      display: inline-flex; align-items: center; gap: 4px; line-height: 16px;
       background: #dc2626; color: #fff; font-weight: 700; font-size: 12px;
-      padding: 1px 7px; border-radius: 4px; font-family: system-ui, sans-serif;
+      padding: 1px 7px 1px 2px; border-radius: 4px; font-family: system-ui, sans-serif;
       letter-spacing: .02em;
     }
     pre.js-apc-row { box-shadow: inset 3px 0 0 #dc2626; }
