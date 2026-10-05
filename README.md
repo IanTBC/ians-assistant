@@ -50,6 +50,14 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
+## What's new
+
+**1.4.1 — first release**
+- Pip, your assistant, in the BO and on flight sites.
+- Dark, Light and Navy modes, plus accent colours.
+- Your place in the call list ("Lead 4 of 23") on the panel.
+- Updates install automatically from this page.
+
 ## Troubleshooting
 
 | Problem | Fix |
