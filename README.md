@@ -30,12 +30,13 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - The small Pip button next to each result opens a menu:
   - **GDS** copies the option in Sabre *IA/VI* format.
   - **Lead ID** — type a 6-digit lead number and the option (segments and price, or miles and taxes) is added to that lead in the BO for you.
+  - **Sell** — fills in the sell price as Net + 10%, rounded to end in 88–92. Type your own price, or untick it to leave $0.00.
 
 **In the BO**
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak).
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). **Open all** opens every site you tick in its ▾ menu, and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -44,13 +45,21 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Call** dials the next lead; the dialer keeps going after each call until you press **Stop**.
 - Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2.
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
-- The RC tab shows your RingCentral texts and lets you send them, with editable follow-up templates.
+- The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
 **Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. The assistant turns red while it's on.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**1.5.0 — new features**
+- Set the sell price while adding an option from a flight site. Net + 10% is filled in for you, or type your own.
+- Open all now opens the sites you tick: Google, ELR, Matrix, PointsYeah, Basis and Kayak. Plus a refresh button and new cabin and date pickers.
+- Texting works with phone numbers from any country and on leads with no earlier messages. The message box grows as you type.
+- A GDS copy with missing flight details is stopped instead of copied.
+- Better reading of PointsYeah and FlyBasis detail pages.
+- The $0.00 check now catches both quote email designs.
 
 **1.4.1 — first release**
 - Pip, your assistant, in the BO and on flight sites.
