@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ian's Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one calm column; each feature is a short explanation beside a live-looking mockup of the real tool. Dark-first, light follows the OS. */
+:root {
+  --bg: #0b0c10; --surface: #121319; --line: #23252d; --line2: #2c2f38;
+  --fg: #e8e8ed; --fg-strong: #f6f6f9; --muted: #8a8d98; --soft: #c9cad3;
+  --accent: #7c7cf8; --accent-ink: #0e0f13; --accent-soft: rgba(124,124,248,.14);
+  --ok: #4ade80; --warn: #f5c542; --bad: #e5484d;
+  /* product panel always shows its own dark look */
+  --p-bg: #0e0f13; --p-line: #23252d; --p-line2: #2c2f38; --p-text: #e8e8ed; --p-title: #f4f4f7; --p-muted: #8a8d98; --p-sec: #c9cad3;
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f7f7fa; --surface: #ffffff; --line: #e4e4ea; --line2: #d9d9e2;
+  --fg: #1d1d24; --fg-strong: #0f0f14; --muted: #6b6b78; --soft: #3f3f4a;
+  --accent: #5b5bd6; --accent-ink: #ffffff; --accent-soft: rgba(91,91,214,.10);
+  --ok: #16a34a; --warn: #b7791f; --bad: #dc3e42; color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f7f7fa; --surface: #ffffff; --line: #e4e4ea; --line2: #d9d9e2;
+  --fg: #1d1d24; --fg-strong: #0f0f14; --muted: #6b6b78; --soft: #3f3f4a;
+  --accent: #5b5bd6; --accent-ink: #ffffff; --accent-soft: rgba(91,91,214,.10);
+  --ok: #16a34a; --warn: #b7791f; --bad: #dc3e42; color-scheme: light; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--font-body); padding-inline: 20px; padding-block: 0 64px; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+a { color: var(--accent); }
+h1, h2, h3 { font-family: var(--font-display); color: var(--fg-strong); text-wrap: balance; margin: 0; letter-spacing: -.01em; }
+h2 { font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem); font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; max-width: 62ch; }
+.muted { color: var(--muted); }
+.eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 18px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; font: 700 1rem/1 var(--font-display); color: var(--fg-strong); }
+.top nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
+.top nav a { color: var(--muted); text-decoration: none; }
+.top nav a:hover { color: var(--fg-strong); }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 48px; align-items: center; padding-block: 56px 40px; }
+.hero h1 { font-size: clamp(2.4rem, 1.6rem + 3.4vw, 4rem); font-weight: 700; line-height: 1.02; margin-block: 14px 18px; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p.lead { font-size: 1.12rem; color: var(--soft); }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 26px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding-inline: 18px; border-radius: 10px; font: 600 15px/1 var(--font-body); text-decoration: none; cursor: pointer; border: 1px solid transparent; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { background: transparent; color: var(--fg); border-color: var(--line2); }
+.btn-ghost:hover { border-color: var(--accent); }
+.btn:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.linkrow { margin-top: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.linkrow code { font: 400 12px/1.4 var(--font-mono); color: var(--soft); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; overflow-wrap: anywhere; }
+.hero-stage { display: flex; justify-content: center; }
+
+/* product panel (mockup) */
+.panel { width: 280px; max-width: 100%; height: 331px; padding: 13px; display: flex; flex-direction: column; gap: 9px; background: var(--p-bg); color: var(--p-text); border: 1px solid var(--p-line); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.35); font: 400 13px/1.3 'Instrument Sans', 'Segoe UI', sans-serif; flex: none; }
+.p-head { display: flex; align-items: center; gap: 7px; height: 32px; }
+.p-head .t { flex: 1; min-width: 0; }
+.p-title { font-size: 13.5px; font-weight: 600; color: var(--p-title); }
+.p-greet { font-size: 11px; color: var(--p-muted); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; flex: none; }
+.ibtn { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--p-line2); display: inline-flex; align-items: center; justify-content: center; color: var(--p-sec); flex: none; }
+.swatch { width: 10px; height: 10px; border-radius: 50%; background: #7c7cf8; box-shadow: 0 0 0 2px var(--p-bg), 0 0 0 3px var(--p-line2); }
+.p-card { flex: 1; border: 1px solid var(--p-line); border-radius: 10px; padding: 11px 12px; display: flex; flex-direction: column; min-height: 0; }
+.p-label { font-size: 11px; color: #9b9bfa; font-weight: 600; }
+.p-name { font-size: 17px; font-weight: 600; color: var(--p-title); margin-top: 5px; }
+.p-route { font-size: 12.5px; color: var(--p-muted); margin-top: 3px; }
+.p-foot { margin-top: auto; padding-top: 7px; border-top: 1px solid var(--p-line); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--p-sec); }
+.p-foot span:last-child { color: var(--p-muted); font-variant-numeric: tabular-nums; }
+.p-call { height: 42px; border-radius: 9px; background: #7c7cf8; color: #0e0f13; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; }
+.p-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.p-row div { height: 34px; border-radius: 8px; border: 1px solid var(--p-line2); color: var(--p-sec); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.p-row .stop { background: #e5484d; border-color: #e5484d; color: #fff; }
+.p-tog { display: flex; justify-content: space-between; align-items: center; height: 22px; font-size: 12px; color: var(--p-sec); }
+.sw { position: relative; width: 28px; height: 16px; border-radius: 8px; background: #7c7cf8; }
+.sw::after { content: ''; position: absolute; top: 2px; left: 14px; width: 12px; height: 12px; border-radius: 50%; background: #0e0f13; }
+.sw.off { background: var(--p-line2); }
+.sw.off::after { left: 2px; background: var(--p-bg); }
+.p-copy { text-align: right; font-size: 10px; color: #5d6070; margin-top: -4px; }
+
+/* sections */
+section { padding-block: 56px; border-top: 1px solid var(--line); }
+.sec-head { display: grid; gap: 10px; margin-bottom: 28px; }
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: center; }
+.feature + .feature { margin-top: 44px; }
+.points { display: grid; gap: 14px; margin-top: 16px; }
+.point { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: start; }
+.point .ico { width: 28px; height: 28px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; }
+.point b { color: var(--fg-strong); font-weight: 600; }
+.point p { color: var(--soft); font-size: 15px; }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; min-width: 0; }
+.cap { font: 400 12px/1.4 var(--font-mono); color: var(--muted); text-align: center; }
+
+/* flight-site mock */
+.result { width: 100%; max-width: 380px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 14px; }
+.result .r-main { min-width: 0; }
+.result .r-main b { color: var(--fg-strong); font-weight: 600; }
+.result .r-price { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--fg-strong); }
+.pipbtn { width: 34px; height: 27px; border-radius: 6px; background: #0e0f13; border: 1px solid #2c2f38; display: inline-flex; align-items: center; justify-content: center; }
+.pop { width: 232px; max-width: 100%; background: var(--p-bg); border: 1px solid var(--p-line); border-radius: 12px; padding: 10px; color: var(--p-text); font-size: 12px; }
+.pop .h { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 12.5px; color: var(--p-title); margin-bottom: 9px; }
+.pop .gds { height: 34px; border-radius: 8px; background: #7c7cf8; color: #0e0f13; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+.pop .lead { height: 34px; margin-top: 8px; border-radius: 8px; border: 1px solid #7c7cf8; background: #15171d; display: flex; align-items: center; justify-content: center; font: 500 14px var(--font-mono); letter-spacing: .1em; color: var(--p-title); }
+.pop .price { margin-top: 8px; text-align: center; color: var(--p-sec); font-size: 11.5px; }
+.pop .ok { margin-top: 5px; text-align: center; color: #4ade80; font-weight: 600; font-size: 11.5px; }
+.sabre { width: 100%; overflow-x: auto; background: #0e0f13; color: #c9cad3; border: 1px solid #23252d; border-radius: 10px; padding: 12px 14px; font: 400 11.5px/1.55 var(--font-mono); white-space: pre; margin: 0; }
+.sabre .k { color: #9b9bfa; }
+
+/* BO mocks */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg); font-size: 13px; color: var(--fg); }
+.chip.acc { border-color: var(--accent); color: var(--accent); }
+.apc { display: inline-block; background: #dc2626; color: #fff; font: 700 12px/1 'Instrument Sans', sans-serif; padding: 4px 8px; border-radius: 4px; }
+.seg { width: 100%; max-width: 380px; font: 400 11.5px/1.7 var(--font-mono); color: var(--soft); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+.seg .flag { box-shadow: inset 3px 0 0 #dc2626; padding-left: 6px; display: block; }
+.priceTable { width: 100%; max-width: 380px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.priceTable th { text-align: left; font: 500 11px var(--font-mono); letter-spacing: .08em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.priceTable td { padding: 8px; border-bottom: 1px solid var(--line); }
+.priceTable td.sell { color: var(--accent); font-weight: 600; }
+.priceTable td.sell::before { content: '✎ '; font-weight: 400; color: var(--muted); }
+
+/* lead list */
+.leads { width: 100%; max-width: 420px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); font-size: 13.5px; }
+.lrow { display: grid; grid-template-columns: 14px 78px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.lrow:last-child { border-bottom: 0; }
+.lrow .id { font: 400 12.5px var(--font-mono); color: var(--soft); }
+.lrow .st { font-size: 12px; color: var(--muted); }
+.ld { width: 11px; height: 11px; border-radius: 50%; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* texting */
+.sms { width: 100%; max-width: 380px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); padding: 12px; display: grid; gap: 10px; font-size: 13px; }
+.bub { max-width: 82%; padding: 8px 11px; border-radius: 12px; line-height: 1.4; }
+.bub.me { justify-self: end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 4px; }
+.bub.them { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.tpl { display: flex; flex-wrap: wrap; gap: 6px; }
+.tpl span { padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line2); color: var(--soft); }
+.tpl span.sent { opacity: .45; border-style: dashed; }
+.tpl span.next { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* modes */
+.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.mode { border-radius: 12px; padding: 14px; display: grid; gap: 10px; border: 1px solid; }
+.mode .mh { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.mode .bar { height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.mode .ln { height: 8px; border-radius: 4px; }
+
+/* sniper */
+.keys { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--soft); }
+kbd { font: 500 13px var(--font-mono); padding: 5px 9px; border-radius: 6px; border: 1px solid var(--line2); border-bottom-width: 2px; background: var(--bg); color: var(--fg-strong); }
+.tiles { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.tile { width: 96px; height: 76px; border-radius: 14px; background: #0e0f13; border: 1px solid #23252d; display: flex; align-items: center; justify-content: center; }
+.tile.red { border-color: #f8717f; }
+
+/* install */
+.steps { display: grid; gap: 14px; counter-reset: s; margin-top: 8px; }
+.step { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.step::before { counter-increment: s; content: counter(s); width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font: 700 16px/36px var(--font-display); text-align: center; }
+.step b { color: var(--fg-strong); }
+.step p { color: var(--soft); font-size: 15px; }
+.step code, p code { font: 400 13px var(--font-mono); background: var(--accent-soft); color: var(--fg-strong); padding: 1px 6px; border-radius: 5px; }
+.faq { display: grid; gap: 10px; margin-top: 28px; }
+.faq div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; padding-block: 12px; border-top: 1px solid var(--line); font-size: 15px; }
+.faq div b { color: var(--fg-strong); font-weight: 600; }
+.faq div span { color: var(--soft); }
+footer { padding-block: 32px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 820px) {
+  .hero, .feature { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .hero { padding-block: 36px 28px; }
+  .feature .stage { order: 2; }
+  .modes { grid-template-columns: minmax(0, 1fr); }
+  .faq div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .top nav { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wave { animation: wave 1.2s ease-in-out infinite; }
+  @keyframes wave { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="10 10 76 80" width="26" height="27" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#7c7cf8"/><circle cx="40" cy="47" r="4.5" fill="#0e0f13"/><circle cx="56" cy="47" r="4.5" fill="#0e0f13"/></svg>
+      Ian's Assistant
+    </div>
+    <nav aria-label="Sections">
+      <a href="#flights">Flight sites</a><a href="#bo">In the BO</a><a href="#calling">Calling</a><a href="#install">Install</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div>
+      <div class="eyebrow">For TBC agents · Chrome</div>
+      <h1>Quote, call and follow up <em>without the busywork.</em></h1>
+      <p class="lead">Ian's Assistant adds a small helper called Pip to the flight sites you search and to the BO. It copies options straight into Sabre format, adds them to a lead for you, and runs your daily follow-up calls one click at a time.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          Install Ian's Assistant
+        </a>
+        <a class="btn btn-ghost" href="#install">How to install</a>
+      </div>
+      <div class="linkrow">
+        <span>Install link</span>
+        <code id="rawlink">https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js</code>
+        <button class="btn btn-ghost" id="copyBtn" type="button" style="height:30px;padding-inline:10px;font-size:13px;">Copy</button>
+      </div>
+    </div>
+    <div class="hero-stage">
+      <div class="panel" aria-label="The Ian's Assistant panel in the BO">
+        <div class="p-head">
+          <svg viewBox="10 10 76 80" width="30" height="31" overflow="visible" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#7c7cf8"/><path d="M18 50 Q18 14 48 14 Q78 14 78 50" fill="none" stroke="#e8e8ed" stroke-width="4" stroke-linecap="round"/><rect x="14" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><rect x="74" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><path d="M18 56 Q20 68 34 66" fill="none" stroke="#e8e8ed" stroke-width="3" stroke-linecap="round"/><path d="M37 47 Q40 44 43 47" fill="none" stroke="#0e0f13" stroke-width="3" stroke-linecap="round"/><path d="M53 47 Q56 44 59 47" fill="none" stroke="#0e0f13" stroke-width="3" stroke-linecap="round"/><ellipse cx="48" cy="59" rx="5" ry="4" fill="#0e0f13"/><path class="wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50" fill="none" stroke="#4ade80" stroke-width="2.6" stroke-linecap="round"/></svg>
+          <div class="t"><div class="p-title">Ian's Assistant</div><div class="p-greet">Hi Elena!</div></div>
+          <span class="dot"></span>
+          <span class="ibtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/></svg></span>
+          <span class="ibtn" style="border-color:transparent;"><span class="swatch"></span></span>
+        </div>
+        <div class="p-card">
+          <div class="p-label">Currently calling</div>
+          <div class="p-name">Sarah Mitchell</div>
+          <div class="p-route">JFK → LHR</div>
+          <div class="p-foot"><span>On call</span><span>Lead 4 of 23</span></div>
+        </div>
+        <div class="p-call"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>Call</div>
+        <div class="p-row"><div>Skip</div><div>Redial</div><div class="stop">Stop</div></div>
+        <div class="p-tog"><span>Double-dial</span><span class="sw"></span></div>
+        <div class="p-copy">© Ian Brown</div>
+      </div>
+    </div>
+  </div>
+
+  <section id="flights">
+    <div class="sec-head">
+      <div class="eyebrow">On flight sites</div>
+      <h2>From search result to Sabre in one click</h2>
+      <p class="muted">Works on ITA Matrix, Google Flights, Kayak, CheapOair, FlyBasis, PointsYeah and AwardLogic.</p>
+    </div>
+    <div class="feature">
+      <div>
+        <div class="points">
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg></span><div><b>GDS copies the option</b><p>Every leg in Sabre <code>*IA</code> and <code>VI*</code> format, with equipment, mileage, cabin and date changes filled in. Paste it into the terminal as is.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><div><b>Lead ID adds it to a lead</b><p>Type the 6-digit lead number and the option is added to that lead in the BO with its price, or miles and taxes for award seats. Passengers are counted from the lead.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><div><b>Checks before it adds</b><p>If the route doesn't match the lead, it asks first. Unsupported mileage programs are flagged before anything is sent.</p></div></div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="result">
+          <div class="r-main"><b>JFK → LHR</b> <span class="muted">· BA 178 · Business</span></div>
+          <div class="r-price">$4,812
+            <span class="pipbtn"><svg viewBox="10 10 76 80" width="18" height="19" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#7c7cf8"/><circle cx="40" cy="47" r="4.5" fill="#0e0f13"/><circle cx="56" cy="47" r="4.5" fill="#0e0f13"/></svg></span>
+          </div>
+        </div>
+        <div class="pop">
+          <div class="h"><svg viewBox="10 10 76 80" width="18" height="19" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#7c7cf8"/><circle cx="40" cy="47" r="4.5" fill="#0e0f13"/><circle cx="56" cy="47" r="4.5" fill="#0e0f13"/></svg>Ian's Assistant</div>
+          <div class="gds">GDS</div>
+          <div class="lead">631204</div>
+          <div class="price">$4,812.00 / person</div>
+          <div class="ok">✓ Added to lead 631204</div>
+        </div>
+        <pre class="sabre"><span class="k">*IA</span>
+ 1 BA 178J 14NOV Q JFKLHR GK1   915P  930A  15NOV J /E
+
+<span class="k">VI*</span>
+   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES SM
+ 1 BA  178 14NOV JFK LHR  915P  930A¥1 M    789  7.15  3451  N
+ONEWORLD
+CABIN-BUSINESS</pre>
+        <div class="cap">Click Pip next to the price · copy or send to a lead</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="bo">
+    <div class="sec-head">
+      <div class="eyebrow">In the BO</div>
+      <h2>Building options takes fewer steps</h2>
+    </div>
+    <div class="feature">
+      <div>
+        <div class="points">
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg></span><div><b>Sort Me</b><p>Paste flights in any order. It puts the segments in travel order, picks the carrier, and can move through the Add option steps for you.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v6a4 4 0 0 0 4 4h0a4 4 0 0 1 4 4v4M16 3v6a4 4 0 0 1-4 4"/></svg></span><div><b>Merge</b><p>Select two one-ways and press Merge. They become one option, each on its own ticket with its own cost.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><div><b>Edit the Sell price in place</b><p>Click a Sell amount, type the new price and press Enter. It's saved and checked against the BO.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><div><b>Search the lead in one click</b><p>Google, ELR, Matrix, PointsYeah, Basis and Kayak buttons, already filled with the lead's route, dates, cabin and passengers.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><div><b>Safety checks</b><p>A red tag marks options that change airports during a connection, and a warning stops you before sending a quote that shows $0.00.</p></div></div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="chips">
+          <span class="chip acc">Sort Me</span><span class="chip">Merge</span><span class="chip">Google ↗</span><span class="chip">Matrix ▾</span><span class="chip">Kayak ↗</span>
+        </div>
+        <div style="width:100%;max-width:380px;display:grid;gap:6px;">
+          <span class="apc" style="justify-self:start;">EWR &amp; LGA</span>
+          <div class="seg"><span class="flag">1 UA 1532 J 12DEC  ORD EWR  600A  920A</span><span class="flag">2 DL  417 J 12DEC  LGA MIA 1145A  305P</span></div>
+        </div>
+        <table class="priceTable" aria-label="Example option prices">
+          <thead><tr><th>PAX</th><th>QTY</th><th>NET</th><th>SELL</th></tr></thead>
+          <tbody><tr><td>ADT</td><td>2</td><td>$3,940.00</td><td class="sell">$4,812.00</td></tr><tr><td>CHD</td><td>1</td><td>$3,940.00</td><td class="sell">$4,812.00</td></tr></tbody>
+        </table>
+        <div class="cap">Airport change tag · click a Sell price to edit it</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="calling">
+    <div class="sec-head">
+      <div class="eyebrow">Daily follow-up</div>
+      <h2>Your call list, one click per lead</h2>
+    </div>
+    <div class="feature">
+      <div>
+        <div class="points">
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg></span><div><b>Call dials the next lead</b><p>When a call ends, the next lead is dialed after a short countdown. Press Stop at any time. If you take another call yourself, it waits.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></span><div><b>Double-dial and Redial</b><p>Double-dial calls an unanswered lead a second time. Redial calls the last number again whenever you want.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg></span><div><b>See where you are</b><p>Every lead gets a dot by its ID, and the panel shows your place in the list. The day resets at 2pm GMT. Once every lead is done, round 2 begins.</p></div></div>
+          <div class="point"><span class="ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><div><b>Texts in the RC tab</b><p>See the lead's RingCentral texts and reply from the BO. Four follow-up templates fill in your name, the client's name and their destination. The next one to send is highlighted.</p></div></div>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="leads" aria-label="Example lead list">
+          <div class="lrow"><span class="ld" style="background:#4ade80;"></span><span class="id">#631204</span><span>Sarah Mitchell</span><span class="st">Called</span></div>
+          <div class="lrow"><span class="ld" style="background:#f5c542;"></span><span class="id">#631188</span><span>David Chen</span><span class="st">Skipped</span></div>
+          <div class="lrow"><span class="ld" style="background:#e5484d;"></span><span class="id">#630977</span><span>James Wright</span><span class="st">Round 2</span></div>
+          <div class="lrow"><span class="ld" style="border:2px solid var(--line2);"></span><span class="id">#631150</span><span>Maria Lopez</span><span class="st" style="color:var(--accent);">Up next</span></div>
+        </div>
+        <div class="legend">
+          <span><span class="ld" style="background:#4ade80;"></span>Called</span>
+          <span><span class="ld" style="background:#f5c542;"></span>Skipped</span>
+          <span><span class="ld" style="background:#e5484d;"></span>Called in round 2</span>
+        </div>
+        <div class="sms" aria-label="Example text conversation">
+          <div class="bub me">Hey Maria, Elena here from Travel Business Class regarding your flight to Paris. When is the best time to talk?</div>
+          <div class="bub them">Tomorrow after 3pm works.</div>
+          <div class="tpl"><span class="sent">✓ Follow-up 1</span><span class="next">Follow-up 2</span><span>Follow-up 3</span><span>Follow-up 4</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Lead sniper</div>
+      <h2>Catch new leads the moment they drop</h2>
+    </div>
+    <div class="feature">
+      <div>
+        <div class="keys"><kbd>Alt</kbd>+<kbd>Z</kbd><span class="muted">or</span><kbd>Alt</kbd>+<kbd>X</kbd></div>
+        <p style="margin-top:14px;color:var(--soft);">Turns the sniper on or off. While it's on, Pip turns red. When a new lead is assigned to you, it asks for the next one straight away.</p>
+      </div>
+      <div class="stage">
+        <div class="tiles">
+          <div class="tile"><svg viewBox="10 10 76 80" width="50" height="52" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#7c7cf8"/><path d="M18 50 Q18 14 48 14 Q78 14 78 50" fill="none" stroke="#e8e8ed" stroke-width="3.4" stroke-linecap="round"/><rect x="14" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><rect x="74" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><circle cx="40" cy="47" r="3.8" fill="#0e0f13"/><circle cx="56" cy="47" r="3.8" fill="#0e0f13"/><path d="M41 57 Q48 63 55 57" fill="none" stroke="#0e0f13" stroke-width="2.8" stroke-linecap="round"/></svg></div>
+          <div class="tile red"><svg viewBox="10 10 76 80" width="50" height="52" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#f8717f"/><path d="M18 50 Q18 14 48 14 Q78 14 78 50" fill="none" stroke="#e8e8ed" stroke-width="3.4" stroke-linecap="round"/><rect x="14" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><rect x="74" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><path d="M36 46 L44 48" stroke="#0e0f13" stroke-width="3" stroke-linecap="round"/><path d="M60 46 L52 48" stroke="#0e0f13" stroke-width="3" stroke-linecap="round"/><path d="M42 59 L54 58" stroke="#0e0f13" stroke-width="2.8" stroke-linecap="round"/></svg></div>
+        </div>
+        <div class="cap">Normal · sniping</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Your look</div>
+      <h2>Dark, Light or Navy</h2>
+      <p class="muted">Switch with the button in the panel header, and pick an accent colour with the dot next to it. Your choice is saved.</p>
+    </div>
+    <div class="modes">
+      <div class="mode" style="background:#0e0f13;border-color:#23252d;color:#e8e8ed;"><div class="mh">Dark</div><div class="ln" style="background:#23252d;width:70%;"></div><div class="ln" style="background:#23252d;width:45%;"></div><div class="bar" style="background:#7c7cf8;color:#0e0f13;">Call</div></div>
+      <div class="mode" style="background:#ffffff;border-color:#e4e4e9;color:#18181b;"><div class="mh">Light</div><div class="ln" style="background:#ececf1;width:70%;"></div><div class="ln" style="background:#ececf1;width:45%;"></div><div class="bar" style="background:#5b5bd6;color:#ffffff;">Call</div></div>
+      <div class="mode" style="background:#0b1628;border-color:#1c2e4d;color:#e6edf7;"><div class="mh">Navy</div><div class="ln" style="background:#1c2e4d;width:70%;"></div><div class="ln" style="background:#1c2e4d;width:45%;"></div><div class="bar" style="background:#7c9cff;color:#0b1628;">Call</div></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="sec-head">
+      <div class="eyebrow">Install</div>
+      <h2>Set up in about two minutes</h2>
+      <p class="muted">On your work computer, in Chrome.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div><b>Add Tampermonkey to Chrome</b><p>Find Tampermonkey in the Chrome Web Store and click Add to Chrome.</p></div></div>
+      <div class="step"><div><b>Remove any older version</b><p>If you already have an older copy of this tool or a similar one, delete it in the Tampermonkey dashboard first, or you'll see doubled buttons.</p></div></div>
+      <div class="step"><div><b>Click Install Ian's Assistant</b><p>Use the button at the top of this page. Tampermonkey opens its install screen; click Install.</p></div></div>
+      <div class="step"><div><b>If nothing happens</b><p>Open <code>chrome://extensions</code>, click Details on Tampermonkey, turn on Allow user scripts, then click the install button again.</p></div></div>
+      <div class="step"><div><b>Open a lead</b><p>Pip appears in the bottom-right corner of the BO and says hi with your name.</p></div></div>
+    </div>
+    <div class="faq">
+      <div><b>How do updates work?</b><span>They install by themselves. When a new version is out you'll also see a small banner; click Update to get it right away.</span></div>
+      <div><b>Pip doesn't appear</b><span>Check that Tampermonkey is on and Allow user scripts is enabled, then refresh the page.</span></div>
+      <div><b>Buttons show twice</b><span>An older version is still installed. Remove it in the Tampermonkey dashboard.</span></div>
+      <div><b>Calls don't dial</b><span>Set the RingCentral app as your computer's default phone app.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Ian's Assistant · © Ian Brown</span>
+  </footer>
+</div>
+
+<script>
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var btn = this, txt = document.getElementById('rawlink').textContent;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+    var fallback = function () {
+      var r = document.createRange(); r.selectNodeContents(document.getElementById('rawlink'));
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Selected';
+    };
+    try { navigator.clipboard.writeText(txt).then(done, fallback); } catch (e) { fallback(); }
+  });
+</script>
+</body>
+</html>
