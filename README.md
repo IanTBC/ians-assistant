@@ -44,6 +44,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Calling and texting**
 - **Call** dials the next lead; the dialer keeps going after each call until you press **Stop**.
 - Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2.
+- The panel shows today's calls, answered, skipped and round.
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
@@ -52,6 +53,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**1.7.0 — today's numbers**
+- Today's numbers on the panel: calls made, answered, skipped and which round you're on. They start fresh every day at 2pm GMT.
 
 **1.6.0 — search panel**
 - Search links open in a new tab behind the BO, so you stay on the lead.
