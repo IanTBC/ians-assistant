@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.7.1
+// @version      1.7.2
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -133,7 +133,7 @@ function iaPipNode(size, p) {
       box.remove();
     });
     later.addEventListener('click', () => {
-      try { GM_setValue(SNOOZE_KEY + version, Date.now() + 6 * 3600e3); } catch (e) { /* ignore */ }
+      try { GM_setValue(SNOOZE_KEY + version, Date.now() + 3600e3); } catch (e) { /* ignore */ }
       box.remove();
     });
     box.append(iaPipNode(18, p), txt, go, later);
@@ -145,7 +145,7 @@ function iaPipNode(size, p) {
     let known = '';
     try { known = GM_getValue('ia-update-latest', ''); } catch (e) { /* ignore */ }
     if (known && newer(known, installed)) showBanner(known);
-    if (Date.now() - last < 30 * 60e3) return;
+    if (Date.now() - last < 2 * 60e3) return; // one check every 2 minutes, shared by all tabs
     try { GM_setValue(CHECK_KEY, Date.now()); } catch (e) { /* ignore */ }
     try {
       GM_xmlhttpRequest({
@@ -161,7 +161,8 @@ function iaPipNode(size, p) {
     } catch (e) { /* ignore */ }
   }
   setTimeout(check, 3000);
-  setInterval(check, 5 * 60e3);
+  setInterval(check, 60e3);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
 })();
 
 
