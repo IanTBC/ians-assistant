@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.6.0
+// @version      1.7.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -7218,6 +7218,32 @@ function __jsEnsureSharedObserver() {
   }
   function setRound(n) {
     try { GM_setValue(ROUND_STORAGE_PREFIX + todayKey(), n); } catch (e) { /* best-effort */ }
+    updateTodayStats();
+  }
+
+  // --- Today's numbers (calls, answered, skipped, round) --------------
+  // Calls and answered are counted as they happen; skipped comes from the
+  // day's skipped lists. Same 2pm GMT day as everything else.
+  var STATS_PREFIX = 'ia-stats-';
+  function getTodayStats() {
+    try { const v = JSON.parse(GM_getValue(STATS_PREFIX + todayKey(), '{}')); return { calls: +v.calls || 0, answered: +v.answered || 0 }; } catch (e) { return { calls: 0, answered: 0 }; }
+  }
+  function bumpTodayStat(name) {
+    const st = getTodayStats();
+    st[name] = (st[name] || 0) + 1;
+    try { GM_setValue(STATS_PREFIX + todayKey(), JSON.stringify(st)); } catch (e) { /* best-effort */ }
+    updateTodayStats();
+  }
+  function updateTodayStats() {
+    const el = iaWidget && iaWidget.querySelector('.ia-stats');
+    if (!el) return;
+    const st = getTodayStats();
+    const skipped = getSet(SKIPPED_STORAGE_PREFIX).size + getSet(SKIPPED2_STORAGE_PREFIX).size;
+    const set = (k, v) => { const n = el.querySelector('[data-stat="' + k + '"]'); if (n && n.textContent !== String(v)) n.textContent = String(v); };
+    set('calls', st.calls);
+    set('answered', st.answered);
+    set('skipped', skipped);
+    set('round', getRound());
   }
 
   function markCalled(leadId) {
@@ -7240,6 +7266,7 @@ function __jsEnsureSharedObserver() {
     skipped.add(leadId);
     saveSet(skipPrefix, skipped);
     updateAllRowIndicators();
+    updateTodayStats();
   }
 
   function isCalledTwice(leadId) {
@@ -7560,6 +7587,12 @@ function __jsEnsureSharedObserver() {
             <div class="ia-card-foot"><div class="ia-screen-info__status"></div><div class="ia-progress"></div></div>
           </div>
         </div>
+        <div class="ia-stats" title="Today, since 2pm GMT">
+          <span><b data-stat="calls">0</b> calls</span>
+          <span><b data-stat="answered" class="ia-stat-ok">0</b> answered</span>
+          <span><b data-stat="skipped" class="ia-stat-skip">0</b> skipped</span>
+          <span class="ia-stat-round">Round <b data-stat="round">1</b></span>
+        </div>
         <button type="button" class="ia-btn ia-btn-call ia-call"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg><span>Call</span></button>
         <div class="ia-row">
           <button type="button" class="ia-btn ia-btn-skip ia-sec" title="Skip this lead"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6l8.5 6L6 18zM16 6h2v12h-2z"/></svg><span>Skip</span></button>
@@ -7609,6 +7642,8 @@ function __jsEnsureSharedObserver() {
     setSnipingIndicator(window.__iansAssistantSniperActive);
     applySuperState();
     applyDoubleDialState();
+    updateTodayStats();
+    setInterval(updateTodayStats, 30000); // picks up the 2pm GMT reset and other tabs
     const modeBtn = iaWidget.querySelector('.ia-mode-btn');
     if (modeBtn) modeBtn.addEventListener('click', (e) => { e.stopPropagation(); cycleMode(); });
     applyMode();
@@ -8274,6 +8309,7 @@ function __jsEnsureSharedObserver() {
   // straight to Windows' default phone app (your RingCentral app), signed
   // into the widget or not.
   function dialNumber(number, byRealClick) {
+    bumpTodayStat('calls');
     window.location.href = DIAL_URI_PREFIX + number;
     if (!rcContainer()) return; // no status watcher -> old one-click-per-call mode
     awaitingCallEnd = true;
@@ -8322,6 +8358,7 @@ function __jsEnsureSharedObserver() {
     callSeen = false;
     const answered = iaCallConnectedAt && (Date.now() - iaCallConnectedAt) / 1000 > ANSWERED_AFTER_SEC;
     iaCallDigits = null;
+    if (answered) bumpTodayStat('answered');
     if (!autoRunning) { setPanelStatus('Call ended'); return; }
 
     // Double dial: unanswered calls get one immediate second try.
@@ -10149,6 +10186,19 @@ function __jsEnsureSharedObserver() {
     @keyframes ia-stop-flash { 0% { background: var(--ia-stop); color: #fff; } 100% { } }
     .ia-panel .ia-btn--disabled { opacity: .4; }
 
+    .ia-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; height: 20px; flex: none; font-size: 11px; color: var(--ia-muted); white-space: nowrap; }
+    .ia-stats b { font-size: 12.5px; font-weight: 600; color: var(--ia-title); font-variant-numeric: tabular-nums; }
+    .ia-stats b.ia-stat-ok { color: var(--ia-ok); }
+    .ia-stats b.ia-stat-skip { color: #f5c542; }
+    .ia-mode-light .ia-stats b.ia-stat-skip { color: #b7791f; }
+    .ia-stats .ia-stat-round { text-align: right; }
+    /* Room for the numbers row inside the fixed 280 x 331 panel */
+    .ia-widget .ia-panel { gap: 8px; }
+    .ia-call { height: 38px; }
+    .ia-sec, .ia-stop { height: 30px; }
+    .ia-card { padding: 9px 12px; overflow: hidden; }
+    .ia-panel .ia-screen-info__client { display: block; max-height: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+    .ia-card-foot { padding-top: 6px; }
     .ia-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: none; }
     .ia-toggle { display: flex; align-items: center; justify-content: space-between; height: 22px; font-size: 12px; color: var(--ia-sec); cursor: pointer; }
     .ia-switch { position: relative; width: 28px; height: 16px; border-radius: 8px; background: var(--ia-line2); transition: background .2s; }
