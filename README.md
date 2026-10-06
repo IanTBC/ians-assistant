@@ -48,11 +48,14 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
-**Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. The assistant turns red while it's on.
+**Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. On a Mac: **Option+Z** (or Option+X). The assistant turns red while it's on.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**1.7.3 — Mac shortcut**
+- Mac users: turn the lead sniper on or off with Option+Z or Option+X.
 
 **1.7.2 — faster updates**
 - New versions now show up within a few minutes of being released, instead of up to half an hour. Later hides the banner for an hour.
