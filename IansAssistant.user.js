@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.7.0
+// @version      1.7.1
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -10186,12 +10186,25 @@ function __jsEnsureSharedObserver() {
     @keyframes ia-stop-flash { 0% { background: var(--ia-stop); color: #fff; } 100% { } }
     .ia-panel .ia-btn--disabled { opacity: .4; }
 
-    .ia-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; height: 20px; flex: none; font-size: 11px; color: var(--ia-muted); white-space: nowrap; }
-    .ia-stats b { font-size: 12.5px; font-weight: 600; color: var(--ia-title); font-variant-numeric: tabular-nums; }
+    .ia-stats { display: flex; justify-content: space-between; align-items: center; gap: 6px; height: 20px; flex: none; font-size: 11px; font-weight: 600; color: var(--ia-muted); white-space: nowrap; }
+    .ia-stats > span { flex: none; }
+    .ia-stats b { font-size: 12.5px; font-weight: 800; color: var(--ia-title); font-variant-numeric: tabular-nums; margin-right: 1px; }
     .ia-stats b.ia-stat-ok { color: var(--ia-ok); }
     .ia-stats b.ia-stat-skip { color: #f5c542; }
     .ia-mode-light .ia-stats b.ia-stat-skip { color: #b7791f; }
     .ia-stats .ia-stat-round { text-align: right; }
+    /* Bolder text across the panel */
+    .ia-head__greet { font-weight: 600; }
+    .ia-idle__t { font-weight: 800; }
+    .ia-idle__s { font-weight: 600; }
+    .ia-card-foot { font-weight: 600; }
+    .ia-panel .ia-screen-info__client { font-weight: 800; }
+    .ia-panel .ia-screen-info__label { font-weight: 800; }
+    .ia-panel .ia-screen-info__route { font-weight: 600; }
+    .ia-toggle { font-weight: 700; }
+    .ia-sec, .ia-stop { font-weight: 700 !important; }
+    .ia-call { font-weight: 800 !important; }
+    .ia-foot { font-weight: 600; }
     /* Room for the numbers row inside the fixed 280 x 331 panel */
     .ia-widget .ia-panel { gap: 8px; }
     .ia-call { height: 38px; }
