@@ -20,7 +20,7 @@ A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites,
 
 ## Updates
 
-Updates install by themselves. When a new version is out you'll also see a small **"Ian's Assistant x.x is available"** banner — click **Update** to get it right away.
+Updates install by themselves. Within a few minutes of a new version coming out you'll also see a small **"Ian's Assistant x.x is available"** banner — click **Update** to get it right away.
 
 To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript updates**.
 
@@ -53,6 +53,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**1.7.2 — faster updates**
+- New versions now show up within a few minutes of being released, instead of up to half an hour. Later hides the banner for an hour.
 
 **1.7.1 — fix**
 - The numbers on the panel no longer run into each other, and the panel's text is bolder and easier to read.
