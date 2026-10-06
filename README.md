@@ -54,6 +54,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ## What's new
 
+**1.7.1 — fix**
+- The numbers on the panel no longer run into each other, and the panel's text is bolder and easier to read.
+
 **1.7.0 — today's numbers**
 - Today's numbers on the panel: calls made, answered, skipped and which round you're on. They start fresh every day at 2pm GMT.
 
