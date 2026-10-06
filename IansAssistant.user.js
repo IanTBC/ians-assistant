@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.7.3
+// @version      1.8.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -6546,12 +6546,241 @@ function __jsEnsureSharedObserver() {
     const q = new URLSearchParams({ cabins: c, cabin: c, banks: 'Amex,Bilt,Capital One,Chase,Citi,WF', airlineProgram: 'AR,AM,AC,KL,AS,AA,AV,DL,EY,AY,B6,LH,QF,SK,TK,UA,VS,VA', tripType: '1', adults: String(lead.adults), children: String(lead.children), departure: leg.origin, arrival: leg.destination, departDate: d1, departDateSec: d2, multiday: String(multi) });
     return 'https://www.pointsyeah.com/search?' + q.toString();
   }
-  function srchBasis(lead, leg, cab) {
+  // Basis (agentsearch): one "pax" number — children and infants count as
+  // adults there (award seats cost the same miles). Taken from the lead
+  // card's passenger icons when shown (the BO's own search link can lag).
+  const FXP_BASIS_PROGRAMS = ['AC', 'KL', 'AS', 'AA', 'AV', 'BA', 'CM', 'DL', 'EY', 'B6', 'QF', 'SQ', 'TP', 'TK', 'UA', 'VS', 'LH', 'QR'];
+  function srchPaxTotal(lead) {
+    try {
+      const m = location.pathname.match(/\/leads\/(\d+)/);
+      const card = m && readLeadCard(m[1]);
+      if (card && card.pax) { const t = (card.pax.adults || 0) + (card.pax.children || 0) + (card.pax.infants || 0); if (t > 0) return t; }
+    } catch (e) { /* fall back to the search link */ }
+    return Math.max(1, (lead.adults || 0) + (lead.children || 0) + (lead.infants || 0));
+  }
+  function srchBasisStop(from, to, date, flex) {
+    return { origin: [{ code: from, city: from }], destination: [{ code: to, city: to }], date: { value: date, range: Math.min(Math.max(parseInt(flex, 10) || 0, 0), 7) } };
+  }
+  function srchBasis(lead, leg, cab, flex) {
     const payload = {
       tripType: 'oneway',
-      stops: [{ origin: [{ code: leg.origin, city: leg.origin }], destination: [{ code: leg.destination, city: leg.destination }], date: { value: leg.date, range: 1 } }],
-      pax: String(lead.adults + lead.children + lead.infants), cabin: srchCabinLabel(cab),
-      programs: ['AM', 'AC', 'KL', 'AS', 'AA', 'AV', 'BA', 'CM', 'DL', 'EY', 'IB', 'B6', 'QF', 'SK', 'SQ', 'NK', 'TP', 'TK', 'UA', 'VS', 'VA', 'LH', 'QR', 'AY'],
+      stops: [srchBasisStop(leg.origin, leg.destination, leg.date, flex)],
+      pax: String(srchPaxTotal(lead)), cabin: srchCabinLabel(cab),
+      programs: FXP_BASIS_PROGRAMS,
+      enableHC: false, enableFlybasisCPMs: false, isMax: false,
+    };
+    return 'https://agentsearch.vercel.app/flights?s=' + encodeURIComponent(btoa(JSON.stringify(payload)));
+  }
+  // Multi-airport search: up to 3 airports on each side.
+  const srchCodes = (list) => list.map((c) => ({ code: c, city: c }));
+  function srchBasisMulti(lead, from, to, outDate, retDate, cab, flex) {
+    const stop = (a, b, d) => ({ origin: srchCodes(a), destination: srchCodes(b), date: { value: d, range: Math.min(Math.max(parseInt(flex, 10) || 0, 0), 7) } });
+    const payload = {
+      tripType: retDate ? 'roundtrip' : 'oneway',
+      stops: retDate ? [stop(from, to, outDate), stop(to, from, retDate)] : [stop(from, to, outDate)],
+      pax: String(srchPaxTotal(lead)), cabin: srchCabinLabel(cab),
+      programs: FXP_BASIS_PROGRAMS,
+      enableHC: false, enableFlybasisCPMs: false, isMax: false,
+    };
+    return 'https://agentsearch.vercel.app/flights?s=' + encodeURIComponent(btoa(JSON.stringify(payload)));
+  }
+  // Home side = where the trip starts and ends; far side = every other
+  // airport. CHI→HAN + KTI→CHI gives CHI / HAN + KTI; HAN→CHI + CHI→KTI
+  // gives HAN + KTI / CHI.
+  function srchMultiSides(lead) {
+    const segs = lead.segments;
+    if (segs.length === 1) return { from: [segs[0].origin], to: [segs[0].destination], out: segs[0].departureDate, ret: segs[0].returnDate || null };
+    const home = [segs[0].origin, segs[segs.length - 1].destination].filter((c, i, a) => a.indexOf(c) === i);
+    const far = [];
+    segs.forEach((x) => [x.origin, x.destination].forEach((c) => { if (!home.includes(c) && !far.includes(c)) far.push(c); }));
+    return { from: home.slice(0, 3), to: far.slice(0, 3), out: segs[0].departureDate, ret: segs[segs.length - 1].departureDate };
+  }
+  function srchMultiBox(btn, lead, cab, flex) {
+    const again = srchMenu && srchMenu.btn === btn && srchMenu.multi;
+    srchCloseMenu();
+    if (again) return;
+    const sides = srchMultiSides(lead);
+    const el = document.createElement('div');
+    el.className = 'ia-fxp-menu ia-fxp-menu--fb ia-fxp-ma';
+    const h = document.createElement('div');
+    h.className = 'ia-fxp-menu-h';
+    h.className += ' ia-fxp-ma-h';
+    const hT = document.createElement('span');
+    hT.textContent = 'Basis \u00b7 up to 3 airports each side \u00b7 up to \u00b17 days';
+    const hX = document.createElement('button');
+    hX.type = 'button';
+    hX.className = 'ia-fxp-ma-close';
+    hX.title = 'Close';
+    hX.setAttribute('aria-label', 'Close');
+    hX.textContent = '\u00d7';
+    hX.addEventListener('click', (e) => { e.stopPropagation(); srchCloseMenu(); });
+    h.append(hT, hX);
+    const row = document.createElement('div');
+    row.className = 'ia-fxp-ma-row';
+    // Airport chips: 3 letters (or a space/comma/Enter) makes a chip;
+    // Backspace in an empty box removes the last whole code; x removes one.
+    const box = (ph, val, icon) => {
+      const w = document.createElement('label');
+      w.className = 'ia-fxp-ma-box';
+      const i = document.createElement('span');
+      i.className = 'ia-fxp-ma-ic';
+      i.textContent = icon;
+      const chips = document.createElement('span');
+      chips.className = 'ia-fxp-ma-chips';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.spellcheck = false;
+      inp.autocomplete = 'off';
+      inp.maxLength = 3;
+      const st = { list: val.slice(0, 3), w, inp };
+      const paint = () => {
+        chips.textContent = '';
+        st.list.forEach((code, idx) => {
+          const c = document.createElement('span');
+          c.className = 'ia-fxp-ma-chip';
+          c.textContent = code;
+          const x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'ia-fxp-ma-x';
+          x.setAttribute('aria-label', 'Remove ' + code);
+          x.textContent = '\u00d7';
+          x.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); st.list.splice(idx, 1); paint(); inp.focus(); });
+          c.appendChild(x);
+          chips.appendChild(c);
+        });
+        inp.placeholder = st.list.length ? '' : ph;
+        inp.style.display = st.list.length >= 3 ? 'none' : '';
+        err.textContent = '';
+      };
+      st.add = (t) => {
+        const code = String(t || '').toUpperCase().replace(/[^A-Z]/g, '');
+        if (code.length !== 3) return false;
+        if (!st.list.includes(code) && st.list.length < 3) st.list.push(code);
+        inp.value = '';
+        paint();
+        return true;
+      };
+      st.set = (list) => { st.list = list.slice(0, 3); paint(); };
+      inp.addEventListener('input', () => {
+        inp.value = inp.value.toUpperCase().replace(/[^A-Z]/g, '');
+        if (inp.value.length === 3) st.add(inp.value);
+      });
+      inp.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Backspace' && !inp.value && st.list.length) { e.preventDefault(); st.list.pop(); paint(); return; }
+        if ((e.key === ' ' || e.key === ',' || e.key === '+') ) { e.preventDefault(); st.add(inp.value); return; }
+        if (e.key === 'Enter') { e.preventDefault(); if (inp.value) st.add(inp.value); else go(sides.ret ? 'rt' : 'out'); }
+      });
+      w.addEventListener('click', () => { if (st.list.length < 3) inp.focus(); });
+      w.append(i, chips, inp);
+      st.paint = paint;
+      return st;
+    };
+    const err = document.createElement('div');
+    err.className = 'ia-fxp-ma-err';
+    const A = box('Where from', sides.from, '\u25ce');
+    const B = box('Where to', sides.to, '\u25c9');
+    A.paint();
+    B.paint();
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'ia-fxp-ma-sw';
+    sw.title = 'Swap';
+    sw.setAttribute('aria-label', 'Swap from and to');
+    sw.textContent = '\u21c4';
+    sw.addEventListener('click', (e) => { e.stopPropagation(); const t = A.list.slice(); A.set(B.list); B.set(t); });
+    row.append(A.w, sw, B.w);
+    // Dates (editable) and date range (Fixed … ±7 days) for this search.
+    const info = document.createElement('div');
+    info.className = 'ia-fxp-ma-info';
+    const dateIn = (val, label) => {
+      const d = document.createElement('input');
+      d.type = 'date';
+      d.className = 'ia-fxp-ma-date';
+      d.value = val || '';
+      d.setAttribute('aria-label', label);
+      d.addEventListener('keydown', (e) => e.stopPropagation());
+      return d;
+    };
+    const dOut = dateIn(sides.out, 'Outbound date');
+    info.appendChild(dOut);
+    let dRet = null;
+    if (sides.ret) {
+      const arrow = document.createElement('span');
+      arrow.className = 'ia-fxp-ma-arrow';
+      arrow.textContent = '\u2192';
+      dRet = dateIn(sides.ret, 'Return date');
+      info.append(arrow, dRet);
+    }
+    let range = Math.min(Math.max(parseInt(flex, 10) || 0, 0), 7);
+    const pills = document.createElement('span');
+    pills.className = 'ia-fxp-ma-pills';
+    pills.setAttribute('role', 'group');
+    pills.setAttribute('aria-label', 'Date range');
+    const paintPills = () => pills.querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.v === range));
+    [0, 1, 2, 3, 4, 5, 6, 7].forEach((v) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.v = String(v);
+      b.textContent = v ? '\u00b1' + v : 'Fixed';
+      b.addEventListener('click', (e) => { e.stopPropagation(); range = v; paintPills(); });
+      pills.appendChild(b);
+    });
+    paintPills();
+    info.appendChild(pills);
+    const acts = document.createElement('div');
+    acts.className = 'ia-fxp-ma-acts';
+    const go = (mode) => {
+      [A, B].forEach((x) => { if (x.inp.value) x.add(x.inp.value); });
+      const from = A.list, to = B.list;
+      if (!from.length || !to.length) { err.textContent = 'Add at least one airport on each side'; return; }
+      if (from.length > 3 || to.length > 3) { err.textContent = 'Up to 3 airports on each side'; return; }
+      // Both = two one-way searches (outbound and return), not a round trip.
+      const urls = [];
+      const out = dOut.value, ret = dRet ? dRet.value : null;
+      if ((mode === 'out' || mode === 'rt') && !out) { err.textContent = 'Pick the outbound date'; return; }
+      if ((mode === 'ret' || mode === 'rt') && !ret) { err.textContent = 'Pick the return date'; return; }
+      if (mode === 'out' || mode === 'rt') urls.push(srchBasisMulti(lead, from, to, out, null, cab, range));
+      if (mode === 'ret' || mode === 'rt') urls.push(srchBasisMulti(lead, to, from, ret, null, cab, range));
+      // The box stays open, so the other leg can be searched next.
+      // It closes with x, Esc, or a click anywhere outside it.
+      urls.forEach((u) => srchOpenBg(u)); // new tabs in the background: you stay on the lead
+      return true;
+    };
+    const mkAct = (label, mode, main) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ia-fxp-ma-go' + (main ? ' is-main' : '');
+      b.textContent = label;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!go(mode)) return;
+        b.textContent = '\u2713 opened';
+        clearTimeout(b._iaT);
+        b._iaT = setTimeout(() => { b.textContent = label; }, 1600);
+      });
+      acts.appendChild(b);
+    };
+    mkAct('Outbound', 'out', !sides.ret);
+    if (sides.ret) { mkAct('Return', 'ret', false); mkAct('Both \u2197', 'rt', true); }
+    el.append(h, row, info, acts, err);
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+    document.body.appendChild(el);
+    const r = btn.getBoundingClientRect();
+    el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - el.offsetWidth - 8)) + 'px';
+    el.style.top = (r.bottom + 4) + 'px';
+    btn.classList.add('is-open');
+    srchMenu = { el, btn, multi: true };
+    setTimeout(() => B.inp.focus(), 0);
+  }
+
+  function srchBasisRound(lead, cab, flex) {
+    const s0 = lead.segments[0];
+    const payload = {
+      tripType: 'roundtrip',
+      stops: [srchBasisStop(s0.origin, s0.destination, s0.departureDate, flex), srchBasisStop(s0.destination, s0.origin, s0.returnDate, flex)],
+      pax: String(srchPaxTotal(lead)), cabin: srchCabinLabel(cab),
+      programs: FXP_BASIS_PROGRAMS,
       enableHC: false, enableFlybasisCPMs: false, isMax: false,
     };
     return 'https://agentsearch.vercel.app/flights?s=' + encodeURIComponent(btoa(JSON.stringify(payload)));
@@ -6622,7 +6851,15 @@ function __jsEnsureSharedObserver() {
   if (window.top === window) {
     document.addEventListener('mousedown', (e) => { if (srchMenu && !srchMenu.el.contains(e.target) && !srchMenu.btn.contains(e.target)) srchCloseMenu(); }, true);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') srchCloseMenu(); });
-    window.addEventListener('scroll', () => srchCloseMenu(), true);
+    // Scrolling closes the small menus; the Basis box stays and follows its button.
+    window.addEventListener('scroll', (e) => {
+      if (!srchMenu) return;
+      if (!srchMenu.multi) { srchCloseMenu(); return; }
+      if (e.target && e.target.nodeType === 1 && srchMenu.el.contains(e.target)) return;
+      const r = srchMenu.btn.getBoundingClientRect();
+      srchMenu.el.style.top = (r.bottom + 4) + 'px';
+      srchMenu.el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - srchMenu.el.offsetWidth - 8)) + 'px';
+    }, true);
   }
 
   const srchState = { cab: null, flex: 0 };
@@ -6698,7 +6935,9 @@ function __jsEnsureSharedObserver() {
         srchShowMenu(b, title + ' \u00b7 Ctrl+click to pick more', rows);
       };
       mk('PointsYeah ▾', 'py', (b) => legMenu(b, 'PointsYeah', (lg) => srchPointsYeah(L(), lg, flex(), cab())));
-      mk('Basis ▾', 'fb', (b) => legMenu(b, 'Basis', (lg) => srchBasis(L(), lg, cab())));
+      // Basis opens the multi-airport box straight away (its Outbound /
+      // Return / Round trip buttons cover the single searches too).
+      mk('Basis ▾', 'fb', (b) => srchMultiBox(b, L(), cab(), flex()));
       mk('Kayak ↗', 'k', () => srchOpen(srchKayak(L(), flex(), cab())));
       body.appendChild(panel);
 
@@ -6742,7 +6981,7 @@ function __jsEnsureSharedObserver() {
           if (k === 'e') urls.push(srchGoogle(L(), true, cab()));
           if (k === 'm') urls.push(srchMatrix(L(), cab(), null, null, flex()));
           if (k === 'py') legs.forEach((lg) => urls.push(srchPointsYeah(L(), lg, flex(), cab())));
-          if (k === 'fb') legs.forEach((lg) => urls.push(srchBasis(L(), lg, cab())));
+          if (k === 'fb') legs.forEach((lg) => urls.push(srchBasis(L(), lg, cab(), flex())));
           if (k === 'k') urls.push(srchKayak(L(), flex(), cab()));
         });
         if (!urls.length) { all.textContent = 'Nothing ticked'; setTimeout(() => { all.textContent = 'Open all ↗'; }, 1400); return; }
@@ -6879,6 +7118,34 @@ function __jsEnsureSharedObserver() {
     .ia-fxp-pick { border: 1px solid #445071; background: #1b2132; color: #e5e7eb; border-radius: 6px; padding: 4px 10px; font: 700 11px system-ui, sans-serif; cursor: pointer; min-width: 74px; text-align: left; transition: border-color .15s, background .15s; }
     .ia-fxp-pick:hover, .ia-fxp-pick.is-open { border-color: #7c8db5; background: #232a40; }
     .ia-fxp-menu.ia-fxp-menu--cab, .ia-fxp-menu.ia-fxp-menu--flex { min-width: 140px; }
+    .ia-fxp-ma { width: max-content; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 8px; }
+    .ia-fxp-ma-row { display: flex; align-items: center; gap: 0; margin: 2px 0 8px; }
+    .ia-fxp-ma-box { flex: 1 1 246px; min-width: 246px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 10px; border: 1px solid #445071; border-radius: 9px; background: #232a3d; cursor: text; }
+    .ia-fxp-ma-box:focus-within { border-color: #8b7cf6; }
+    .ia-fxp-ma-ic { color: #9aa3ba; font-size: 13px; flex: none; }
+    .ia-fxp-ma-chips { display: inline-flex; gap: 5px; flex: none; }
+    .ia-fxp-ma-chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 4px 0 9px; border-radius: 999px; background: #3a4258; color: #f1f5f9; font: 800 11.5px system-ui, sans-serif; letter-spacing: .04em; }
+    .ia-fxp-ma-x { border: 0; background: transparent; color: #cbd5e1; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 3px; border-radius: 50%; }
+    .ia-fxp-ma-x:hover { color: #fff; background: rgba(255,255,255,.12); }
+    .ia-fxp-ma-box input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: #e5e7eb; font: 700 13px system-ui, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
+    .ia-fxp-ma-box input::placeholder { color: #8b93a7; text-transform: none; font-weight: 500; letter-spacing: 0; }
+    .ia-fxp-ma-sw { flex: none; width: 30px; height: 30px; margin: 0 6px; z-index: 1; border-radius: 50%; border: 1px solid #445071; background: #3a4258; color: #e5e7eb; cursor: pointer; font-size: 14px; line-height: 1; }
+    .ia-fxp-ma-sw:hover { background: #4a5470; }
+    .ia-fxp-ma-info { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0 0 8px; }
+    .ia-fxp-ma-date { height: 28px; padding: 0 6px; border: 1px solid #445071; border-radius: 6px; background: #232a3d; color: #e5e7eb; font: 700 11.5px system-ui, sans-serif; color-scheme: dark; }
+    .ia-fxp-ma-date:focus { outline: none; border-color: #8b7cf6; }
+    .ia-fxp-ma-arrow { color: #9aa3ba; font-size: 12px; }
+    .ia-fxp-ma-pills { display: inline-flex; margin-left: auto; border: 1px solid #445071; border-radius: 6px; overflow: hidden; }
+    .ia-fxp-ma-pills button { border: 0; border-left: 1px solid #2c3550; background: #1b2132; color: #c9cfe0; font: 700 11px system-ui, sans-serif; padding: 0 7px; height: 26px; cursor: pointer; }
+    .ia-fxp-ma-pills button:first-child { border-left: 0; }
+    .ia-fxp-ma-pills button:hover { background: #2c3550; }
+    .ia-fxp-ma-pills button.on { background: #6d5bd0; color: #fff; }
+    .ia-fxp-ma-acts { display: flex; gap: 6px; justify-content: flex-end; }
+    .ia-fxp-ma-go { border: 1px solid #445071; background: #1b2132; color: #e5e7eb; border-radius: 6px; padding: 6px 10px; font: 700 12px system-ui, sans-serif; cursor: pointer; }
+    .ia-fxp-ma-go:hover { border-color: #8b7cf6; }
+    .ia-fxp-ma-go.is-main { background: #6d5bd0; border-color: #6d5bd0; color: #fff; }
+    .ia-fxp-ma-err { color: #fca5a5; font-size: 11px; font-weight: 600; padding-top: 6px; min-height: 0; }
+    .ia-fxp-ma-err:empty { display: none; }
     .ia-fxp-allwrap { display: inline-flex; align-items: center; gap: 2px; }
     .ia-fxp-allm { border: 0; background: transparent; color: #c4b5fd; cursor: pointer; font-size: 11px; padding: 3px 5px; border-radius: 4px; line-height: 1; }
     .ia-fxp-allm:hover, .ia-fxp-allm.is-open { background: rgba(148,163,184,.18); }
@@ -6925,7 +7192,7 @@ function __jsEnsureSharedObserver() {
     const light = p.mode === 'light';
     const set = {
       bg: p.bg, field: p.field, line: p.line, line2: p.line2, text: p.text, title: p.title, muted: p.muted, sec: p.sec,
-      acc: p.acc, onacc: p.onacc, shadow: p.shadow,
+      acc: p.acc, onacc: p.onacc, shadow: p.shadow, scheme: light ? 'light' : 'dark',
       'g': light ? '#2563eb' : '#60a5fa', 'e': light ? '#16a34a' : '#4ade80', 'm': light ? '#7c3aed' : '#c4b5fd',
       'py': light ? '#ca8a04' : '#facc15', 'fb': light ? '#3f3f46' : '#e8e8ed', 'k': light ? '#ea580c' : '#fb923c',
     };
@@ -6964,6 +7231,31 @@ function __jsEnsureSharedObserver() {
     .ia-fxp-chk { border-color: var(--ias-line2); color: var(--ias-onacc); }
     .ia-fxp-chk.on { background: var(--ias-acc); border-color: var(--ias-acc); }
     .ia-fxp-menu-c.is-off span { color: var(--ias-muted); }
+    /* Basis multi-airport search box, in Ian's Assistant colours */
+    .ia-fxp-ma-box { border-color: var(--ias-line2) !important; background: var(--ias-bg) !important; border-radius: 10px !important; }
+    .ia-fxp-ma-box:focus-within { border-color: var(--ias-acc) !important; }
+    .ia-fxp-ma-ic { color: var(--ias-muted) !important; }
+    .ia-fxp-ma-chip { background: var(--ias-field) !important; border: 1px solid var(--ias-line2); color: var(--ias-title) !important; font-family: Inter, 'Segoe UI', system-ui, sans-serif !important; }
+    .ia-fxp-ma-x { color: var(--ias-muted) !important; }
+    .ia-fxp-ma-x:hover { color: var(--ias-title) !important; background: var(--ias-line) !important; }
+    .ia-fxp-ma-box input { color: var(--ias-title) !important; font-family: Inter, 'Segoe UI', system-ui, sans-serif !important; font-weight: 800 !important; }
+    .ia-fxp-ma-box input::placeholder { color: var(--ias-muted) !important; font-weight: 600 !important; }
+    .ia-fxp-ma-sw { border-color: var(--ias-line2) !important; background: var(--ias-field) !important; color: var(--ias-title) !important; }
+    .ia-fxp-ma-sw:hover { border-color: var(--ias-acc) !important; }
+    .ia-fxp-ma-date { border-color: var(--ias-line2) !important; background: var(--ias-bg) !important; color: var(--ias-title) !important; color-scheme: var(--ias-scheme) !important; font-family: Inter, 'Segoe UI', system-ui, sans-serif !important; }
+    .ia-fxp-ma-date:focus { border-color: var(--ias-acc) !important; }
+    .ia-fxp-ma-arrow { color: var(--ias-muted) !important; }
+    .ia-fxp-ma-pills { border-color: var(--ias-line2) !important; border-radius: 7px !important; }
+    .ia-fxp-ma-pills button { border-left-color: var(--ias-line2) !important; background: var(--ias-bg) !important; color: var(--ias-sec) !important; font-family: Inter, 'Segoe UI', system-ui, sans-serif !important; }
+    .ia-fxp-ma-pills button:hover { background: var(--ias-field) !important; }
+    .ia-fxp-ma-pills button.on { background: var(--ias-acc) !important; color: var(--ias-onacc) !important; }
+    .ia-fxp-ma-go { border-color: var(--ias-line2) !important; background: transparent !important; color: var(--ias-text) !important; border-radius: 7px !important; font-family: Inter, 'Segoe UI', system-ui, sans-serif !important; font-weight: 800 !important; }
+    .ia-fxp-ma-go:hover { border-color: var(--ias-acc) !important; }
+    .ia-fxp-ma-go.is-main { background: var(--ias-acc) !important; border-color: var(--ias-acc) !important; color: var(--ias-onacc) !important; }
+    .ia-fxp-ma-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .ia-fxp-ma-close { border: 0; background: transparent; color: var(--ias-muted); font: 800 16px/1 system-ui, sans-serif; padding: 0 2px; cursor: pointer; border-radius: 5px; }
+    .ia-fxp-ma-close:hover { color: var(--ias-text); }
+    .ia-fxp-ma-err { color: var(--ias-bad, #f87171) !important; }
   `);
 
   function scan() {
@@ -9597,6 +9889,7 @@ function __jsEnsureSharedObserver() {
 
   setInterval(checkReminder, 60 * 1000); // checked every minute so the hourly boundary is caught promptly, not just once an hour on the dot
   checkReminder(); // also check once on load, in case it was already due when this page opened
+
 
   // Clear the downloaded-font copy older versions saved (no longer used).
   try { if (GM_getValue('bmo-font-fredoka-v1', null)) GM_setValue('bmo-font-fredoka-v1', null); } catch (e) { /* ignore */ }
