@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.7.2
+// @version      1.7.3
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -10250,7 +10250,7 @@ function __jsEnsureSharedObserver() {
 })();
 
 // ====================================================================
-// SECTION 5 · Lead sniper (Alt+Z or Alt+X)
+// SECTION 5 · Lead sniper (Alt+Z / Alt+X; Option+Z / Option+X on a Mac)
 // ====================================================================
 // Sniper logic taken from the standalone "CRM Master Sniper & Sales
 // Analytics" v2.2 script (10ms polling + 20ms Enter confirm). The old
@@ -10282,8 +10282,11 @@ function __jsEnsureSharedObserver() {
 
   // Listen for hotkeys
   document.addEventListener('keydown', function (e) {
-    // ALT + Z or ALT + X: toggle the Lead Sniper (Pip turns red while ON)
-    if (e.altKey && (e.code === 'KeyZ' || e.code === 'KeyX')) {
+    // ALT + Z or ALT + X: toggle the Lead Sniper (Pip turns red while ON).
+    // On a Mac it's OPTION + Z or OPTION + X (Option is the Mac's Alt key;
+    // with it held, a Mac types \u03A9 for Z and \u2248 for X, so those count too).
+    const macKey = e.key === '\u2248' || e.key === '\u03A9';
+    if (e.altKey && (e.code === 'KeyZ' || e.code === 'KeyX' || macKey)) {
       e.preventDefault();
       setSniperActive(!sniperActive);
     }
