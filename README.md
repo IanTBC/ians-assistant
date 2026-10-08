@@ -55,6 +55,10 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ## What's new
 
+**2.0.0 — new look**
+- A fresh frosted-glass look for the assistant, the flight-site pop-up, the search buttons and the callback reminders, in Dark, Light and Navy.
+- Today's numbers are now easy-to-read tiles, and the buttons are rounder and bolder. Everything works exactly the same.
+
 **1.9.0 — callback reminders**
 - Set a callback on any lead with the clock button next to the lead number, or on the panel while you dial. Pick 30 minutes, 1, 2 or 4 hours, tomorrow at 10:00, or your own time, and add a short note.
 - When it's time, Pip pops up with the client, route and your note. Open the lead, push it back 15 minutes, or mark it done.

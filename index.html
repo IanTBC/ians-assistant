@@ -205,6 +205,35 @@ footer { padding-block: 32px 0; border-top: 1px solid var(--line); font-size: 13
   .wave { animation: wave 1.2s ease-in-out infinite; }
   @keyframes wave { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 }
+
+/* Sky Glass (2.0) look for the panel and pop-up pictures */
+#flights .stage { background-image: radial-gradient(circle at 20% 10%, rgba(124,124,248,.20) 0, transparent 50%), radial-gradient(circle at 85% 90%, rgba(56,189,248,.10) 0, transparent 50%); border-radius: 20px; }
+.panel, .pop { background: radial-gradient(circle at 18% 0%, rgba(124,124,248,.22) 0, transparent 55%), rgba(24,26,40,.86); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,.10); box-shadow: 0 22px 50px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10); font-family: 'Instrument Sans', 'Segoe UI', sans-serif; }
+.panel { border-radius: 22px; padding: 12px; }
+.pop { border-radius: 18px; padding: 11px; }
+.p-title, .pop .h { font-weight: 800; color: #fff; }
+.p-greet { font-weight: 600; }
+.ibtn { border: 0; border-radius: 8px; background: rgba(255,255,255,.08); color: #fff; width: 22px; height: 22px; }
+.p-card { border: 0; border-radius: 16px; background: rgba(255,255,255,.06); }
+.p-label { color: #9b9bff; font-weight: 800; }
+.p-label::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #4ade80; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 3px rgba(74,222,128,.22); }
+.p-name { font-weight: 800; color: #fff; }
+.p-route, .p-foot { font-weight: 700; }
+.p-foot { border-top: 0; }
+.p-call, .pop .gds { background: linear-gradient(135deg, #9b9bff, #7c7cf8); color: #0e0f13; border-radius: 14px; font-weight: 800; box-shadow: 0 8px 18px rgba(124,124,248,.35); }
+.p-call { height: 38px; }
+.pop .gds { border-radius: 12px; }
+.p-row div { border: 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font-weight: 800; }
+.p-row .stop { background: #e5484d; }
+.p-tog { font-weight: 700; }
+.sw::after { background: #fff; }
+.p-copy { font-weight: 700; }
+.pop .lead { border: 1px solid transparent; border-radius: 12px; background: rgba(255,255,255,.08); font-weight: 700; }
+.sellbox { border: 0; border-radius: 12px; background: rgba(255,255,255,.08); }
+.sellbox .sb-l { font-weight: 800; }
+.pipbtn { border-radius: 9px; }
+.chip { border-radius: 999px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -413,6 +442,13 @@ CABIN-BUSINESS</pre>
       <p class="muted">Updates install by themselves. You'll see a small banner when a new version is out.</p>
     </div>
     <div class="news">
+      <div class="rel">
+        <div><div class="v">2.0.0</div><div class="d">New look</div></div>
+        <ul>
+          <li>A fresh frosted-glass look for the assistant, the flight-site pop-up, the search buttons and the callback reminders, in Dark, Light and Navy.</li>
+          <li>Today's numbers are now easy-to-read tiles, and the buttons are rounder and bolder. Everything works exactly the same.</li>
+        </ul>
+      </div>
       <div class="rel">
         <div><div class="v">1.9.0</div><div class="d">Callback reminders</div></div>
         <ul>
