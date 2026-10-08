@@ -40,6 +40,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
+- **Card** on an option makes a clean picture of it (flights, times, connections and price) to paste into a text or chat for your client.
 
 **Calling and texting**
 - **Call** dials the next lead; the dialer keeps going after each call until you press **Stop**.
@@ -54,6 +55,10 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.1.0 — quote card**
+- New Card button on every option: turns it into a clean picture with the flights, times, connections and price, ready to paste into a text or chat for your client.
+- Change the client name, price, note or your name before copying. Nothing is sent for you.
 
 **2.0.0 — new look**
 - A fresh frosted-glass look for the assistant, the flight-site pop-up, the search buttons and the callback reminders, in Dark, Light and Navy.
