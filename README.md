@@ -46,6 +46,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2.
 - The panel shows today's calls, answered, skipped and round.
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
+- **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
 **Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. On a Mac: **Option+Z** (or Option+X). The assistant turns red while it's on.
@@ -53,6 +54,11 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**1.9.0 — callback reminders**
+- Set a callback on any lead with the clock button next to the lead number, or on the panel while you dial. Pick 30 minutes, 1, 2 or 4 hours, tomorrow at 10:00, or your own time, and add a short note.
+- When it's time, Pip pops up with the client, route and your note. Open the lead, push it back 15 minutes, or mark it done.
+- The clock at the top of the panel shows how many callbacks you have; tap it to see them all. All times are Egypt time.
 
 **1.8.0 — Basis search**
 - Basis now opens a search box: up to 3 airports on each side, with dates you can change and a range from fixed dates to ±7 days. Search the outbound, the return, or both.
