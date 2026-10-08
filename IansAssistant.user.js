@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      1.8.0
+// @version      1.9.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -7863,6 +7863,7 @@ function __jsEnsureSharedObserver() {
             <div class="ia-hs ia-head__greet" data-k="S"><span class="ia-led"></span></div>
           </div>
           <span class="ia-dot" title="Status"></span>
+          <span class="ia-btn ia-iconbtn ia-cb-btn" title="Callbacks"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 4 2.5 6.5M19 4l2.5 2.5"/></svg><span class="ia-cb-badge" hidden></span></span>
           <span class="ia-btn ia-iconbtn ia-mode-btn" title="Switch mode: dark, light, navy"><svg class="ia-ico ia-ico-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/></svg><svg class="ia-ico ia-ico-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg><svg class="ia-ico ia-ico-navy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5c3-3 6 3 9 0s6 3 9 0M3 15.5c3-3 6 3 9 0s6 3 9 0"/></svg></span>
           <span class="ia-btn ia-btn-theme ia-iconbtn" title="Change accent color"><span class="ia-swatch"></span></span>
           <span class="ia-iconbtn ia-min" title="Minimize">\u2013</span>
@@ -7874,6 +7875,7 @@ function __jsEnsureSharedObserver() {
             <div class="ia-idle__s">Press Call to start your follow-up</div>
           </div>
           <div class="ia-screen-info" style="display:none;">
+            <span class="ia-btn ia-iconbtn ia-cb-card" title="Set a callback for this lead"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 4 2.5 6.5M19 4l2.5 2.5"/></svg></span>
             <div class="ia-screen-info__label"></div>
             <a class="ia-screen-info__client" target="_blank" rel="noopener"></a>
             <div class="ia-screen-info__route"></div>
@@ -7915,6 +7917,8 @@ function __jsEnsureSharedObserver() {
     iaWidget.querySelector('.ia-btn-stop').addEventListener('click', (e) => { e.stopPropagation(); handleStopClick(); });
     iaWidget.querySelector('.ia-btn-theme').addEventListener('click', (e) => { e.stopPropagation(); toggleTheme(); });
     iaWidget.querySelector('.ia-reminder__dismiss').addEventListener('click', (e) => { e.stopPropagation(); dismissReminder(); });
+    iaWidget.querySelector('.ia-cb-btn').addEventListener('click', (e) => { e.stopPropagation(); if (iaWasDragged) return; cbOpenList(e.currentTarget); });
+    iaWidget.querySelector('.ia-cb-card').addEventListener('click', (e) => { e.stopPropagation(); if (iaWasDragged) return; cbOpenPicker(e.currentTarget, cbPanelLeadInfo()); });
     // Minimizes on a click anywhere on Pip himself EXCEPT the four
     // buttons — scoped to just his own element now, not the whole page,
     // so clicking elsewhere (the leads table, etc.) no longer closes him.
@@ -8072,7 +8076,7 @@ function __jsEnsureSharedObserver() {
 
   function isDragHandle(target) {
     if (!target || !target.closest) return false;
-    if (target.closest('.ia-btn, .ia-screen-info__client, .ia-reminder')) return false;
+    if (target.closest('.ia-btn, .ia-screen-info__client, .ia-reminder, .ia-cbdue')) return false;
     if (target.closest('.ia-bubble')) return !iaMaximized;
     if (target.closest('.ia-full')) return iaMaximized;
     return false;
@@ -9890,6 +9894,406 @@ function __jsEnsureSharedObserver() {
   setInterval(checkReminder, 60 * 1000); // checked every minute so the hourly boundary is caught promptly, not just once an hour on the dot
   checkReminder(); // also check once on load, in case it was already due when this page opened
 
+  // ==========================================================================
+  // Callback reminders
+  // ==========================================================================
+  // Set a callback on a lead (the ⏰ Callback chip next to the lead number,
+  // or ⏰ on the panel's lead card). When it's due, Pip peeks out with the
+  // lead: Open lead / +15 min / Done. Only a reminder for the agent;
+  // nothing is sent to anyone. All times are Egypt time (Africa/Cairo),
+  // whatever the computer's own clock is set to. Shared by every BO tab.
+  const CB_KEY = 'ia-callbacks';
+  const CB_TZ = 'Africa/Cairo';
+  const CB_CLOCK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 4 2.5 6.5M19 4l2.5 2.5"/></svg>';
+
+  // --- Egypt time ---------------------------------------------------------
+  let cbFmtParts = null;
+  function cbParts(ms) {
+    if (!cbFmtParts) cbFmtParts = new Intl.DateTimeFormat('en-GB', { timeZone: CB_TZ, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', weekday: 'short', hourCycle: 'h23' });
+    const o = {};
+    cbFmtParts.formatToParts(new Date(ms)).forEach((p) => { o[p.type] = p.value; });
+    return { y: +o.year, m: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, wd: o.weekday };
+  }
+  // Egypt wall-clock time -> real moment (handles Egypt's summer time).
+  function cbFromCairo(y, m, d, h, mi) {
+    const want = Date.UTC(y, m - 1, d, h, mi);
+    let ms = want;
+    for (let i = 0; i < 3; i++) {
+      const p = cbParts(ms);
+      const diff = want - Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi);
+      if (!diff) break;
+      ms += diff;
+    }
+    return ms;
+  }
+  const cbPad = (n) => String(n).padStart(2, '0');
+  const cbDayNum = (p) => Date.UTC(p.y, p.m - 1, p.d) / 86400000;
+  const CB_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function cbFmt(ms) {
+    const p = cbParts(ms);
+    const t = cbPad(p.h) + ':' + cbPad(p.mi);
+    const days = cbDayNum(p) - cbDayNum(cbParts(Date.now()));
+    if (days === 0) return 'Today ' + t;
+    if (days === 1) return 'Tomorrow ' + t;
+    if (days === -1) return 'Yesterday ' + t;
+    if (days > 1 && days < 7) return p.wd + ' ' + t;
+    return p.d + ' ' + CB_MON[p.m - 1] + ' ' + t;
+  }
+  const cbShort = (ms) => cbFmt(ms).replace(/^Today /, '');
+
+  // --- Saved list -----------------------------------------------------------
+  function cbLoad() {
+    try {
+      const a = JSON.parse(GM_getValue(CB_KEY, '[]'));
+      return Array.isArray(a) ? a.filter((c) => c && c.leadId && Number.isFinite(c.at)) : [];
+    } catch (e) { return []; }
+  }
+  function cbSave(list) {
+    list.sort((a, b) => a.at - b.at);
+    try { GM_setValue(CB_KEY, JSON.stringify(list)); } catch (e) { /* best-effort */ }
+    cbRefresh();
+  }
+  const cbFor = (leadId) => cbLoad().find((c) => c.leadId === String(leadId)) || null;
+  function cbSet(info, at, note) {
+    const list = cbLoad().filter((c) => c.leadId !== String(info.leadId));
+    list.push({ leadId: String(info.leadId), name: info.name || '', route: info.route || '', at, note: note || '', setAt: Date.now() });
+    cbSave(list);
+  }
+  function cbRemove(leadId) { cbSave(cbLoad().filter((c) => c.leadId !== String(leadId))); }
+  function cbOpenLead(leadId) {
+    const path = '/leads/' + leadId;
+    if (location.pathname === path) return;
+    const url = location.origin + path;
+    try { if (typeof GM_openInTab === 'function') { GM_openInTab(url, { active: true, insert: true, setParent: true }); return; } } catch (e) { /* fall back */ }
+    window.open(url, '_blank', 'noopener');
+  }
+
+  // --- Which lead -----------------------------------------------------------
+  function cbPageLeadId() {
+    const m = location.pathname.match(/^\/leads\/(\d+)\/?$/);
+    return m ? m[1] : null;
+  }
+  // Client name and route from the lead page's own card (best effort).
+  function cbLeadPageInfo(leadId) {
+    const info = { leadId: String(leadId), name: '', route: '' };
+    try {
+      const tag = Array.from(document.querySelectorAll('span')).find((sp) => sp.textContent.trim() === '#' + leadId);
+      let root = tag;
+      for (let i = 0; i < 12 && root; i++) {
+        root = root.parentElement;
+        if (root && root.querySelectorAll('.text-base.leading-6.font-semibold').length >= 2) break;
+      }
+      if (root) {
+        const codes = Array.from(root.querySelectorAll('.text-base.leading-6.font-semibold')).map((e) => e.textContent.trim()).filter(Boolean);
+        const nameEl = root.querySelector('span.truncate');
+        if (nameEl) info.name = nameEl.textContent.trim();
+        if (codes.length >= 2) info.route = codes[0] + ' → ' + codes[codes.length - 1];
+      }
+    } catch (e) { /* ignore */ }
+    return info;
+  }
+  function cbPanelLeadInfo() {
+    if (!currentPanelRow) return null;
+    const li = getLeadInfo(currentPanelRow);
+    if (!li || !li.leadId) return null;
+    return { leadId: String(li.leadId), name: li.clientName || '', route: [li.origin, li.dest].filter(Boolean).join(' → ') };
+  }
+  const cbName = (c) => c.name || ('Lead ' + c.leadId);
+
+  // --- Pop-ups (time picker and list) -------------------------------------
+  let cbPop = null;
+  function cbClosePop() { if (cbPop) { cbPop.el.remove(); cbPop = null; } }
+  function cbPopShell(anchor, kind) {
+    const again = cbPop && cbPop.anchor === anchor && cbPop.kind === kind;
+    cbClosePop();
+    if (again) return null;
+    const el = document.createElement('div');
+    el.className = 'ia-cbpop';
+    // Same colours as the panel (mode + accent).
+    const src = ensureBmo();
+    const cs = getComputedStyle(src);
+    ['--ia-bg', '--ia-field', '--ia-line', '--ia-line2', '--ia-text', '--ia-title', '--ia-muted', '--ia-sec', '--ia-onacc', '--ia-bad', '--ia-shadow', '--acc']
+      .forEach((v) => { const val = cs.getPropertyValue(v); if (val) el.style.setProperty(v, val.trim()); });
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+    el.addEventListener('click', (e) => e.stopPropagation());
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') cbClosePop(); });
+    cbPop = { el, anchor, kind };
+    return el;
+  }
+  function cbPlace(el, anchor) {
+    document.body.appendChild(el);
+    const r = anchor.getBoundingClientRect();
+    const w = el.offsetWidth, h = el.offsetHeight;
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    const left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8, r.left));
+    el.style.left = Math.max(8, left) + 'px';
+    el.style.top = top + 'px';
+  }
+  function cbHead(text) {
+    const h = document.createElement('div');
+    h.className = 'ia-cbpop-h';
+    const t = document.createElement('span');
+    t.textContent = text;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'ia-cbpop-x';
+    x.setAttribute('aria-label', 'Close');
+    x.textContent = '×';
+    x.addEventListener('click', cbClosePop);
+    h.append(t, x);
+    return h;
+  }
+  function cbBtn(label, cls, fn) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = cls;
+    b.textContent = label;
+    b.addEventListener('click', (e) => { e.preventDefault(); fn(e, b); });
+    return b;
+  }
+
+  function cbOpenPicker(anchor, info) {
+    if (!info || !info.leadId) return;
+    const el = cbPopShell(anchor, 'pick');
+    if (!el) return;
+    const existing = cbFor(info.leadId);
+    el.appendChild(cbHead('Call back ' + (info.name || 'lead ' + info.leadId)));
+    let at = existing ? existing.at : null;
+    const quick = document.createElement('div');
+    quick.className = 'ia-cbpop-quick';
+    const when = document.createElement('div');
+    when.className = 'ia-cbpop-when';
+    const whenT = document.createElement('b');
+    const whenZ = document.createElement('span');
+    whenZ.textContent = 'Egypt time';
+    when.append(whenT, whenZ);
+    const pick = document.createElement('div');
+    pick.className = 'ia-cbpop-pick';
+    pick.hidden = true;
+    const dIn = document.createElement('input');
+    dIn.type = 'date';
+    dIn.setAttribute('aria-label', 'Date (Egypt time)');
+    const tIn = document.createElement('input');
+    tIn.type = 'time';
+    tIn.setAttribute('aria-label', 'Time (Egypt time)');
+    pick.append(dIn, tIn);
+    const paintWhen = () => { whenT.textContent = at ? cbFmt(at) : 'Pick a time'; };
+    const fillPick = (ms) => { const p = cbParts(ms); dIn.value = p.y + '-' + cbPad(p.m) + '-' + cbPad(p.d); tIn.value = cbPad(p.h) + ':' + cbPad(p.mi); };
+    const readPick = () => {
+      const dm = dIn.value.match(/^(\d{4})-(\d{2})-(\d{2})$/), tm = tIn.value.match(/^(\d{2}):(\d{2})/);
+      at = dm && tm ? cbFromCairo(+dm[1], +dm[2], +dm[3], +tm[1], +tm[2]) : null;
+      paintWhen();
+    };
+    dIn.addEventListener('input', readPick);
+    tIn.addEventListener('input', readPick);
+    const inMin = (n) => Math.ceil((Date.now() + n * 60000) / 60000) * 60000;
+    const tomorrow10 = () => { const p = cbParts(Date.now()); return cbFromCairo(p.y, p.m, p.d + 1, 10, 0); };
+    const opts = [['30 min', () => inMin(30)], ['1 hour', () => inMin(60)], ['2 hours', () => inMin(120)], ['4 hours', () => inMin(240)], ['Tomorrow 10:00', tomorrow10], ['Pick time', null]];
+    const qBtns = [];
+    opts.forEach(([label, fn], i) => {
+      const b = cbBtn(label, 'ia-cbpop-q', () => {
+        qBtns.forEach((x) => x.classList.toggle('on', x === b));
+        if (fn) { at = fn(); pick.hidden = true; } else { pick.hidden = false; fillPick(at || inMin(60)); readPick(); }
+        err.textContent = '';
+        paintWhen();
+      });
+      if (i === 4) b.classList.add('wide');
+      qBtns.push(b);
+      quick.appendChild(b);
+    });
+    const note = document.createElement('input');
+    note.type = 'text';
+    note.className = 'ia-cbpop-note';
+    note.placeholder = 'Note (optional)';
+    note.maxLength = 140;
+    note.value = existing ? existing.note : '';
+    const err = document.createElement('div');
+    err.className = 'ia-cbpop-err';
+    const acts = document.createElement('div');
+    acts.className = 'ia-cbpop-acts';
+    const save = () => {
+      if (!at) { err.textContent = 'Pick a time first'; return; }
+      if (at < Date.now() - 60000) { err.textContent = 'That time has already passed'; return; }
+      cbSet(info, at, note.value.trim());
+      cbClosePop();
+    };
+    note.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+    acts.appendChild(cbBtn(existing ? 'Update callback' : 'Set callback', 'ia-cbpop-go', save));
+    if (existing) acts.appendChild(cbBtn('Remove', 'ia-cbpop-rm', () => { cbRemove(info.leadId); cbClosePop(); }));
+    el.append(quick, pick, when, note, err, acts);
+    if (existing) { qBtns[5].classList.add('on'); pick.hidden = false; fillPick(existing.at); }
+    else { qBtns[1].classList.add('on'); at = inMin(60); }
+    paintWhen();
+    cbPlace(el, anchor);
+  }
+
+  function cbOpenList(anchor) {
+    const el = cbPopShell(anchor, 'list');
+    if (!el) return;
+    const paint = () => {
+      el.textContent = '';
+      const list = cbLoad();
+      el.appendChild(cbHead('Callbacks · ' + list.length + ' · Egypt time'));
+      if (!list.length) {
+        const e = document.createElement('div');
+        e.className = 'ia-cbpop-empty';
+        e.textContent = 'No callbacks yet. Tap the clock on a lead to set one.';
+        el.appendChild(e);
+        return;
+      }
+      const now = Date.now();
+      list.forEach((c) => {
+        const row = document.createElement('div');
+        row.className = 'ia-cbpop-row';
+        row.title = (c.note ? c.note + ' · ' : '') + 'Open lead ' + c.leadId;
+        const tm = document.createElement('span');
+        tm.className = 'ia-cbpop-tm' + (c.at <= now ? ' due' : '');
+        tm.textContent = c.at <= now ? 'Now' : cbShort(c.at);
+        const n = document.createElement('span');
+        n.className = 'ia-cbpop-n';
+        const b = document.createElement('b');
+        b.textContent = cbName(c);
+        const s = document.createElement('span');
+        s.textContent = [c.leadId, c.route].filter(Boolean).join(' · ');
+        n.append(b, s);
+        const x = cbBtn('×', 'ia-cbpop-x', (e) => { e.stopPropagation(); cbRemove(c.leadId); paint(); });
+        x.setAttribute('aria-label', 'Remove callback for ' + cbName(c));
+        row.append(tm, n, x);
+        row.addEventListener('click', () => { cbOpenLead(c.leadId); cbClosePop(); });
+        el.appendChild(row);
+      });
+    };
+    paint();
+    el._iaPaint = paint;
+    cbPlace(el, anchor);
+  }
+
+  document.addEventListener('mousedown', (e) => {
+    if (cbPop && !cbPop.el.contains(e.target) && !(cbPop.anchor && cbPop.anchor.contains(e.target))) cbClosePop();
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cbClosePop(); });
+
+  // --- Lead page chip -------------------------------------------------------
+  function cbChipLabel(c) { return c ? cbShort(c.at) : 'Callback'; }
+  function cbWireChip() {
+    const id = cbPageLeadId();
+    if (!id) return;
+    let chip = document.querySelector('.ia-cb-chip');
+    if (chip && chip.dataset.lead !== id) { chip.remove(); chip = null; }
+    if (!chip) {
+      const tag = Array.from(document.querySelectorAll('div.text-secondary-400.text-xs.font-medium')).find((d) => (d.textContent.match(/#\s*(\d{5,})/) || [])[1] === id);
+      if (!tag || !tag.parentElement) return;
+      chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'ia-cb-chip';
+      chip.dataset.lead = id;
+      chip.innerHTML = CB_CLOCK + '<span></span>';
+      chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); cbOpenPicker(chip, cbLeadPageInfo(id)); });
+      tag.insertAdjacentElement('afterend', chip);
+    }
+    const c = cbFor(id);
+    const t = chip.querySelector('span');
+    const label = cbChipLabel(c);
+    if (t.textContent !== label) t.textContent = label;
+    chip.classList.toggle('is-set', !!c);
+    chip.classList.toggle('is-due', !!c && c.at <= Date.now());
+    chip.title = c ? 'Callback ' + cbFmt(c.at) + ' (Egypt time)' + (c.note ? ': ' + c.note : '') + '. Click to change.' : 'Set a callback reminder for this lead';
+    if (c) {
+      const p = cbLeadPageInfo(id);
+      if ((p.name && p.name !== c.name) || (p.route && p.route !== c.route)) {
+        cbSave(cbLoad().map((x) => (x.leadId === id ? Object.assign(x, { name: p.name || x.name, route: p.route || x.route }) : x)));
+      }
+    }
+  }
+
+  // --- Due reminder ---------------------------------------------------------
+  const cbWaved = new Set();
+  function cbDueEl() {
+    const w = ensureBmo();
+    let el = w.querySelector('.ia-cbdue');
+    if (el) return el;
+    el = document.createElement('div');
+    el.className = 'ia-cbdue';
+    el.hidden = true;
+    el.innerHTML = '<div class="ia-cbdue__top"><span class="ia-cbdue__k"></span><button type="button" class="ia-cbdue__x" aria-label="Clear this callback">&times;</button></div>' +
+      '<div class="ia-cbdue__who"></div><div class="ia-cbdue__meta"></div><div class="ia-cbdue__note"></div>' +
+      '<div class="ia-cbdue__acts"><button type="button" class="ia-cbdue__a is-main" data-a="open">Open lead</button><button type="button" class="ia-cbdue__a" data-a="snooze">+15 min</button><button type="button" class="ia-cbdue__a" data-a="done">Done</button></div>' +
+      '<div class="ia-cbdue__more"></div>';
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const b = e.target.closest && e.target.closest('button');
+      const id = el.dataset.lead;
+      if (!b || !id) return;
+      const a = b.classList.contains('ia-cbdue__x') ? 'done' : b.dataset.a;
+      if (a === 'open') { cbRemove(id); cbOpenLead(id); }
+      else if (a === 'snooze') { cbSave(cbLoad().map((c) => (c.leadId === id ? Object.assign(c, { at: Date.now() + 15 * 60000 }) : c))); cbWaved.delete(id); }
+      else if (a === 'done') cbRemove(id);
+    });
+    w.appendChild(el);
+    return el;
+  }
+  function cbPaintDue(list) {
+    const now = Date.now();
+    const due = list.filter((c) => c.at <= now);
+    const w = iaWidget;
+    if (!due.length) {
+      const el = w && w.querySelector('.ia-cbdue');
+      if (el) el.hidden = true;
+      if (w) w.classList.remove('ia-widget--cbdue');
+      return;
+    }
+    const c = due[0];
+    const el = cbDueEl();
+    el.dataset.lead = c.leadId;
+    const late = now - c.at > 5 * 60000;
+    el.querySelector('.ia-cbdue__k').textContent = late ? 'Callback · due ' + cbShort(c.at) : 'Callback now';
+    el.querySelector('.ia-cbdue__who').textContent = cbName(c);
+    el.querySelector('.ia-cbdue__meta').textContent = ['Lead ' + c.leadId, c.route, 'set ' + cbShort(c.setAt || c.at)].filter(Boolean).join(' · ');
+    const nt = el.querySelector('.ia-cbdue__note');
+    nt.textContent = c.note || '';
+    nt.hidden = !c.note;
+    const more = el.querySelector('.ia-cbdue__more');
+    more.textContent = due.length > 1 ? '+' + (due.length - 1) + ' more due' : '';
+    more.hidden = due.length < 2;
+    el.hidden = false;
+    iaWidget.classList.add('ia-widget--cbdue');
+    if (!cbWaved.has(c.leadId)) { cbWaved.add(c.leadId); peekAndWave(); }
+  }
+
+  // --- Panel buttons --------------------------------------------------------
+  function cbPaintPanel(list) {
+    const w = iaWidget;
+    if (!w) return;
+    const badge = w.querySelector('.ia-cb-badge');
+    if (badge) {
+      badge.textContent = list.length > 9 ? '9+' : String(list.length);
+      badge.hidden = !list.length;
+      badge.classList.toggle('is-due', list.some((c) => c.at <= Date.now()));
+    }
+    const card = w.querySelector('.ia-cb-card');
+    if (card) {
+      const info = cbPanelLeadInfo();
+      const c = info && list.find((x) => x.leadId === info.leadId);
+      card.classList.toggle('is-set', !!c);
+      card.title = c ? 'Callback ' + cbFmt(c.at) + ' (Egypt time). Click to change.' : 'Set a callback for this lead';
+    }
+  }
+
+  function cbRefresh() {
+    const list = cbLoad();
+    try { cbPaintPanel(list); } catch (e) { /* ignore */ }
+    try { cbPaintDue(list); } catch (e) { /* ignore */ }
+    try { cbWireChip(); } catch (e) { /* ignore */ }
+    if (cbPop && cbPop.kind === 'list' && cbPop.el._iaPaint) cbPop.el._iaPaint();
+  }
+
+  try { GM_addValueChangeListener(CB_KEY, () => cbRefresh()); } catch (e) { /* other tabs catch up on the timer */ }
+  setInterval(cbRefresh, 15000);
+  __jsRegisterScan(() => { try { cbWireChip(); } catch (e) { /* ignore */ } });
+  setTimeout(cbRefresh, 0);
+
 
   // Clear the downloaded-font copy older versions saved (no longer used).
   try { if (GM_getValue('bmo-font-fredoka-v1', null)) GM_setValue('bmo-font-fredoka-v1', null); } catch (e) { /* ignore */ }
@@ -10515,6 +10919,78 @@ function __jsEnsureSharedObserver() {
     .ia-widget--dd-on .ia-toggle--dd .ia-switch span { transform: translateX(12px); background: var(--ia-onacc); }
     .ia-foot { height: 12px; flex: none; text-align: right; font-size: 10px; color: var(--ia-foot); line-height: 12px; margin-top: -4px; }
 
+
+    /* Callback reminders */
+    .ia-head { gap: 5px; }
+    .ia-cb-btn { position: relative; width: 22px; border-color: var(--ia-line2); color: var(--ia-sec); }
+    .ia-cb-badge { position: absolute; top: -6px; right: -7px; min-width: 15px; height: 15px; padding: 0 4px; box-sizing: border-box; border-radius: 999px;
+      background: var(--acc); color: var(--ia-onacc); font: 800 9.5px/15px Inter, 'Segoe UI', system-ui, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--ia-bg); }
+    .ia-cb-badge.is-due { background: var(--ia-bad); color: #fff; }
+    .ia-cb-badge[hidden] { display: none !important; }
+    .ia-card { position: relative; }
+    .ia-panel .ia-screen-info .ia-cb-card { position: absolute; top: 6px; right: 7px; width: 22px; height: 22px; border-color: var(--ia-line2); color: var(--ia-sec); }
+    .ia-panel .ia-screen-info .ia-cb-card.is-set { background: var(--acc); border-color: var(--acc); color: var(--ia-onacc); }
+    .ia-panel .ia-screen-info__label { padding-right: 28px; }
+    .ia-cbdue { position: absolute; right: 4px; bottom: 86px; width: 260px; box-sizing: border-box; pointer-events: auto; z-index: 3;
+      background: var(--ia-bg); color: var(--ia-text); border: 1px solid var(--acc); border-radius: 12px; padding: 10px 12px;
+      box-shadow: var(--ia-shadow); font: 600 12px/1.35 Inter, 'Segoe UI', system-ui, sans-serif; display: grid; gap: 6px; cursor: default; }
+    .ia-cbdue[hidden], .ia-cbdue [hidden] { display: none !important; }
+    .ia-widget--maximized .ia-cbdue, .ia-widget--peeking .ia-cbdue { bottom: 341px; }
+    .ia-widget--cbdue .ia-reminder { display: none !important; }
+    .ia-cbdue__top { display: flex; align-items: center; gap: 8px; }
+    .ia-cbdue__k { flex: 1; color: var(--acc); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .ia-cbdue__x { background: none; border: 0; color: var(--ia-muted); font: 800 17px/1 system-ui, sans-serif; cursor: pointer; padding: 0 2px; }
+    .ia-cbdue__x:hover { color: var(--ia-title); }
+    .ia-cbdue__who { font-size: 15px; font-weight: 800; color: var(--ia-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ia-cbdue__meta { color: var(--ia-muted); font-weight: 700; }
+    .ia-cbdue__note { background: var(--ia-field); border: 1px solid var(--ia-line); border-radius: 7px; padding: 6px 8px; color: var(--ia-text); word-break: break-word; }
+    .ia-cbdue__acts { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 6px; margin-top: 2px; }
+    .ia-cbdue__a { border: 1px solid var(--ia-line2); background: transparent; color: var(--ia-title); border-radius: 7px; padding: 7px 4px; font: 800 12px/1 Inter, 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+    .ia-cbdue__a:hover { border-color: var(--acc); }
+    .ia-cbdue__a.is-main { background: var(--acc); border-color: var(--acc); color: var(--ia-onacc); }
+    .ia-cbdue__more { color: var(--ia-muted); font-size: 11px; font-weight: 700; text-align: right; }
+
+    .ia-cbpop { position: fixed; z-index: 2147483000; width: 260px; box-sizing: border-box; display: grid; gap: 8px; padding: 10px;
+      background: var(--ia-bg, #0e0f13); color: var(--ia-text, #e8e8ed); border: 1px solid var(--ia-line, #23252d); border-radius: 10px;
+      box-shadow: var(--ia-shadow, 0 18px 44px rgba(0,0,0,.55)); font: 600 12px/1.35 Inter, 'Segoe UI', system-ui, sans-serif; text-align: left; }
+    .ia-cbpop [hidden] { display: none !important; }
+    .ia-cbpop button { font-family: inherit; }
+    .ia-cbpop-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ia-muted, #8a8d98); font-weight: 700; }
+    .ia-cbpop-h span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ia-cbpop-x { background: none; border: 0; color: var(--ia-muted, #8a8d98); font: 800 16px/1 system-ui, sans-serif; cursor: pointer; padding: 0 2px; }
+    .ia-cbpop-x:hover { color: var(--ia-title, #fff); }
+    .ia-cbpop-quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .ia-cbpop-q { border: 1px solid var(--ia-line2, #2c2f38); background: transparent; color: var(--ia-text, #e8e8ed); border-radius: 7px; padding: 6px 2px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .ia-cbpop-q.wide { grid-column: span 2; }
+    .ia-cbpop-q:hover { border-color: var(--acc, #7c7cf8); }
+    .ia-cbpop-q.on { background: var(--acc, #7c7cf8); border-color: var(--acc, #7c7cf8); color: var(--ia-onacc, #0e0f13); }
+    .ia-cbpop-pick { display: flex; gap: 6px; }
+    .ia-cbpop-pick input, .ia-cbpop-note { flex: 1; min-width: 0; box-sizing: border-box; background: var(--ia-field, #15171d); color: var(--ia-title, #fff); border: 1px solid var(--ia-line2, #2c2f38);
+      border-radius: 7px; padding: 6px 8px; font: 700 12px Inter, 'Segoe UI', system-ui, sans-serif; outline: none; color-scheme: dark light; }
+    .ia-cbpop-pick input:focus, .ia-cbpop-note:focus { border-color: var(--acc, #7c7cf8); }
+    .ia-cbpop-when { display: flex; justify-content: space-between; align-items: baseline; border: 1px solid var(--ia-line, #23252d); border-radius: 7px; padding: 6px 8px; }
+    .ia-cbpop-when b { font-weight: 800; color: var(--ia-title, #fff); }
+    .ia-cbpop-when span { color: var(--ia-muted, #8a8d98); font-size: 11px; }
+    .ia-cbpop-err { color: var(--ia-bad, #f8717f); font-weight: 700; }
+    .ia-cbpop-err:empty { display: none; }
+    .ia-cbpop-acts { display: flex; gap: 6px; }
+    .ia-cbpop-go { flex: 1; border: 0; border-radius: 7px; padding: 8px; background: var(--acc, #7c7cf8); color: var(--ia-onacc, #0e0f13); font-weight: 800; font-size: 13px; cursor: pointer; }
+    .ia-cbpop-rm { border: 1px solid var(--ia-line2, #2c2f38); background: transparent; color: var(--ia-bad, #f8717f); border-radius: 7px; padding: 8px 10px; font-weight: 800; font-size: 12px; cursor: pointer; }
+    .ia-cbpop-empty { color: var(--ia-muted, #8a8d98); padding: 4px 2px 2px; }
+    .ia-cbpop-row { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--ia-line, #23252d); cursor: pointer; border-radius: 6px; }
+    .ia-cbpop-h + .ia-cbpop-row { border-top: 0; }
+    .ia-cbpop-row:hover { background: var(--ia-field, #15171d); }
+    .ia-cbpop-tm { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ia-title, #fff); }
+    .ia-cbpop-tm.due { color: var(--ia-bad, #f8717f); }
+    .ia-cbpop-n { min-width: 0; }
+    .ia-cbpop-n b { display: block; font-weight: 800; color: var(--ia-title, #fff); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ia-cbpop-n span { display: block; color: var(--ia-muted, #8a8d98); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .ia-cb-chip { display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 0; padding: 2px 9px; border-radius: 999px; cursor: pointer;
+      border: 1px solid #c7c7f5; background: #eef0ff; color: #3f3fb5; font: 800 12px/18px Inter, 'Segoe UI', system-ui, sans-serif; vertical-align: middle; }
+    .ia-cb-chip:hover { border-color: #5b5bd6; }
+    .ia-cb-chip.is-set { background: #5b5bd6; border-color: #5b5bd6; color: #fff; }
+    .ia-cb-chip.is-due { background: #e5484d; border-color: #e5484d; color: #fff; }
     /* Reminder card */
     .ia-widget .ia-reminder { background: var(--ia-bg); color: var(--ia-text); border: 1px solid var(--ia-line); border-radius: 10px;
       box-shadow: var(--ia-shadow); font-family: inherit; }
