@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.0.0
+// @version      2.1.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -11682,4 +11682,316 @@ function __jsEnsureSharedObserver() {
   __jsRegisterScan(scanOptions);
   __jsEnsureSharedObserver();
   scanOptions();
+})();
+
+
+// ====================================================================
+// SECTION 7b · Quote Card
+// ====================================================================
+// A small "Card" button above each option's flights on a lead: turns the
+// option into a clean picture for the client (copy and paste it into a
+// text or chat, or download it). Nothing is sent from here.
+(function () {
+  'use strict';
+  if (window.top !== window) return;
+  if (!location.hostname.includes('travelbusinessclass.com')) return;
+
+  const ROW = /^\s*\d+\s+([A-Z0-9]{2})\s*\*?\s*(\d+)\s+([A-Z])\s+(\d{2})([A-Z]{3})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{3,4}[AP])\s+(\d{3,4}[AP])(¥\d+|-\d+)?/;
+  const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+  const MON_N = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const clock = (t) => { const ap = t.slice(-1), d = t.slice(0, -1); let h = parseInt(d.slice(0, d.length - 2), 10); const m = parseInt(d.slice(-2), 10); if (ap === 'P' && h < 12) h += 12; if (ap === 'A' && h === 12) h = 0; return { h, m }; };
+  function parse(texts) {
+    const legs = [];
+    let year = new Date().getFullYear(), last = null;
+    const nowM = new Date().getMonth();
+    texts.forEach((text) => {
+      const m = text.match(ROW);
+      if (!m) return;
+      const day = parseInt(m[4], 10), mon = MON[m[5]];
+      if (mon === undefined) return;
+      if (last === null && mon < nowM - 1) year += 1; // first leg early next year
+      if (last !== null && mon < last) year += 1;
+      last = mon;
+      const dep = clock(m[8]), arr = clock(m[9]);
+      let off = 0;
+      if (m[10]) off = m[10][0] === '¥' ? parseInt(m[10].slice(1), 10) : -parseInt(m[10].slice(1), 10);
+      legs.push({ al: m[1], fn: m[2], cls: m[3], from: m[6], to: m[7], depT: m[8], arrT: m[9], off,
+        dep: new Date(year, mon, day, dep.h, dep.m), arr: new Date(year, mon, day + off, arr.h, arr.m) });
+    });
+    return legs;
+  }
+  const METRO = [['JFK', 'EWR', 'LGA'], ['LHR', 'LGW', 'LCY', 'STN', 'LTN'], ['CDG', 'ORY'], ['HND', 'NRT'], ['IAD', 'DCA', 'BWI'], ['ORD', 'MDW'], ['IST', 'SAW'], ['DXB', 'DWC'], ['ICN', 'GMP'], ['PVG', 'SHA'], ['PEK', 'PKX'], ['FCO', 'CIA'], ['MXP', 'LIN']];
+  const sameCity = (a, b) => a === b || METRO.some((g) => g.includes(a) && g.includes(b));
+  // Journeys: a new one starts when the next flight leaves from somewhere
+  // else or 24h+ later (the traveler is staying there).
+  function journeys(legs) {
+    const out = [];
+    legs.forEach((lg, i) => {
+      const prev = legs[i - 1];
+      const gap = prev ? (lg.dep - prev.arr) / 60000 : null;
+      if (!prev || !sameCity(prev.to, lg.from) || gap < 0 || gap >= 24 * 60) out.push([lg]);
+      else out[out.length - 1].push(lg);
+    });
+    return out;
+  }
+  const HUB_NAMES = { DOH: 'Doha', DXB: 'Dubai', AUH: 'Abu Dhabi', IST: 'Istanbul', SIN: 'Singapore', HKG: 'Hong Kong', LIS: 'Lisbon', KEF: 'Reykjavik',
+    HEL: 'Helsinki', AMS: 'Amsterdam', ICN: 'Seoul', TPE: 'Taipei', BKK: 'Bangkok', KUL: 'Kuala Lumpur', HND: 'Tokyo', NRT: 'Tokyo', CPH: 'Copenhagen', DUB: 'Dublin', ZRH: 'Zurich', MUC: 'Munich', VIE: 'Vienna', ATH: 'Athens', MAD: 'Madrid' };
+  const fmtDur = (min) => { const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? h + 'h' + (m ? ' ' + m + 'm' : '') : m + 'm'; };
+
+  // --- Pop-ups -------------------------------------------------------------
+  let pop = null;
+  const closePop = () => { if (pop) { pop.el.remove(); pop = null; } };
+  document.addEventListener('mousedown', (e) => { if (pop && !pop.el.contains(e.target) && !(pop.anchor && pop.anchor.contains(e.target))) closePop(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
+  function paintVars(el) {
+    const p = iaPalette();
+    const v = { bg: p.bg, field: p.field, line: p.line, line2: p.line2, text: p.text, title: p.title, muted: p.muted, sec: p.sec, acc: p.acc, onacc: p.onacc,
+      bad: p.bad, ok: p.ok, shadow: p.shadow, glass: p.glass || p.bg, edge: p.edge || p.line, inner: p.inner || p.field, chip: p.chip || p.field, chipshadow: p.chipshadow || 'none', sky: p.sky || 'none' };
+    Object.keys(v).forEach((k) => el.style.setProperty('--iot-' + k, v[k]));
+    el.style.colorScheme = p.mode === 'light' ? 'light' : 'dark';
+  }
+  function openPop(anchor, kind, build) {
+    const again = pop && pop.anchor === anchor && pop.kind === kind;
+    closePop();
+    if (again) return null;
+    const el = document.createElement('div');
+    el.className = 'ia-iot-pop ia-iot-pop--' + kind;
+    paintVars(el);
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+    el.addEventListener('keydown', (e) => e.stopPropagation());
+    pop = { el, anchor, kind };
+    build(el);
+    document.body.appendChild(el);
+    const r = anchor.getBoundingClientRect();
+    const w = el.offsetWidth, h = el.offsetHeight;
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+    el.style.top = top + 'px';
+    return el;
+  }
+  const mkEl = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  function head(el, text) {
+    const h = mkEl('div', 'ia-iot-h');
+    h.appendChild(mkEl('span', null, text));
+    const x = mkEl('button', 'ia-iot-x', '×');
+    x.type = 'button';
+    x.setAttribute('aria-label', 'Close');
+    x.addEventListener('click', closePop);
+    h.appendChild(x);
+    el.appendChild(h);
+  }
+
+  // --- Quote Card -------------------------------------------------------
+  const CABIN = (c) => ('FA'.includes(c) ? 'First' : 'JCDIZR'.includes(c) ? 'Business' : 'WEO'.includes(c) ? 'Premium Economy' : 'Economy');
+  const t12 = (d) => { let h = d.getHours(); const m = d.getMinutes(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + String(m).padStart(2, '0') + ' ' + ap; };
+  const dLabel = (d) => WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON_N[d.getMonth()];
+  function sellOf(box) {
+    let n = box;
+    for (let i = 0; i < 10 && n; i++) {
+      n = n.parentElement;
+      const table = n && n.querySelector('table.lead-option-price-table');
+      if (table) {
+        const heads = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent.trim().toUpperCase());
+        const si = heads.indexOf('SELL');
+        const tr = Array.from(table.querySelectorAll('tbody tr')).find((r) => (r.querySelector('td') || {}).textContent && r.querySelector('td').textContent.trim().toUpperCase() === 'ADT');
+        const cell = tr && si >= 0 ? tr.querySelectorAll('td')[si] : null;
+        const num = cell ? parseFloat(cell.textContent.replace(/[^0-9.]/g, '')) : NaN;
+        return num > 0 ? num : null;
+      }
+    }
+    return null;
+  }
+  function clientName() {
+    const m = location.pathname.match(/\/leads\/(\d+)/);
+    if (!m) return '';
+    const tag = Array.from(document.querySelectorAll('span')).find((sp) => sp.textContent.trim() === '#' + m[1]);
+    let root = tag;
+    for (let i = 0; i < 12 && root; i++) { root = root.parentElement; if (root && root.querySelector('span.truncate')) break; }
+    const el = root && root.querySelector('span.truncate');
+    return el ? el.textContent.trim() : '';
+  }
+  function agentFirst() { try { return GM_getValue('bmo-first-name', '') || ''; } catch (e) { return ''; } }
+
+  function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function drawCard(canvas, legs, info) {
+    const p = iaPalette();
+    const acc = p.acc;
+    const js = journeys(legs);
+    const W = 900, pad = 44;
+    const rowH = 92, conH = 34, jHead = 44;
+    let H = 150 + 70;
+    js.forEach((j) => { H += jHead + j.length * rowH + (j.length - 1) * conH + 22; });
+    if (info.note) H += 52;
+    H += 120;
+    canvas.width = W * 2; canvas.height = H * 2;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    const F = (w, s) => w + ' ' + s + "px Inter, 'Segoe UI', system-ui, sans-serif";
+    // Background: soft sky
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#eaf2ff'); g.addColorStop(1, '#ffffff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(31,92,255,.08)'; ctx.beginPath(); ctx.arc(W - 60, 30, 180, 0, Math.PI * 2); ctx.fill();
+    // Header
+    ctx.fillStyle = '#5a6888'; ctx.font = F(700, 15);
+    ctx.fillText((info.client ? 'Prepared for ' + info.client : 'Your flight option'), pad, pad + 6);
+    ctx.fillStyle = '#0d1b3e'; ctx.font = F(800, 34);
+    const first = legs[0], lastJ = js[js.length - 1], last = lastJ[lastJ.length - 1];
+    const title = js.length > 1 && last.to === first.from ? first.from + '  ⇄  ' + js[0][js[0].length - 1].to : first.from + '  →  ' + last.to;
+    ctx.fillText(title, pad, pad + 50);
+    ctx.font = F(800, 15);
+    const cab = CABIN(first.cls) + ' class';
+    const cw = ctx.measureText(cab).width + 28;
+    rr(ctx, W - pad - cw, pad + 24, cw, 32, 16); ctx.fillStyle = acc; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(cab, W - pad - cw + 14, pad + 45);
+    let y = 150;
+    js.forEach((j, ji) => {
+      ctx.fillStyle = acc; ctx.font = F(800, 13);
+      const lbl = (js.length === 2 && last.to === first.from ? (ji === 0 ? 'OUTBOUND' : 'RETURN') : 'FLIGHT ' + (ji + 1)) + '  ·  ' + dLabel(j[0].dep).toUpperCase();
+      ctx.fillText(lbl, pad, y + 18);
+      y += jHead;
+      j.forEach((lg, li) => {
+        rr(ctx, pad, y, W - pad * 2, rowH - 12, 18);
+        ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(13,27,62,.07)'; ctx.lineWidth = 1; ctx.stroke();
+        // airline badge
+        rr(ctx, pad + 16, y + 16, 48, 48, 14); ctx.fillStyle = '#0d1b3e'; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = F(800, 17); ctx.textAlign = 'center'; ctx.fillText(lg.al, pad + 40, y + 46); ctx.textAlign = 'left';
+        ctx.fillStyle = '#5a6888'; ctx.font = F(700, 13); ctx.fillText(lg.al + ' ' + lg.fn, pad + 80, y + 30);
+        ctx.fillStyle = '#0d1b3e'; ctx.font = F(800, 24);
+        ctx.fillText(lg.from, pad + 80, y + 60);
+        ctx.font = F(700, 15); ctx.fillStyle = '#0d1b3e';
+        ctx.fillText(t12(lg.dep), pad + 140, y + 59);
+        ctx.fillStyle = '#9aa6c2'; ctx.font = F(700, 18); ctx.fillText('→', pad + 290, y + 59);
+        ctx.fillStyle = '#0d1b3e'; ctx.font = F(800, 24); ctx.fillText(lg.to, pad + 330, y + 60);
+        ctx.font = F(700, 15); ctx.fillText(t12(lg.arr) + (lg.off > 0 ? '  +' + lg.off : lg.off < 0 ? '  ' + lg.off : ''), pad + 390, y + 59);
+        if (lg.off) { ctx.fillStyle = '#5a6888'; ctx.font = F(700, 12); ctx.fillText('arrives ' + dLabel(lg.arr), pad + 390, y + 30); }
+        y += rowH;
+        if (li < j.length - 1) {
+          const nx = j[li + 1];
+          const gap = (nx.dep - lg.arr) / 60000;
+          ctx.fillStyle = '#5a6888'; ctx.font = F(700, 13);
+          ctx.fillText('•  Connect in ' + (HUB_NAMES[lg.to] ? HUB_NAMES[lg.to] + ' (' + lg.to + ')' : lg.to) + '  ·  ' + fmtDur(gap), pad + 22, y + 8);
+          y += conH;
+        }
+      });
+      y += 22;
+    });
+    if (info.note) {
+      rr(ctx, pad, y, W - pad * 2, 40, 14); ctx.fillStyle = 'rgba(31,92,255,.08)'; ctx.fill();
+      ctx.fillStyle = '#0d1b3e'; ctx.font = F(700, 14); ctx.fillText(info.note.slice(0, 95), pad + 16, y + 25);
+      y += 52;
+    }
+    // Price
+    rr(ctx, pad, y + 6, W - pad * 2, 86, 22);
+    const pg = ctx.createLinearGradient(pad, 0, W - pad, 0); pg.addColorStop(0, '#3a74ff'); pg.addColorStop(1, '#1f4fe0');
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = F(700, 14); ctx.fillText(info.priceLabel || 'Price per person', pad + 24, y + 40);
+    ctx.fillStyle = '#fff'; ctx.font = F(800, 34); ctx.fillText(info.price || '', pad + 24, y + 78);
+    if (info.agent) { ctx.font = F(700, 14); ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText('Your agent: ' + info.agent, W - pad - 24, y + 56); ctx.textAlign = 'left'; }
+  }
+
+  function showCard(anchor, legs, box) {
+    openPop(anchor, 'card', (el) => {
+      head(el, 'Quote card · copy and send to your client');
+      const cv = document.createElement('canvas');
+      cv.className = 'ia-iot-cv';
+      const wrap = mkEl('div', 'ia-iot-cvwrap');
+      wrap.appendChild(cv);
+      const sell = sellOf(box);
+      const f = (label, val, ph) => { const l = mkEl('label', 'ia-iot-f'); l.appendChild(mkEl('span', null, label)); const i = document.createElement('input'); i.type = 'text'; i.value = val || ''; i.placeholder = ph || ''; l.appendChild(i); return { l, i }; };
+      const fc = f('Client', clientName(), 'Client name');
+      const fp = f('Price', sell ? '$' + Math.round(sell).toLocaleString('en-US') : '', '$4,890');
+      const fn = f('Note', '', 'e.g. Includes seats and 2 bags each');
+      const fa = f('Agent', agentFirst(), 'Your name');
+      const grid = mkEl('div', 'ia-iot-fields');
+      [fc, fp, fn, fa].forEach((x) => grid.appendChild(x.l));
+      const draw = () => drawCard(cv, legs, { client: fc.i.value.trim(), price: fp.i.value.trim(), note: fn.i.value.trim(), agent: fa.i.value.trim() });
+      [fc, fp, fn, fa].forEach((x) => x.i.addEventListener('input', draw));
+      const acts = mkEl('div', 'ia-iot-acts');
+      const msg = mkEl('span', 'ia-iot-msg');
+      const copy = mkEl('button', 'ia-iot-go', 'Copy picture');
+      copy.type = 'button';
+      copy.addEventListener('click', () => {
+        cv.toBlob(async (blob) => {
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            msg.textContent = '✓ Copied. Paste it into your text or chat.';
+          } catch (e) { msg.textContent = 'Copy was blocked. Use Download instead.'; }
+        }, 'image/png');
+      });
+      const dl = mkEl('button', 'ia-iot-sec', 'Download');
+      dl.type = 'button';
+      dl.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = cv.toDataURL('image/png');
+        a.download = 'Flight option ' + legs[0].from + '-' + legs[legs.length - 1].to + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        msg.textContent = '✓ Saved to your Downloads.';
+      });
+      acts.append(copy, dl, msg);
+      el.append(wrap, grid, acts);
+      draw();
+    });
+  }
+
+  // --- Buttons on each option -------------------------------------------------
+  function scan() {
+    document.querySelectorAll('.lead-option-segment-segments').forEach((box) => {
+      const pres = Array.from(box.querySelectorAll(':scope > pre'));
+      const texts = pres.map((p) => (p.querySelector('.overflow-hidden') || p).textContent.trim());
+      const sig = texts.join('|');
+      const holder = box.closest('.lead-option-segment') || box.parentElement;
+      const existing = holder.querySelector(':scope > .ia-iot-row');
+      if (existing && existing.dataset.sig === sig) return;
+      if (existing) existing.remove();
+      const legs = parse(texts);
+      if (!legs.length) return;
+      const row = mkEl('div', 'ia-iot-row');
+      row.dataset.sig = sig;
+      const cb = mkEl('button', 'ia-iot-btn', '🖼 Card');
+      cb.type = 'button';
+      cb.title = 'Make a picture of this option for your client';
+      cb.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); showCard(cb, legs, box); });
+      row.append(cb);
+      const apc = holder.querySelector(':scope > .ia-apc-flag');
+      if (apc) apc.insertAdjacentElement('afterend', row); else holder.insertBefore(row, holder.firstChild);
+    });
+  }
+
+  GM_addStyle(`
+    .ia-iot-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px 0; font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-iot-btn { height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; font: 800 11.5px/20px Inter, 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+    .ia-iot-btn:hover { border-color: #6366f1; }
+    .ia-iot-pop { position: fixed; z-index: 2147483000; box-sizing: border-box; width: 420px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto;
+      display: grid; gap: 10px; padding: 12px; color: var(--iot-text); font: 600 12.5px/1.45 Inter, 'Segoe UI', system-ui, sans-serif;
+      background: var(--iot-sky), var(--iot-glass); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
+      border: 1px solid var(--iot-edge); border-radius: 18px; box-shadow: var(--iot-shadow), inset 0 1px 0 var(--iot-edge); text-align: left; }
+    .ia-iot-pop--card { width: 560px; }
+    .ia-iot-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 800; color: var(--iot-muted); }
+    .ia-iot-x { border: 0; background: none; color: var(--iot-muted); font: 800 17px/1 system-ui, sans-serif; cursor: pointer; padding: 0 2px; }
+    .ia-iot-x:hover { color: var(--iot-title); }
+    .ia-iot-air-h { display: flex; align-items: center; gap: 8px; }
+    .ia-iot-air-h b { font-size: 14px; font-weight: 800; color: var(--iot-title); }
+    .ia-iot-cvwrap { border-radius: 14px; overflow: hidden; background: #fff; line-height: 0; }
+    .ia-iot-cv { width: 100% !important; height: auto !important; display: block; }
+    .ia-iot-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .ia-iot-f { display: grid; gap: 3px; font-size: 11px; font-weight: 800; color: var(--iot-muted); }
+    .ia-iot-f input { box-sizing: border-box; width: 100%; border: 1px solid transparent; border-radius: 10px; background: var(--iot-chip); color: var(--iot-title); padding: 7px 9px;
+      font: 700 12.5px Inter, 'Segoe UI', system-ui, sans-serif; outline: none; }
+    .ia-iot-f input:focus { border-color: var(--iot-acc); }
+    .ia-iot-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ia-iot-go { border: 0; border-radius: 12px; padding: 9px 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--iot-acc) 78%, #fff), var(--iot-acc)); color: var(--iot-onacc);
+      font: 800 13px Inter, 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+    .ia-iot-sec { border: 1px solid transparent; border-radius: 12px; padding: 8px 14px; background: var(--iot-chip); color: var(--iot-title); font: 800 13px Inter, 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+    .ia-iot-sec:hover { border-color: var(--iot-acc); }
+    .ia-iot-msg { font-weight: 700; color: var(--iot-muted); }
+  `);
+
+  if (typeof __jsRegisterScan === 'function') __jsRegisterScan(scan);
+  setInterval(scan, 3000);
+  scan();
 })();
