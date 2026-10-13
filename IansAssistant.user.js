@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.1.0
+// @version      2.2.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting, lead sniper (Alt+Z or Alt+X). Dark dashboard design.
@@ -443,6 +443,149 @@ function worriedPip(width) {
 
 const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES SM';
 
+// ====================================================================
+// SECTION 10 · RingCentral website: places the calls the BO asks for
+// ====================================================================
+// Runs on app.ringcentral.com only. Every RingCentral tab reports itself
+// (in Tampermonkey's shared storage) so the BO knows one is open. When the
+// BO sends a number, the chosen tab puts it in the dialpad and presses
+// Call right away -- no page load. The dialpad can live in the main tab
+// or in the popped-out keypad window; the popped-out window is an
+// about:blank window the RingCentral page draws into, so it's reached by
+// catching it when the page opens it (window.open below, which is why
+// this part runs as early as the page allows). This part only places
+// outgoing calls; it never answers or changes anything else.
+(function () {
+  'use strict';
+  if (location.hostname !== 'app.ringcentral.com') return;
+  if (window.top !== window) return;
+
+  const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+  const TAB = Math.random().toString(36).slice(2, 10);
+  // A tab the BO opened only to run a call link (it's closed again once the
+  // call is up, unless it's the only RingCentral tab).
+  const HELPER = /\/redirect|\/r\/call/.test(location.pathname);
+  const TABS_KEY = 'ia-rc-tabs';
+  const DIAL_KEY = 'ia-rc-dial';
+  const ACK_KEY = 'ia-rc-ack';
+  const INPUT_ID = 'PHONE_DIALER_INPUT_ID';
+  const CALL_BTN = '[data-test-automation-id="telephony-dial-btn"]';
+  const PHONE_NAV = '[data-test-automation-id="phone"]';
+
+  // --- Popped-out keypad windows ----------------------------------------
+  const popouts = [];
+  try {
+    const nativeOpen = W.open;
+    W.open = function () {
+      const win = nativeOpen.apply(this, arguments);
+      try { if (win) popouts.push(win); } catch (e) { /* ignore */ }
+      return win;
+    };
+  } catch (e) { /* can't watch pop-outs; the main tab's dialpad still works */ }
+
+  function docs() {
+    const out = [];
+    for (let i = popouts.length - 1; i >= 0; i--) {
+      const win = popouts[i];
+      let d = null;
+      try { if (!win.closed) d = win.document; } catch (e) { d = null; }
+      if (d) out.push(d); else popouts.splice(i, 1);
+    }
+    out.push(document);
+    return out;
+  }
+  const shown = (el) => !!(el && el.getClientRects().length);
+  function findDialer() {
+    for (const d of docs()) {
+      const input = d.getElementById(INPUT_ID);
+      if (shown(input)) return { doc: d, input };
+    }
+    return null;
+  }
+  function waitFor(fn, ms) {
+    return new Promise((resolve) => {
+      const t0 = Date.now();
+      const tick = () => {
+        let v = null;
+        try { v = fn(); } catch (e) { v = null; }
+        if (v) { resolve(v); return; }
+        if (Date.now() - t0 > ms) { resolve(null); return; }
+        setTimeout(tick, 80);
+      };
+      tick();
+    });
+  }
+
+  async function dial(number) {
+    let ctx = findDialer();
+    if (!ctx) {
+      // Not on the Phone page: open it (sidebar Phone), then its dialpad.
+      const nav = document.querySelector(PHONE_NAV);
+      if (nav) nav.click();
+      ctx = await waitFor(findDialer, 2500);
+      if (!ctx) {
+        // Phone page open but on another view (e.g. call history): its
+        // Dialpad tab/link.
+        const dp = document.querySelector('a[href*="/dialpad"], [data-test-automation-id*="ialpad"]:not([data-test-automation-id*="popOut"])');
+        if (dp) { dp.click(); ctx = await waitFor(findDialer, 2500); }
+      }
+    }
+    if (!ctx) return false;
+    const { doc, input } = ctx;
+    const win = doc.defaultView || W;
+    // React keeps its own copy of the box's value; setting it through the
+    // native setter and firing "input" is what makes React accept it.
+    const setter = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value').set;
+    input.focus();
+    setter.call(input, '');
+    input.dispatchEvent(new win.Event('input', { bubbles: true }));
+    setter.call(input, number);
+    input.dispatchEvent(new win.Event('input', { bubbles: true }));
+    const btn = await waitFor(() => {
+      const b = doc.querySelector(CALL_BTN);
+      return b && !b.disabled && b.getAttribute('aria-disabled') !== 'true' ? b : null;
+    }, 2500);
+    if (!btn) return false;
+    btn.click();
+    return true;
+  }
+
+  // --- Tell the BO this tab is here (every 2s) --------------------------
+  let lastFocus = document.hasFocus() ? Date.now() : 0;
+  window.addEventListener('focus', () => { lastFocus = Date.now(); beat(); });
+  function beat() {
+    let all = {};
+    try { all = JSON.parse(GM_getValue(TABS_KEY, '{}')) || {}; } catch (e) { all = {}; }
+    const now = Date.now();
+    Object.keys(all).forEach((k) => { if (!all[k] || now - all[k].t > 8000) delete all[k]; });
+    if (document.hasFocus()) lastFocus = now;
+    all[TAB] = { t: now, helper: HELPER, focus: lastFocus };
+    try { GM_setValue(TABS_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
+  }
+  beat();
+  setInterval(beat, 2000);
+  window.addEventListener('pagehide', () => {
+    try {
+      const all = JSON.parse(GM_getValue(TABS_KEY, '{}')) || {};
+      delete all[TAB];
+      GM_setValue(TABS_KEY, JSON.stringify(all));
+    } catch (e) { /* ignore */ }
+  });
+
+  // --- Calls requested by the BO -----------------------------------------
+  const done = new Set();
+  GM_addValueChangeListener(DIAL_KEY, async (key, oldV, v, remote) => {
+    let req;
+    try { req = JSON.parse(v); } catch (e) { return; }
+    if (!req || req.to !== TAB || done.has(req.rid) || Date.now() - req.t > 15000) return;
+    done.add(req.rid);
+    const ack = (stage) => { try { GM_setValue(ACK_KEY, JSON.stringify({ rid: req.rid, stage, tab: TAB, t: Date.now() })); } catch (e) { /* ignore */ } };
+    ack('got');
+    let ok = false;
+    const go = async () => { try { ok = await dial(req.n); } catch (e) { ok = false; } ack(ok ? 'ok' : 'fail'); };
+    if (document.body) go(); else document.addEventListener('DOMContentLoaded', go, { once: true });
+  });
+})();
 (function () {
   'use strict';
 
@@ -1189,6 +1332,22 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
   // both need to strip it the same way: the list-view button reads
   // this field straight from JSON with no text parsing at all, and the
   // detail-view one reads the same value from the rendered page text.
+  // Passenger count of the Super Basis search, read from the page link
+  // (?s= base64 JSON with "pax":"3"). Remembered for this tab so a detail
+  // page opened from those results still knows it.
+  function fbSearchPax() {
+    let n = 0;
+    try {
+      const sp = new URL(location.href).searchParams.get('s');
+      if (sp) n = parseInt(JSON.parse(atob(sp)).pax, 10) || 0;
+    } catch (e) { n = 0; }
+    try {
+      if (n > 0) sessionStorage.setItem('ia-fb-pax', String(n));
+      else n = parseInt(sessionStorage.getItem('ia-fb-pax'), 10) || 0;
+    } catch (e) { /* ignore */ }
+    return n;
+  }
+
   function fbStripCarrierPrefixFromFlightNumber(flightNumber, carrierCode) {
     if (!flightNumber || !carrierCode) return flightNumber;
     const fn = String(flightNumber).trim();
@@ -1244,7 +1403,8 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        flashButton(btn, buildBoth(fbCleanItineraryFlightNumbers(itinerary)));
+        const pax = fbSearchPax();
+        flashButton(btn, buildBoth(fbCleanItineraryFlightNumbers(pax ? Object.assign({}, itinerary, { pax }) : itinerary)));
       });
 
       // Insert as a normal flex child of the icon row (which holds
@@ -1487,7 +1647,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       const rawSegments = fbdParseSegments(container);
       const legs = fbdBuildLegs(rawSegments);
       if (legs.length) {
-        flashButton(btn, buildBoth({ flights: [{ legs }], pax: 1 }));
+        flashButton(btn, buildBoth({ flights: [{ legs }], pax: fbSearchPax() || 1 }));
       } else {
         flashError(btn, '\u274c No data');
       }
@@ -2112,7 +2272,15 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       if (leg) legs.push(leg);
     });
     if (!legs.length) return null;
-    return { flights: legs.map((leg) => ({ legs: [leg] })), pax: 1 };
+    return { flights: legs.map((leg) => ({ legs: [leg] })), pax: kySearchPax() };
+  }
+
+  function kySearchPax() {
+    const p = location.pathname;
+    const a = p.match(/\/(\d+)adults/);
+    const c = p.match(/\/children((?:-[0-9A-Za-z]+)+)/);
+    const kids = c ? c[1].split('-').filter((t) => t && !/L$/i.test(t)).length : 0; // lap infants (1L) take no seat
+    return Math.max(1, (a ? parseInt(a[1], 10) : 1) + kids);
   }
 
   async function handleKayakCopy(card, btn) {
@@ -2128,7 +2296,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       legs = panel ? kyParseDetailsSegments(panel) : [];
     }
 
-    const itinerary = legs.length ? { flights: [{ legs }], pax: 1 } : kyBuildItinerary(card);
+    const itinerary = legs.length ? { flights: [{ legs }], pax: kySearchPax() } : kyBuildItinerary(card);
 
     if (itinerary) {
       flashButton(btn, buildBoth(itinerary));
@@ -3201,6 +3369,14 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     try { GM_setValue('js-sendjob-request', JSON.stringify({ id: jobId, leadId, t: Date.now() })); } catch (e) { /* ignore */ }
     setTimeout(() => {
       if (claimed || !state.busy) return;
+      // A BO tab is open and alive, just slow to answer: wait for it rather
+      // than opening a second BO that would add the option again.
+      let alive = {};
+      try { alive = JSON.parse(GM_getValue('js-sendjob-alive', '{}') || '{}') || {}; } catch (e) { alive = {}; }
+      if (Object.keys(alive).some((k) => alive[k] && Date.now() - alive[k].t < 90000)) {
+        setStatus('Waiting for the BO<span class="dots"></span>');
+        return;
+      }
       setStatus('No BO tab open \u2014 opening one<span class="dots"></span>');
       try {
         tab = GM_openInTab('https://bo.travelbusinessclass.com/leads/' + leadId + '?jsjob=' + jobId, { active: false, insert: true, setParent: true });
@@ -5203,6 +5379,15 @@ function __jsEnsureSharedObserver() {
 
       const saveBtn = await waitFor(() => Array.from(modal.querySelectorAll('button.btn-primary')).find((b) => b.textContent.trim() === 'Save' && !b.disabled), 6000);
       if (!saveBtn) return fail('Save button not available (form not complete?)');
+      // Last guard: if another copy of this job is already saving, stop
+      // here quietly (and reset this hidden copy) -- one option, never two.
+      const saveKey = 'js-sendjob-saving-' + jobId;
+      const me = (opts.token || 'tab') + ':' + Math.random().toString(36).slice(2, 8);
+      if (GM_getValue(saveKey, null)) { sendJobActive = false; if (opts.persistent) location.href = '/leads/' + job.leadId; return; }
+      GM_setValue(saveKey, me);
+      await wait(450);
+      if (GM_getValue(saveKey, null) !== me) { sendJobActive = false; if (opts.persistent) location.href = '/leads/' + job.leadId; return; }
+      setTimeout(() => { try { GM_setValue(saveKey, null); } catch (e) { /* ignore */ } }, 5 * 60 * 1000);
       saveBtn.click();
 
       // The new option = an option that wasn't there before AND shows
@@ -5345,6 +5530,17 @@ function __jsEnsureSharedObserver() {
   // Opening Pip's popover on a flight site wakes it up ahead of time.
   const HOST_KEY = 'js-sendjob-host';
   const LAST_LEAD_KEY = 'js-sendjob-lastlead';
+  const ALIVE_KEY = 'js-sendjob-alive';
+  // Live BO tabs: { token: { t: last "I'm here", seen: last time on screen } }.
+  // A background tab may only manage a beat a minute, so 90s counts as live;
+  // a closed tab removes itself.
+  function readAlive() {
+    let all = {};
+    try { all = JSON.parse(GM_getValue(ALIVE_KEY, '{}') || '{}') || {}; } catch (e) { all = {}; }
+    const now = Date.now();
+    Object.keys(all).forEach((k) => { if (!all[k] || now - all[k].t > 90000) delete all[k]; });
+    return all;
+  }
 
   (function workerFrame() {
     if (!IN_WORKER_FRAME) return;
@@ -5403,15 +5599,41 @@ function __jsEnsureSharedObserver() {
     markFocus();
     window.addEventListener('focus', markFocus);
     document.addEventListener('visibilitychange', markFocus);
+
+    // Every open BO tab says "I'm here" every few seconds (and when you look
+    // at it), so the tab picked for a job is always a live one, and the
+    // choice never depends on notes a reload may have wiped.
+    let lastSeen = document.hidden ? 0 : Date.now();
+    function beat() {
+      if (!document.hidden) lastSeen = Date.now();
+      const all = readAlive();
+      all[tabToken] = { t: Date.now(), seen: lastSeen };
+      try { GM_setValue(ALIVE_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
+    }
+    beat();
+    setInterval(beat, 3000);
+    document.addEventListener('visibilitychange', beat);
+    window.addEventListener('focus', beat);
     window.addEventListener('pagehide', () => {
       const h = readHost();
       if (h && h.token === tabToken) { try { GM_setValue(HOST_KEY, null); } catch (e) { /* ignore */ } }
       if (readKey(FOCUS_KEY) === tabToken) { try { GM_setValue(FOCUS_KEY, null); } catch (e) { /* ignore */ } }
+      const all = readAlive();
+      delete all[tabToken];
+      try { GM_setValue(ALIVE_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
     });
+    // The tab for a job: the one holding the warm frame, else the BO tab
+    // you used last, else the first live one by a fixed order -- always
+    // a tab that's still there.
     function chosenToken() {
+      const all = readAlive();
+      const live = Object.keys(all);
       const h = readHost();
-      if (h) return h.token;
-      return readKey(FOCUS_KEY);
+      if (h && all[h.token]) return h.token;
+      const f = readKey(FOCUS_KEY);
+      if (f && all[f]) return f;
+      if (!live.length) return tabToken;
+      return live.sort((a, b) => (all[b].seen - all[a].seen) || (a < b ? -1 : 1))[0];
     }
 
     function ensureFrame(leadId) {
@@ -5454,18 +5676,29 @@ function __jsEnsureSharedObserver() {
       if (!req || !req.id || Date.now() - req.t > 15000) return;
       const claimKey = 'js-sendjob-claim-' + req.id;
       const who = chosenToken();
-      if (who && who !== tabToken) {
-        // Not ours — but step in if the chosen tab turns out to be gone.
+      if (who !== tabToken) {
+        // Not ours — but step in if the chosen tab doesn't answer.
         setTimeout(() => { if (!GM_getValue(claimKey, null)) takeJob(req); }, 1500);
         return;
       }
       takeJob(req);
     });
 
-    function takeJob(req) {
+    // Only one tab may run a job. Writing a claim and checking it isn't
+    // enough on its own (Tampermonkey passes values between tabs with a
+    // small delay, so several tabs could each see "unclaimed"), so every
+    // tab that wants it writes its claim, waits for storage to settle, and
+    // reads it back: only the tab whose claim stuck goes ahead.
+    async function claim(claimKey) {
+      if (GM_getValue(claimKey, null)) return false;
+      try { GM_setValue(claimKey, tabToken); } catch (e) { return false; }
+      await wait(450);
+      return GM_getValue(claimKey, null) === tabToken;
+    }
+
+    async function takeJob(req) {
       const claimKey = 'js-sendjob-claim-' + req.id;
-      if (GM_getValue(claimKey, null)) return;
-      GM_setValue(claimKey, tabToken);
+      if (!(await claim(claimKey))) return;
       jobStatus(req.id, { phase: 'claimed', v: (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '' });
       try { GM_setValue(LAST_LEAD_KEY, req.leadId); } catch (e) { /* ignore */ }
 
@@ -6482,7 +6715,8 @@ function __jsEnsureSharedObserver() {
   }
   function srchKayak(lead, flex, cab) {
     const cabin = { Y: 'economy', W: 'premium', B: 'business', F: 'first' }[cab] || 'business';
-    const f = (d) => (d && flex > 0 ? d + '-flexible-' + flex + 'days' : d);
+    const k = Math.min(Math.max(parseInt(flex, 10) || 0, 0), 3); // Kayak only does ±1..±3
+    const f = (d) => (d && k > 0 ? d + '-flexible-' + k + 'days' : d);
     const s = lead.segments;
     let path;
     if (s.length === 1) {
@@ -8648,22 +8882,433 @@ function __jsEnsureSharedObserver() {
     return document.getElementById('ia-rc-panel');
   }
 
-  // Dials through your normal tel: handler (the RingCentral app) and starts
-  // watching RingCentral's call status for that call.
-  // Plain tel: link -> whatever Windows/Chrome has as the default phone
-  // app (your RingCentral Windows app). The widget never places calls.
-  const DIAL_URI_PREFIX = 'tel:';
+  // --- Where calls go: RingCentral website or Windows app ---------------
+  // One saved choice per user, changed from any call icon's right-click
+  // menu. Used by the call icons and by Pip's Call / 2X / auto-dial.
+  //  - Windows app: the usual tel: link, which opens the RingCentral app.
+  //  - Website: the number goes to an open RingCentral tab (SECTION 10), which
+  //    dials it from its dialpad right away. With no RingCentral tab open,
+  //    RingCentral's own call link opens in a background tab instead.
+  const CALL_MODE_KEY = 'ia-call-mode';
+  const RC_TABS_KEY = 'ia-rc-tabs';
+  const RC_DIAL_KEY = 'ia-rc-dial';
+  const RC_ACK_KEY = 'ia-rc-ack';
+  function callMode() {
+    try { return GM_getValue(CALL_MODE_KEY, 'app') === 'web' ? 'web' : 'app'; } catch (e) { return 'app'; }
+  }
+  function setCallMode(m) {
+    try { GM_setValue(CALL_MODE_KEY, m === 'web' ? 'web' : 'app'); } catch (e) { /* best-effort */ }
+  }
+  function toE164(n) {
+    const d = String(n || '').replace(/\D/g, '');
+    if (!d) return '';
+    return '+' + (d.length === 10 ? '1' + d : d);
+  }
+  function rcWebLink(n) {
+    return 'https://app.ringcentral.com/redirect?target=/r/call?number=' + n;
+  }
+  function rcTabs() {
+    let all = {};
+    try { all = JSON.parse(GM_getValue(RC_TABS_KEY, '{}')) || {}; } catch (e) { all = {}; }
+    const now = Date.now();
+    return Object.keys(all).map((id) => Object.assign({ id }, all[id])).filter((x) => x && now - x.t < 6000);
+  }
+  // The RingCentral tab to dial from: the one you used last, a normal tab
+  // before a call-link tab.
+  function pickRcTab() {
+    const tabs = rcTabs().sort((a, b) => (a.helper - b.helper) || (b.focus - a.focus));
+    return tabs[0] || null;
+  }
 
-  // Opens the tel: link by navigating the page's own address to it, not by
-  // clicking a link element. With the RingCentral widget loaded, a clicked
-  // tel: link was being picked up by the widget and routed through it —
-  // which is why calls only went out while signed into the widget. Nothing
-  // on the page can intercept a direct navigation, so the call always goes
-  // straight to Windows' default phone app (your RingCentral app), signed
-  // into the widget or not.
+  const rcPending = new Map(); // rid -> { got, settle }
+  GM_addValueChangeListener(RC_ACK_KEY, (key, oldV, v) => {
+    let a;
+    try { a = JSON.parse(v); } catch (e) { return; }
+    const p = a && rcPending.get(a.rid);
+    if (!p) return;
+    if (a.stage === 'got') { p.got = true; return; }
+    p.settle(a.stage === 'ok');
+  });
+  function askRcTab(tab, n) {
+    return new Promise((resolve) => {
+      const rid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      let finished = false;
+      const p = { got: false, settle: (ok) => { if (finished) return; finished = true; rcPending.delete(rid); resolve(ok ? 'ok' : 'fail'); } };
+      rcPending.set(rid, p);
+      try { GM_setValue(RC_DIAL_KEY, JSON.stringify({ rid, n, to: tab.id, t: Date.now() })); } catch (e) { p.settle(false); return; }
+      // No answer at all -> that tab is gone; it answered but never finished
+      // -> assume it's dialing (never risk calling the lead twice).
+      setTimeout(() => { if (!p.got) p.settle(false); }, 1500);
+      setTimeout(() => { if (!finished) { finished = true; rcPending.delete(rid); resolve('busy'); } }, 9000);
+    });
+  }
+
+  // A tab opened just to run the call link. Closed once the call is up when
+  // another RingCentral tab is open (the call carries on there); kept when
+  // it's the only one, so it becomes your RingCentral tab.
+  let rcHelper = null; // { tab, digits }
+  function closeRcHelper() {
+    const h = rcHelper;
+    rcHelper = null;
+    if (h && h.tab && !h.tab.closed) { try { h.tab.close(); } catch (e) { /* ignore */ } }
+  }
+  function otherRcTabOpen() {
+    return rcTabs().some((x) => !x.helper);
+  }
+  function openRcHelper(n) {
+    closeRcHelper();
+    let tab = null;
+    try { tab = GM_openInTab(rcWebLink(n), { active: false, insert: true, setParent: true }); } catch (e) { tab = null; }
+    if (!tab) { window.open(rcWebLink(n), '_blank'); return; }
+    const h = { tab, digits: digitsOf(n) };
+    rcHelper = h;
+    // In case the call never shows up in Pip's call watcher (e.g. it
+    // isn't loaded on this page).
+    setTimeout(() => { if (rcHelper === h && otherRcTabOpen()) closeRcHelper(); }, 40000);
+  }
+  // Called from the call watcher with every call RingCentral reports.
+  function rcHelperSawCall(digits, live) {
+    if (!rcHelper || !digits || digits !== rcHelper.digits) return;
+    if (!otherRcTabOpen()) { if (!live) rcHelper = null; return; } // it's your only RingCentral tab now: keep it
+    const h = rcHelper;
+    setTimeout(() => { if (rcHelper === h) closeRcHelper(); }, live ? 2500 : 0);
+  }
+
+  async function webCall(n) {
+    const tab = pickRcTab();
+    if (tab) {
+      const r = await askRcTab(tab, n);
+      if (r === 'ok' || r === 'busy') return;
+    }
+    openRcHelper(n);
+  }
+
+  // Places a call to `number` the way the user chose.
+  function placeCall(number) {
+    if (callMode() === 'web') {
+      const n = toE164(number);
+      if (n) webCall(n);
+      return;
+    }
+    // Windows app: the same tel: link Pip has always used (it opens in
+    // whatever app is set up for phone links, normally RingCentral).
+    window.location.href = 'tel:' + number;
+  }
+
+  // --- Call icon next to every phone number ------------------------------
+  // The BO's own phone icon, after each number on the leads list and on a
+  // lead's page. Left click: reveal the number if it's still masked, call
+  // it (website or Windows app, as chosen) and mark the lead called. Right
+  // click: choose where calls go; saved for this user everywhere.
+  const PHONE_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-phone"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>';
+  // A revealed number in any format the BO shows it in ("+16785550523",
+  // "+1 678 555 0523", "(678) 555-0523"…) -> "+16785550523"; masked -> null.
+  function revealedNumber(t) {
+    t = String(t || '').trim();
+    if (!t || t.includes('*') || /[a-z]/i.test(t)) return null;
+    const d = t.replace(/\D/g, '');
+    if (d.length < 10 || d.length > 15) return null;
+    return '+' + (d.length === 10 ? '1' + d : d);
+  }
+  const isPhoneText = (t) => PHONE_MASKED_RE.test(String(t).replace(/\s+/g, '')) || !!revealedNumber(t);
+  // Watches the number's surroundings, not just the box: the BO may swap
+  // the box for a new one when it reveals the number.
+  function waitForNumber(box, ms) {
+    return new Promise((resolve) => {
+      const area = box.parentElement || box;
+      const check = () => {
+        if (box.isConnected) return revealedNumber(box.textContent);
+        const b = area.querySelector('div.truncate.cursor-pointer');
+        return b ? revealedNumber(b.textContent) : null;
+      };
+      const now = check();
+      if (now) { resolve(now); return; }
+      const obs = new MutationObserver(() => { const n = check(); if (n) { obs.disconnect(); resolve(n); } });
+      obs.observe(area, { childList: true, characterData: true, subtree: true });
+      setTimeout(() => { obs.disconnect(); resolve(check()); }, ms || 2500);
+    });
+  }
+  const onLeadPage = (box) => !box.closest('tr');
+  // The number boxes: "truncate cursor-pointer" divs holding a phone number
+  // (leads list: in a table cell; lead page: "ml-2 … truncate").
+  function phoneBoxFor(el) {
+    const box = el && el.closest && el.closest('div.truncate.cursor-pointer');
+    return box && isPhoneText(box.textContent.trim()) ? box : null;
+  }
+  function leadIdForBox(box) {
+    const row = box.closest('tr');
+    const fromRow = row && getLeadId(row);
+    if (fromRow) return fromRow;
+    const m = location.pathname.match(/^\/leads\/(\d+)/);
+    return m ? m[1] : null;
+  }
+
+  // The number box next to an icon right now (the BO may have replaced
+  // the one the icon was added for, e.g. when it revealed the number).
+  function boxForIcon(icon, fallback) {
+    const prev = icon.previousElementSibling;
+    if (prev && prev.matches('div.truncate.cursor-pointer') && isPhoneText(prev.textContent)) return prev;
+    if (fallback && fallback.isConnected) return fallback;
+    const scope = icon.parentElement;
+    const list = scope ? Array.from(scope.querySelectorAll('div.truncate.cursor-pointer')).filter((b) => isPhoneText(b.textContent)) : [];
+    return list[0] || null;
+  }
+
+  async function callFromIcon(oldBox, icon) {
+    const box = boxForIcon(icon, oldBox);
+    if (!box) return;
+    if (icon.classList.contains('is-busy')) return;
+    icon.classList.add('is-busy');
+    try {
+      let number = revealedNumber(box.textContent);
+      if (!number) {
+        box.click(); // the BO's own reveal
+        number = await waitForNumber(box, 2500);
+      }
+      if (!number || BLOCKED_NUMBERS.includes(String(number).replace(/\D/g, ''))) {
+        icon.classList.add('is-fail');
+        setTimeout(() => icon.classList.remove('is-fail'), 1200);
+        return;
+      }
+      callAndShowOnBmo(box, number);
+      icon.classList.add('is-ok');
+      setTimeout(() => icon.classList.remove('is-ok'), 1500);
+    } finally {
+      setTimeout(() => icon.classList.remove('is-busy'), 800);
+    }
+  }
+
+  // A call from an icon (or the number menu) goes through Pip like his own
+  // calls: he shows that lead as "Currently calling", watches the call, and
+  // 2X / double dial redial it.
+  function callAndShowOnBmo(box, number) {
+    const row = box.closest('tr');
+    const leadId = leadIdForBox(box);
+    clearAutoNext(); // a countdown to the next lead gives way to this call
+    leadRedialed = false;
+    dialNumber(number, true);
+    const info = row ? getLeadInfo(row) : { leadId, href: location.pathname, clientName: '', origin: '', dest: '' };
+    lastCalledInfo = Object.assign({ number }, info);
+    lastCalledRow = row || null;
+    updateDoubleDialButton();
+    markCalled(leadId);
+    if (row) {
+      renderPanelForRow(row, true);
+    } else {
+      // A lead's own page: no list row, so his screen is filled in directly.
+      const el = ensureBmo();
+      el.querySelector('.ia-face').style.display = 'none';
+      el.querySelector('.ia-screen-info').style.display = '';
+      el.querySelector('.ia-screen-info__label').textContent = 'Currently calling';
+      const c = el.querySelector('.ia-screen-info__client');
+      c.textContent = 'Lead ' + (leadId || '');
+      c.href = info.href;
+      el.querySelector('.ia-screen-info__route').textContent = number;
+    }
+    setPanelStatus(awaitingCallEnd ? 'Dialing\u2026' : '');
+  }
+
+  // Colours for the call icons and menus: the same palette as the panel,
+  // set on the page so they follow the mode and accent the agent picked.
+  function paintCallVars() {
+    let p;
+    try { p = iaPalette(); } catch (e) { return; }
+    const st = document.documentElement.style;
+    const v = { acc: p.acc, onacc: p.onacc, text: p.text, title: p.title, muted: p.muted, ok: p.ok, bad: p.bad,
+      glass: p.glass, edge: p.edge, inner: p.inner, chip: p.chip, chipshadow: p.chipshadow, shadow: p.shadow, sky: p.sky };
+    Object.keys(v).forEach((k) => { if (st.getPropertyValue('--ia-cl-' + k) !== v[k]) st.setProperty('--ia-cl-' + k, v[k]); });
+  }
+
+  let callMenu = null;
+  function closeCallMenu() {
+    if (callMenu) { callMenu.remove(); callMenu = null; }
+  }
+  function openCallMenu(x, y) {
+    closeCallMenu();
+    const m = document.createElement('div');
+    paintCallVars();
+    m.className = 'ia-call-menu';
+    m.setAttribute('role', 'menu');
+    const mh = document.createElement('div');
+    mh.className = 'ia-call-menu-h';
+    mh.textContent = 'Calls go to';
+    m.appendChild(mh);
+    [['app', 'Windows app (RingCentral)'], ['web', 'RingCentral website']].forEach(([v, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitemradio');
+      b.setAttribute('aria-checked', String(callMode() === v));
+      b.className = 'ia-call-menu-item' + (callMode() === v ? ' is-on' : '');
+      const tick = document.createElement('span');
+      tick.className = 'ia-call-menu-tick';
+      tick.textContent = callMode() === v ? '✓' : '';
+      const t = document.createElement('span');
+      t.textContent = label;
+      b.append(tick, t);
+      b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); setCallMode(v); closeCallMenu(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    m.style.left = Math.max(8, Math.min(x, window.innerWidth - m.offsetWidth - 8)) + 'px';
+    m.style.top = Math.max(8, Math.min(y, window.innerHeight - m.offsetHeight - 8)) + 'px';
+    callMenu = m;
+  }
+  document.addEventListener('mousedown', (e) => { if (callMenu && !callMenu.contains(e.target)) closeCallMenu(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCallMenu(); }, true);
+  window.addEventListener('scroll', closeCallMenu, true);
+  window.addEventListener('blur', closeCallMenu);
+
+  function addCallIcons() {
+    paintCallVars();
+    document.querySelectorAll('div.truncate.cursor-pointer').forEach((box) => {
+      if (!isPhoneText(box.textContent.trim())) return;
+      const next = box.nextElementSibling;
+      if (next && next.classList.contains('ia-callicon')) {
+        if (!onLeadPage(box)) box.classList.add('ia-callicon-host'); // a re-drawn box loses our class
+        return;
+      }
+      const icon = document.createElement('span');
+      icon.className = 'ia-callicon';
+      icon.setAttribute('role', 'button');
+      icon.tabIndex = 0;
+      icon.title = 'Call (right-click: where calls go)';
+      setMarkupSafe(icon, PHONE_ICON_SVG);
+      if (onLeadPage(box)) {
+        // Inside a lead: a small "Call now" button instead of the bare icon.
+        icon.classList.add('ia-callicon--pill');
+        const t = document.createElement('span');
+        t.textContent = 'Call now';
+        icon.appendChild(t);
+      }
+      icon.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); callFromIcon(box, icon); });
+      icon.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); callFromIcon(box, icon); } });
+      icon.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); openCallMenu(e.clientX, e.clientY); });
+      ['mousedown', 'mouseup', 'dblclick'].forEach((t) => icon.addEventListener(t, (e) => e.stopPropagation()));
+      // Same line as the number, in a fixed spot: the number gets a steady
+      // width (and same-width digits), so the icon doesn't shift from row to
+      // row or when the number is revealed.
+      if (!onLeadPage(box)) box.classList.add('ia-callicon-host');
+      box.insertAdjacentElement('afterend', icon);
+    });
+  }
+  function setMarkupSafe(el, markup) {
+    const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    el.appendChild(document.importNode(doc.documentElement, true));
+  }
+
+  // Inside a lead, one click on the number (the BO reveals it on that same
+  // click) opens a small menu: Call now / Copy.
+  function liveBoxIn(area, box) {
+    return box.isConnected ? box : ((area && area.querySelector('div.truncate.cursor-pointer')) || null);
+  }
+  async function copyNumber(box, area) {
+    const n = await waitForNumber(liveBoxIn(area, box) || box, 2500);
+    if (!n) return;
+    try { GM_setClipboard(n, 'text'); } catch (err) { return; }
+    const live = liveBoxIn(area, box) || area || box;
+    const r = live.getBoundingClientRect();
+    paintCallVars();
+    const tip = document.createElement('div');
+    tip.className = 'ia-num-copied';
+    tip.textContent = 'Copied';
+    tip.style.left = (r.left + r.width / 2) + 'px';
+    tip.style.top = (r.top - 6) + 'px';
+    document.body.appendChild(tip);
+    setTimeout(() => tip.remove(), 1100);
+  }
+  function openNumberMenu(box, x, y) {
+    closeCallMenu();
+    paintCallVars();
+    const area = box.parentElement;
+    const m = document.createElement('div');
+    m.className = 'ia-call-menu ia-num-menu';
+    m.setAttribute('role', 'menu');
+    const item = (label, svg, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitem');
+      b.className = 'ia-call-menu-item';
+      const ic = document.createElement('span');
+      ic.className = 'ia-call-menu-tick ia-num-menu-ic';
+      if (svg) setMarkupSafe(ic, svg);
+      const t = document.createElement('span');
+      t.textContent = label;
+      b.append(ic, t);
+      b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeCallMenu(); fn(); });
+      m.appendChild(b);
+    };
+    item('Call now', PHONE_ICON_SVG, () => {
+      const live = liveBoxIn(area, box);
+      const icon = live && live.nextElementSibling && live.nextElementSibling.classList.contains('ia-callicon') ? live.nextElementSibling : null;
+      if (live && icon) callFromIcon(live, icon);
+      else if (live) waitForNumber(live, 2500).then((n) => { if (n) callAndShowOnBmo(live, n); });
+    });
+    item('Copy number', COPY_ICON_SVG, () => copyNumber(box, area));
+    document.body.appendChild(m);
+    m.style.left = Math.max(8, Math.min(x, window.innerWidth - m.offsetWidth - 8)) + 'px';
+    m.style.top = Math.max(8, Math.min(y, window.innerHeight - m.offsetHeight - 8)) + 'px';
+    callMenu = m;
+  }
+  const COPY_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+  document.addEventListener('click', (e) => {
+    if (!e.isTrusted || e.detail > 1) return;
+    const box = phoneBoxFor(e.target);
+    if (!box || !onLeadPage(box)) return;
+    const r = box.getBoundingClientRect();
+    setTimeout(() => openNumberMenu(box, r.left, r.bottom + 6), 0); // after the BO's own reveal click
+  }, true);
+
+  // The BO's own double-click-to-call (which hands the number to Windows'
+  // default phone app) is switched off: Pip places every call.
+  function blockBoDoubleClickCall(e) {
+    if (e.type === 'click' && e.detail < 2) return;
+    if (!phoneBoxFor(e.target)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+  window.addEventListener('dblclick', blockBoDoubleClickCall, true);
+  window.addEventListener('click', blockBoDoubleClickCall, true);
+  // …and any tel: link the BO creates.
+  window.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest && e.target.closest('a[href^="tel:"]');
+    if (a) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+
+  GM_addStyle(`
+    .ia-callicon-host { display: inline-block !important; vertical-align: middle; min-width: 12.5ch; font-variant-numeric: tabular-nums; }
+    .ia-callicon { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-left: 6px; width: 24px; height: 24px; box-sizing: border-box; border-radius: 9px; cursor: pointer; flex: none;
+      color: var(--ia-cl-acc, #1f5cff); background: color-mix(in srgb, var(--ia-cl-acc, #1f5cff) 14%, #fff); border: 1px solid color-mix(in srgb, var(--ia-cl-acc, #1f5cff) 40%, transparent); }
+    .ia-callicon:hover, .ia-callicon:focus-visible { background: color-mix(in srgb, var(--ia-cl-acc, #1f5cff) 24%, #fff); outline: none; }
+    .ia-callicon svg { width: 13px; height: 13px; display: block; }
+    .ia-callicon.is-busy { opacity: .7; }
+    .ia-callicon--pill { width: auto; height: 18px; max-height: 18px; gap: 4px; padding: 0 9px 0 7px; margin: 0 0 0 8px; border-radius: 999px; line-height: 18px; font-size: 11px; font-weight: 800; white-space: nowrap;
+      color: var(--ia-cl-onacc, #fff); background: linear-gradient(180deg, color-mix(in srgb, var(--ia-cl-acc, #1f5cff) 82%, #fff), var(--ia-cl-acc, #1f5cff)); border: 0; }
+    .ia-callicon--pill svg { width: 11px; height: 11px; }
+    .ia-callicon--pill:hover, .ia-callicon--pill:focus-visible { background: var(--ia-cl-acc, #1f5cff); filter: brightness(1.08); }
+    .ia-callicon.is-ok { color: var(--ia-cl-ok, #12a150); border-color: var(--ia-cl-ok, #12a150); background: color-mix(in srgb, var(--ia-cl-ok, #12a150) 18%, #fff); }
+    .ia-callicon--pill.is-ok { color: #fff; background: var(--ia-cl-ok, #12a150); }
+    .ia-callicon.is-fail { color: var(--ia-cl-bad, #dc2626); border-color: var(--ia-cl-bad, #dc2626); background: color-mix(in srgb, var(--ia-cl-bad, #dc2626) 14%, #fff); }
+    .ia-num-copied { position: fixed; z-index: 2147483000; transform: translate(-50%, -100%); padding: 3px 9px; border-radius: 8px; font: 800 11px Inter, 'Segoe UI', system-ui, sans-serif; white-space: nowrap; pointer-events: none;
+      color: var(--ia-cl-title, #fff); background: var(--ia-cl-glass, #1f2937); border: 1px solid var(--ia-cl-edge, transparent); box-shadow: var(--ia-cl-chipshadow, none); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+    .ia-call-menu { position: fixed; z-index: 2147483000; min-width: 230px; padding: 6px; display: grid; gap: 2px; box-sizing: border-box; border-radius: 14px; font: 700 13px Inter, 'Segoe UI', system-ui, sans-serif; text-align: left;
+      color: var(--ia-cl-text, #111827); background: var(--ia-cl-sky, none), var(--ia-cl-glass, #fff); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
+      border: 1px solid var(--ia-cl-edge, rgba(0,0,0,.12)); box-shadow: var(--ia-cl-shadow, 0 8px 24px rgba(0,0,0,.18)), inset 0 1px 0 var(--ia-cl-inner, transparent); }
+    .ia-call-menu-h { padding: 4px 8px 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ia-cl-muted, #6b7280); }
+    .ia-call-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .ia-call-menu-item:hover, .ia-call-menu-item:focus-visible { background: var(--ia-cl-chip, rgba(127,127,127,.14)); outline: none; }
+    .ia-call-menu-item.is-on { background: var(--ia-cl-chip, rgba(127,127,127,.14)); box-shadow: var(--ia-cl-chipshadow, none); }
+    .ia-call-menu-tick { width: 14px; color: var(--ia-cl-ok, #16a34a); font-weight: 800; }
+    .ia-num-menu { min-width: 170px; }
+    .ia-num-menu-ic { color: var(--ia-cl-acc, #1f5cff); display: inline-flex; }
+    .ia-num-menu-ic svg { width: 14px; height: 14px; }
+  `);
+
+  // Places Pip's call (website or Windows app, as chosen) and starts
+  // watching RingCentral's call status for that call. The widget never
+  // places calls; it only reports their status.
   function dialNumber(number, byRealClick) {
     bumpTodayStat('calls');
-    window.location.href = DIAL_URI_PREFIX + number;
+    placeCall(number);
     if (!rcContainer()) return; // no status watcher -> old one-click-per-call mode
     awaitingCallEnd = true;
     callSeen = false;
@@ -8674,11 +9319,12 @@ function __jsEnsureSharedObserver() {
       callAppearTimer = null;
       if (!awaitingCallEnd || callSeen) return;
       awaitingCallEnd = false;
-      setPanelStatus(byRealClick ? 'No call detected' : 'Chrome blocked auto-dial — press Call');
-    }, CALL_APPEAR_TIMEOUT_MS);
+      setPanelStatus(byRealClick || callMode() === 'web' ? 'No call detected' : 'Chrome blocked auto-dial \u2014 press Call');
+    }, callMode() === 'web' ? CALL_APPEAR_TIMEOUT_MS + 15000 : CALL_APPEAR_TIMEOUT_MS); // a call link can take a moment to load
   }
 
   function clearAutoNext() {
+    countingToNext = false;
     if (autoNextTimer) { clearTimeout(autoNextTimer); autoNextTimer = null; }
     if (autoNextCountdown) { clearInterval(autoNextCountdown); autoNextCountdown = null; }
   }
@@ -8694,7 +9340,10 @@ function __jsEnsureSharedObserver() {
     clearAutoNext();
     if (iaWidget) iaWidget.classList.remove('ia-widget--running');
     if (typeof applySuperState === 'function') applySuperState();
-    if (currentPanelRow) setPanelStatus('Stopped');
+    if (currentPanelRow) {
+      if (!currentRowDialed) setPanelLabel('Up next'); // drop a stopped countdown from the label
+      setPanelStatus('Stopped');
+    }
   }
 
   function startAutoRun() {
@@ -8714,16 +9363,28 @@ function __jsEnsureSharedObserver() {
     if (answered) bumpTodayStat('answered');
     if (!autoRunning) { setPanelStatus('Call ended'); return; }
 
-    // Double dial: unanswered calls get one immediate second try.
+    // Double dial: unanswered calls get one immediate second try -- always
+    // to the lead Pip just called (still on screen), never the next one.
     if (doubleDialOn() && !leadRedialed && !answered && lastCalledInfo) {
       leadRedialed = true;
-      startCountdown(DOUBLE_DIAL_DELAY_SEC, 'No answer \u2014 redialing in ', () => { dialNumber(lastCalledInfo.number, false); setPanelStatus('Redialing\u2026'); });
+      showLastCalledLead();
+      startCountdown(DOUBLE_DIAL_DELAY_SEC, 'Redialing in ', () => { dialNumber(lastCalledInfo.number, false); setPanelLabel('Redialing'); setPanelStatus('Dialing\u2026'); }, setPanelLabel);
       return;
     }
     scheduleNextLead();
   }
 
-  function scheduleNextLead() {
+  // Puts the lead Pip called last back on screen as the one being called
+  // (used by both redials, so a redial never shows the next lead).
+  function showLastCalledLead() {
+    countingToNext = false;
+    if (lastCalledRow && document.body.contains(lastCalledRow)) renderPanelForRow(lastCalledRow, true);
+  }
+
+  // Call ended: Pip moves on to the next lead right away and shows it with
+  // a countdown, so you can see who's next and Skip or Call before it dials.
+  let countingToNext = false;
+  async function scheduleNextLead() {
     if (manualCallActive()) {
       clearAutoNext();
       pendingAutoNext = true;
@@ -8731,16 +9392,34 @@ function __jsEnsureSharedObserver() {
       return;
     }
     pendingAutoNext = false;
-    startCountdown(AUTO_NEXT_DELAY_SEC, 'Call ended \u2014 next in ', () => handleCallClick(true));
+    clearAutoNext();
+    if (currentRowDialed) {
+      setPanelStatus('Finding next lead\u2026');
+      const next = await getNextPendingRow();
+      if (!autoRunning || awaitingCallEnd || callInFlight) return; // stopped or redialed meanwhile
+      if (!next) { handleCallClick(true); return; } // nothing left: the normal end-of-list flow
+      renderPanelForRow(next, false);
+    }
+    startNextCountdown();
+  }
+  function startNextCountdown() {
+    startCountdown(AUTO_NEXT_DELAY_SEC, 'Calling next in ', () => { countingToNext = false; handleCallClick(true); }, setPanelLabel);
+    countingToNext = true; // after startCountdown, which clears it
   }
 
-  function startCountdown(seconds, label, action) {
+  function setPanelLabel(text) {
+    const l = iaWidget && iaWidget.querySelector('.ia-screen-info__label');
+    if (l) l.textContent = text;
+  }
+
+  function startCountdown(seconds, label, action, show) {
     clearAutoNext();
+    const out = show || setPanelStatus;
     let left = seconds;
-    setPanelStatus(label + left + 's');
+    out(label + left + 's');
     autoNextCountdown = setInterval(() => {
       left -= 1;
-      if (left > 0) setPanelStatus(label + left + 's');
+      if (left > 0) out(label + left + 's');
     }, 1000);
     autoNextTimer = setTimeout(() => {
       clearAutoNext();
@@ -8777,6 +9456,7 @@ function __jsEnsureSharedObserver() {
     const key = call.sessionId || call.telephonySessionId || call.id || call.partyId || ((call.direction || '') + toDigits);
     const known = activeCalls.get(key);
     const live = st === 'Ringing' || st === 'CallConnected' || st === 'OnHold' || st === 'Proceeding';
+    if (call.direction !== 'Inbound') rcHelperSawCall(toDigits, live);
 
     if (live) {
       let mine = known ? known.mine : false;
@@ -9700,6 +10380,7 @@ function __jsEnsureSharedObserver() {
   // that was JUST called, straight from memory, with no need to re-find
   // or re-reveal anything since it's already known.
   let lastCalledInfo = null; // { number, leadId, href, clientName, origin, dest }
+  let lastCalledRow = null;  // that lead's row in the list
 
   function updateDoubleDialButton() {
     const btn = iaWidget && iaWidget.querySelector('.ia-btn-doubledial');
@@ -9768,6 +10449,7 @@ function __jsEnsureSharedObserver() {
       dialNumber(number, !isAuto);
 
       lastCalledInfo = Object.assign({ number }, info);
+      lastCalledRow = row;
       updateDoubleDialButton();
       markCalled(info.leadId);
       markStartedToday();
@@ -9857,6 +10539,17 @@ function __jsEnsureSharedObserver() {
     try {
       clearAutoNext();
       dialNumber(lastCalledInfo.number, true);
+      leadRedialed = true; // the auto double-dial won't add a third call
+
+      // The redial is for the lead Pip called last, so that lead stays on
+      // screen (even if the next lead was already showing in the
+      // countdown); the next lead comes back once this call ends.
+      if (lastCalledRow && document.body.contains(lastCalledRow)) {
+        showLastCalledLead();
+        setPanelLabel('Redialing');
+        setPanelStatus(awaitingCallEnd ? 'Dialing\u2026' : '');
+        return;
+      }
 
       const el = ensureBmo();
       el.querySelector('.ia-face').style.display = 'none';
@@ -9884,7 +10577,11 @@ function __jsEnsureSharedObserver() {
     let row = currentPanelRow;
     if (row && !document.body.contains(row)) row = null;
     if (row && !currentRowDialed) markSkipped(getLeadId(row));
-    renderPanelForRow(await getNextPendingRow(), false);
+    const wasCounting = countingToNext;
+    if (wasCounting) clearAutoNext();
+    const next = await getNextPendingRow();
+    renderPanelForRow(next, false);
+    if (wasCounting && next && autoRunning && !awaitingCallEnd) startNextCountdown(); // fresh timer for the new lead
   }
 
   // --- Hourly "daily follow up" reminder, synced across tabs --------------
@@ -11139,7 +11836,7 @@ function __jsEnsureSharedObserver() {
 
   // Shares PART 2/3/4's single observer instead of keeping its own —
   // see the comment where __jsEnsureSharedObserver is defined.
-  __jsRegisterScan(() => { ensureBmo(); updateAllRowIndicators(); checkOwner(); });
+  __jsRegisterScan(() => { ensureBmo(); updateAllRowIndicators(); checkOwner(); addCallIcons(); });
   __jsEnsureSharedObserver();
   ensureBmo();
 })();

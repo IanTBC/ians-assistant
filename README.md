@@ -40,6 +40,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
+- **Call icons** next to every phone number call it in one click; right-click picks the RingCentral Windows app or website.
 - **Card** on an option makes a clean picture of it (flights, times, connections and price) to paste into a text or chat for your client.
 
 **Calling and texting**
@@ -55,6 +56,12 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.2.0 — call icons**
+- A small phone icon now sits next to every phone number. Click it to show the number and call it. Right-click it to choose where calls go: the RingCentral Windows app (as before) or the RingCentral website.
+- Inside a lead there's a Call now button, and clicking the number gives you Call now or Copy number.
+- After a call ends, the next lead shows right away with a countdown, so you can Skip or Call. Redials always go to the lead you just called.
+- Sending an option to a lead is steadier: it's never added twice. Basis detail pages now remember the number of passengers.
 
 **2.1.0 — quote card**
 - New Card button on every option: turns it into a clean picture with the flights, times, connections and price, ready to paste into a text or chat for your client.
