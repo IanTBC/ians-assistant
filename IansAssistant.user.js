@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.3.0
+// @version      2.4.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.

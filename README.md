@@ -55,6 +55,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ## What's new
 
+**2.4.0 — panel tidy-up**
+- The small tick box next to Double-dial has been removed from the panel. Everything else works as before.
+
 **2.3.0 — lead sniper removed**
 - The lead sniper (Alt+Z / Alt+X) has been removed. Everything else works as before.
 
