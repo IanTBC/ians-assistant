@@ -51,11 +51,12 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
-**Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. On a Mac: **Option+Z** (or Option+X). The assistant turns red while it's on.
-
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.3.0 — lead sniper removed**
+- The lead sniper (Alt+Z / Alt+X) has been removed. Everything else works as before.
 
 **2.2.0 — call icons**
 - A small phone icon now sits next to every phone number. Click it to show the number and call it. Right-click it to choose where calls go: the RingCentral Windows app (as before) or the RingCentral website.
