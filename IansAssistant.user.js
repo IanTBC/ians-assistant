@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.4.0
+// @version      2.5.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -45,7 +45,8 @@
  *    SECTION 1 .............. flight sites: GDS copy, Lead ID, Sell box
  *    SECTIONS 2-3 ........... the BO: Add option tools, search panel, flags
  *    SECTION 4 .............. the assistant panel: dialer, texting, Pip
- *    SECTIONS 6-10 .......... RingCentral helpers, checks, quote card
+ *    SECTIONS 5-11 .......... lead sniper, RingCentral helpers, checks,
+ *                             quote card, terminal helper
  *
  *  Saved settings keep their original key names on purpose, so agents
  *  never lose their templates, theme or progress when they update.
@@ -2129,7 +2130,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
   }
 
   function kyFindDetailsPanel(card) {
-    const container = card.closest('.Fxw9-result-item-container') || card.parentElement;
+    const container = card.closest('.Fxw9-result-item-container') || card.closest('[class*="-result-item-container"]') || card.parentElement;
     if (!container) return null;
     return container.querySelector('[id$="-details"]') || container.querySelector('.o-C7');
   }
@@ -2145,15 +2146,22 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     return new Date(year, month, day, h, m, 0, 0);
   }
 
+  // Kayak renames the short code at the front of its class names now and
+  // then (c1hxM → KyKt, qvW6 → FTA5…), so the details are read by the stable
+  // end of each name ("-inline-segment-body", "-half-column"…) and by
+  // data-flightnumber, whatever the code in front is.
+  const kyQ = (root, suffix) => root.querySelector('[class*="' + suffix + '"]');
+  const kyQA = (root, suffix) => Array.from(root.querySelectorAll('[class*="' + suffix + '"]'));
+  const kyHas = (el, suffix) => Array.from(el.classList).some((c) => c.endsWith(suffix));
   function kyParseDetailsSegments(detailsPanel) {
     const legs = [];
     const cabinFallback = kyParseCabin();
-    const segEls = detailsPanel.querySelectorAll('.c1hxM[data-flightnumber]');
+    const segEls = detailsPanel.querySelectorAll('[data-flightnumber]');
 
     segEls.forEach((seg) => {
       const flightNumber = seg.getAttribute('data-flightnumber') || '';
-      const img = seg.querySelector('.c1hxM-carrier-icon img');
-      const carrierMatch = img?.src.match(/\/([A-Z]{2})\.png/i);
+      const img = seg.querySelector('[class*="-carrier-icon"] img') || seg.querySelector('img[src*="/airlines/"]');
+      const carrierMatch = img?.src.match(/\/([A-Z0-9]{2})\.png/i);
       let carrier = carrierMatch ? carrierMatch[1].toUpperCase() : '';
       if (!carrier) {
         const name = (img?.alt || '').trim().toLowerCase();
@@ -2161,31 +2169,33 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       }
       if (!flightNumber || !carrier) return;
 
-      const inlineBody = seg.querySelector('.c1hxM-inline-segment-body');
+      const inlineBody = kyQ(seg, '-inline-segment-body');
       if (!inlineBody) return;
 
-      const rowEntries = Array.from(inlineBody.querySelectorAll('.qvW6-row-entry'));
-      const routeRow = rowEntries.find((r) => !r.classList.contains('qvW6-day-with-date'));
-      const dateRow = inlineBody.querySelector('.qvW6-row-entry.qvW6-day-with-date');
-      const durationEntry = inlineBody.querySelector('.qvW6-duration-entry');
+      const rowEntries = kyQA(inlineBody, '-row-entry').filter((r) => Array.from(r.classList).some((c) => c.endsWith('-row-entry')));
+      const dateRow = rowEntries.find((r) => kyHas(r, '-day-with-date'));
+      const routeRow = rowEntries.find((r) => !kyHas(r, '-day-with-date'));
+      const durationEntry = kyQA(inlineBody, '-duration-entry').find((r) => kyHas(r, '-duration-entry'));
       if (!routeRow || !dateRow || !durationEntry) return;
 
-      const routeCols = routeRow.querySelectorAll('.qvW6-half-column');
+      const cols = (row) => kyQA(row, '-half-column').filter((c) => kyHas(c, '-half-column'));
+      const routeCols = cols(routeRow);
       const originCode = routeCols[0]?.textContent.trim() || '';
       const destCode = routeCols[1]?.textContent.trim() || '';
 
-      const dateCols = dateRow.querySelectorAll('.qvW6-half-column');
+      const dateCols = cols(dateRow);
       const depDateText = dateCols[0]?.textContent.trim() || '';
       const arrDateText = dateCols[1]?.textContent.trim() || depDateText;
 
-      const timeDisplays = durationEntry.querySelectorAll('.qvW6-time-display');
+      const timeDisplays = kyQA(durationEntry, '-time-display').filter((c) => kyHas(c, '-time-display'));
       const depTimeText = timeDisplays[0]?.textContent.trim() || '';
       const arrTimeText = timeDisplays[1]?.textContent.trim() || '';
 
-      const durationText = durationEntry.querySelector('.qvW6-duration-column')?.textContent.trim() || '0h 0m';
+      const durCol = kyQA(durationEntry, '-duration-column').find((c) => kyHas(c, '-duration-column'));
+      const durationText = durCol?.textContent.trim() || '0h 0m';
       const durMin = parseDurationMinutes(durationText);
 
-      const cabinWord = (seg.querySelector('.w4o3-cabin-display')?.textContent || '').trim().toLowerCase();
+      const cabinWord = (kyQ(seg, '-cabin-display')?.textContent || '').trim().toLowerCase();
       const cabinCode = CABIN_WORD_TO_CODE[cabinWord] || cabinFallback;
 
       const aircraft = (seg.querySelector('[aria-label="Aircraft"]')?.textContent || '').trim();
@@ -5140,12 +5150,12 @@ function __jsEnsureSharedObserver() {
   // Net column by position on screen: the input under the "Net" header,
   // on the same line as the ADT / CHD / INF label. Works whatever the
   // BO's markup is (single ticket or each ticket of Multiple Tkt).
-  function fillCashNetByLayout(scope, fill, yMin, yMax) {
+  function fillCashNetByLayout(scope, fill, yMin, yMax, colRe) {
     const vis0 = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r : null; };
     // Optional band: only things between yMin and yMax (one ticket's area).
     const vis = (el) => { const r = vis0(el); return r && (yMin == null || r.top >= yMin) && (yMax == null || r.top < yMax) ? r : null; };
     const netLabel = Array.from(scope.querySelectorAll('label, .form-label, div, span'))
-      .find((l) => l.children.length === 0 && /^net\*?$/i.test(l.textContent.trim()) && vis(l));
+      .find((l) => l.children.length === 0 && (colRe || /^net\*?$/i).test(l.textContent.trim()) && vis(l));
     if (!netLabel) return false;
     const nr = vis(netLabel);
     const nx = nr.left + nr.width / 2;
@@ -5163,9 +5173,9 @@ function __jsEnsureSharedObserver() {
     return filled > 0;
   }
 
-  function fillCashNet(modal, fill) {
-    try { if (fillCashNetByLayout(modal, fill)) return true; } catch (e) { /* fall back to markup */ }
-    const netLabel = Array.from(modal.querySelectorAll('label.form-label')).find((l) => /^net\b/i.test(l.textContent.trim()));
+  function fillCashNet(modal, fill, colRe) {
+    try { if (fillCashNetByLayout(modal, fill, null, null, colRe)) return true; } catch (e) { /* fall back to markup */ }
+    const netLabel = Array.from(modal.querySelectorAll('label.form-label')).find((l) => (colRe || /^net\b/i).test(l.textContent.trim()));
     if (!netLabel) return false;
     const headerRow = netLabel.closest('.flex');
     const headerLabels = Array.from(headerRow.querySelectorAll('label.form-label'));
@@ -5957,7 +5967,12 @@ function __jsEnsureSharedObserver() {
         if (!cost.program || !cost.miles) cost = null;
       } else {
         cost = { mode: 'cash', sellType: pt.sell_type || 'public' };
-        (pt.prices || []).forEach((pr) => { const t = PAX[String(pr.passenger_type || '').toLowerCase()]; if (t && pr.net_price != null) cost[t] = Number(pr.net_price); });
+        (pt.prices || []).forEach((pr) => {
+          const t = PAX[String(pr.passenger_type || '').toLowerCase()];
+          if (t && pr.net_price != null) cost[t] = Number(pr.net_price);
+          // Com. val. (a dollar amount, one per passenger type, like Net).
+          if (t && pr.commission != null && Number(pr.commission)) { cost.com = cost.com || {}; cost.com[t] = Number(pr.commission); }
+        });
         if (cost.ADT == null && cost.CHD == null && cost.INF == null) cost = null;
       }
       let segNums = segs.filter((sg) => String(sg.pre_ticket_id) === String(pt.id)).map((sg) => Number(sg.number));
@@ -6182,6 +6197,7 @@ function __jsEnsureSharedObserver() {
       const awardBtns = await waitFor(() => { const a = Array.from(modal.querySelectorAll('button')).filter((b) => b.textContent.trim() === 'Award'); return a.length >= opts2.length ? a : null; }, 8000);
       if (!awardBtns) { say('Tickets did not appear', 2500); return; }
       const noCost = [];
+      const noCom = [];
       for (let i = 0; i < opts2.length; i++) {
         const c = costs[i];
         if (!c) { noCost.push(i + 1); continue; }
@@ -6234,11 +6250,28 @@ function __jsEnsureSharedObserver() {
             if (!ok) noCost.push((i + 1) + ' ' + type);
             await wait(120);
           }
+          // Then each passenger type's Com. val., in the same ticket.
+          const COM = /^com\.?\s*val\.?\*?$/i;
+          for (const type of ['ADT', 'CHD', 'INF']) {
+            if (!c.com || c.com[type] == null) continue;
+            const one = { [type]: c.com[type] };
+            const ok = await waitFor(() => {
+              const sc = (() => { const b = Array.from(modal.querySelectorAll('button')).filter((x) => x.textContent.trim() === 'Award')[i]; return b ? ticketBlock(modal, b) : scope; })();
+              if (fillCashNet(sc, one, COM)) return true;
+              const [y0, y1] = band();
+              return fillCashNetByLayout(modal, one, y0, y1, COM) ? true : null;
+            }, 4000, 150);
+            if (!ok) noCom.push((i + 1) + ' ' + type);
+            await wait(120);
+          }
         }
         await wait(150);
       }
       // Stops before Save so you can check it.
-      say(noCost.length ? '✓ Merged — fill cost: tkt ' + noCost.join(', ') : '✓ Merged — check & Save', noCost.length ? 6000 : 3000);
+      const todo = [];
+      if (noCost.length) todo.push('fill cost: tkt ' + noCost.join(', '));
+      if (noCom.length) todo.push('fill Com. val.: tkt ' + noCom.join(', '));
+      say(todo.length ? '✓ Merged — ' + todo.join(' · ') : '✓ Merged — check & Save', todo.length ? 6000 : 3000);
     } catch (e) {
       say('Merge failed', 2500);
     } finally {
@@ -6703,6 +6736,21 @@ function __jsEnsureSharedObserver() {
       children: parseInt(pax.children, 10) || 0,
       infants: (parseInt(pax.infantInLap, 10) || 0) + (parseInt(pax.infantInSeat, 10) || 0),
     };
+  }
+  // Sabre JR (Fast Search): JR.<from>/S-O<cabin><to><date>…, with
+  // /S-ARUNK<city> where a leg starts somewhere other than the last one ended.
+  function srchJR(lead, cab) {
+    if (!lead) return '';
+    const legs = srchLegs(lead).filter((l) => l.date && l.origin && l.destination);
+    if (!legs.length) return '';
+    const c = { B: 'C', W: 'S', F: 'F', Y: 'Y' }[cab] || 'C';
+    const d = (iso) => { const p = iso.split('-'); return parseInt(p[2], 10) + FXP_MONTHS[parseInt(p[1], 10) - 1].toUpperCase(); };
+    let cmd = 'JR.' + legs[0].origin;
+    legs.forEach((lg, i) => {
+      if (i > 0 && lg.origin !== legs[i - 1].destination) cmd += '/S-ARUNK' + lg.origin;
+      cmd += '/S-O' + c + lg.destination + d(lg.date);
+    });
+    return cmd;
   }
   function srchLegs(lead) {
     const s = lead.segments;
@@ -7173,6 +7221,15 @@ function __jsEnsureSharedObserver() {
         if (lead2.segments.length > 1 || lead2.segments[0].returnDate) {
           items.push({ label: 'Business Outbound, Premium Inbound', note: '', url: () => srchMatrix(L(), null, 'B', 'W', flex()) });
           items.push({ label: 'Premium Outbound, Business Inbound', note: '', url: () => srchMatrix(L(), null, 'W', 'B', flex()) });
+        } else if (['B', 'W', 'F'].includes(cab()) && lead2.segments[0].departureDate) {
+          // One-way: search a round trip, outbound in the picked cabin and the
+          // return in Economy, 90 days after departure.
+          const ret = srchAddDays(lead2.segments[0].departureDate, 90);
+          items.push({ label: srchCabinLabel(cab()) + ' Outbound, Economy Inbound', note: 'return ' + srchFmt(ret), url: () => {
+            const l = JSON.parse(JSON.stringify(L()));
+            l.segments[0].returnDate = srchAddDays(l.segments[0].departureDate, 90);
+            return srchMatrix(l, null, cab(), 'Y', flex());
+          } });
         }
         srchShowMenu(b, 'ITA Matrix', items);
       });
@@ -7213,7 +7270,41 @@ function __jsEnsureSharedObserver() {
       };
       const selCab = picker('cab', 'Cabin', [['B', 'Business'], ['W', 'Premium'], ['F', 'First'], ['Y', 'Economy']], () => box._fxpCab, (v) => { box._fxpCab = v; });
       const selFlex = picker('flex', 'Dates', [[0, 'Fixed'], [1, '\u00b11 day'], [2, '\u00b12 days'], [3, '\u00b13 days'], [5, '\u00b15 days'], [7, '\u00b17 days']], () => srchState.flex, (v) => { srchState.flex = v; });
-      left.append(selCab, selFlex);
+      // Fast Search: Sabre JR search for this lead, sent straight to the
+      // terminal (opened if closed), after I. Exact dates only: JR has no
+      // ±days field, so the date range picker doesn't apply to it.
+      const fs = document.createElement('button');
+      fs.type = 'button';
+      fs.className = 'ia-fxp-fs';
+      fs.textContent = 'FS';
+      const fsCmd = () => srchJR(L(), cab());
+      const fsTitle = () => {
+        const c = fsCmd();
+        fs.title = 'Fast Search in the terminal (I, then ' + (c || 'JR') + ')' + (flex() > 0 ? '\nFS searches the exact dates \u2014 JR has no \u00b1days' : '');
+      };
+      fs.addEventListener('mouseenter', fsTitle);
+      fs.addEventListener('mousedown', (e) => e.stopPropagation());
+      let fsBusy = false;
+      const fsFlash = (t, ms) => { fs.textContent = t; setTimeout(() => { fs.textContent = 'FS'; fs.classList.remove('is-busy'); fsBusy = false; }, ms || 1600); };
+      fs.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (fsBusy) return;
+        const cmd = fsCmd();
+        if (!cmd) { fsBusy = true; fsFlash('No dates'); return; }
+        fsBusy = true;
+        fs.classList.add('is-busy');
+        fs.textContent = '\u2026';
+        const r = __iaTerm.run ? await __iaTerm.run(cmd) : { ok: false, msg: 'no-terminal' };
+        if (r.ok) { fsFlash('\u2713 Sent'); return; }
+        if (r.msg === 'no-terminal') {
+          try { GM_setClipboard(cmd, 'text'); } catch (err) { /* ignore */ }
+          fsFlash('Copied', 1800);
+          return;
+        }
+        fsFlash(r.msg === 'busy' ? 'Busy' : r.msg === 'no-reply' ? 'No reply' : '\u2715', 1800);
+      });
+      left.append(selCab, selFlex, fs);
       const all = document.createElement('button');
       all.type = 'button';
       all.className = 'ia-fxp-all';
@@ -7364,7 +7455,12 @@ function __jsEnsureSharedObserver() {
     .ia-fxp-k { border-color: #f97316; color: #fed7aa; }
     .ia-fxp-b.is-open { background: rgba(255,255,255,.12); }
     .ia-fxp-foot { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
-    .ia-fxp-foot-l { display: flex; gap: 6px; }
+    .ia-fxp-foot-l { display: flex; gap: 6px; align-items: center; }
+    .ia-fxp-fs { border: 0; border-radius: 6px; padding: 4px 11px; min-width: 40px; font: 800 11px system-ui, sans-serif; letter-spacing: .04em; color: #fff; cursor: pointer;
+      background: linear-gradient(135deg, #f97316, #c2410c); box-shadow: 0 2px 8px rgba(249,115,22,.3); transition: box-shadow .15s, transform .1s, filter .15s; white-space: nowrap; }
+    .ia-fxp-fs:hover { box-shadow: 0 4px 14px rgba(249,115,22,.55); filter: brightness(1.06); }
+    .ia-fxp-fs:active { transform: translateY(1px); }
+    .ia-fxp-fs.is-busy { filter: saturate(.7) brightness(.95); cursor: progress; }
     .ia-fxp-pick { border: 1px solid #445071; background: #1b2132; color: #e5e7eb; border-radius: 6px; padding: 4px 10px; font: 700 11px system-ui, sans-serif; cursor: pointer; min-width: 74px; text-align: left; transition: border-color .15s, background .15s; }
     .ia-fxp-pick:hover, .ia-fxp-pick.is-open { border-color: #7c8db5; background: #232a40; }
     .ia-fxp-menu.ia-fxp-menu--cab, .ia-fxp-menu.ia-fxp-menu--flex { min-width: 140px; }
@@ -7528,6 +7624,14 @@ function __jsEnsureSharedObserver() {
       box-shadow: 0 6px 14px color-mix(in srgb, var(--ias-acc) 30%, transparent); }
     .ia-fxp-all, .ia-fxp-allm { font-weight: 800; }
     .ia-fxp-allm { border-radius: 999px; }
+    .ia-fxp-fs { border-radius: 999px; padding: 4px 12px; min-width: 40px; color: var(--ias-onacc); font: 800 11px Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: .05em;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--ias-acc) 78%, white), var(--ias-acc)); box-shadow: 0 2px 8px color-mix(in srgb, var(--ias-acc) 35%, transparent); }
+    .ia-fxp-fs:hover { box-shadow: 0 4px 14px color-mix(in srgb, var(--ias-acc) 55%, transparent); filter: none; }
+    .ia-fxp-foot { gap: 6px; }
+    .ia-fxp-foot-l { gap: 5px; min-width: 0; }
+    .ia-fxp-pick { min-width: 0; white-space: nowrap; padding: 4px 9px; }
+    .ia-fxp-all, .ia-fxp-allm { white-space: nowrap; }
+    .ia-fxp-fs { padding: 4px 10px; flex: none; }
     .ia-fxp-menu, .ia-fxp-menu--m, .ia-fxp-menu--py, .ia-fxp-menu--fb { background: var(--ias-sky), var(--ias-glass); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
       border: 1px solid var(--ias-edge); border-radius: 16px; box-shadow: var(--ias-shadow), inset 0 1px 0 var(--ias-edge); padding: 6px; }
     .ia-fxp-menu-h { font-weight: 700; }
@@ -7983,8 +8087,100 @@ function __jsEnsureSharedObserver() {
     return true;
   }
 
+  // --- Quiet hours ---------------------------------------------------
+  // The client's local time (the BO's "Local time" column on the list, or
+  // the clock badge inside a lead). 22:00–07:59 there: auto dial passes
+  // over the lead (not marked, so it's picked up once it's daytime), and a
+  // call you start yourself asks first.
+  function cellByHeader(row, re) {
+    const table = row.closest('table');
+    if (!table) return null;
+    let idx = -1, col = 0;
+    for (const th of table.querySelectorAll('thead tr:first-child th')) {
+      if (re.test(th.textContent)) { idx = col; break; }
+      col += th.colSpan || 1;
+    }
+    if (idx < 0) return null;
+    col = 0;
+    for (const td of row.children) {
+      const span = td.colSpan || 1;
+      if (idx >= col && idx < col + span) return td;
+      col += span;
+    }
+    return null;
+  }
+  function rowLocalTime(row) {
+    const td = row && cellByHeader(row, /local\s*time/i);
+    const m = td && td.textContent.match(/\b(\d{1,2}):(\d{2})\b/);
+    return m ? m[1].padStart(2, '0') + ':' + m[2] : null;
+  }
+  function leadPageLocalTime() {
+    const b = Array.from(document.querySelectorAll('.badge')).find((el) => el.querySelector('svg.feather-clock') && /\b\d{1,2}:\d{2}\b/.test(el.textContent) && !el.closest('tr, .ia-widget'));
+    const m = b && b.textContent.match(/\b(\d{1,2}):(\d{2})\b/);
+    return m ? m[1].padStart(2, '0') + ':' + m[2] : null;
+  }
+  const isQuietTime = (t) => { if (!t) return false; const h = parseInt(t, 10); return h >= 22 || h < 8; };
+  let quietSeenInScan = false;
+
+  // Pip-style "call anyway?" box. Resolves true (call) or false (cancel).
+  function confirmQuietCall(time) {
+    return new Promise((resolve) => {
+      document.querySelectorAll('.ia-quiet').forEach((n) => n.remove());
+      const ov = document.createElement('div');
+      ov.className = 'ia-quiet';
+      const pal = iaPalette();
+      ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.acc + ';--q-onacc:' + pal.onacc + ';--q-shadow:' + pal.shadow;
+      const card = document.createElement('div');
+      card.className = 'ia-quiet__card';
+      const scr = document.createElement('div');
+      scr.className = 'ia-quiet__scr';
+      const t1 = document.createElement('div');
+      t1.className = 'ia-quiet__time';
+      t1.textContent = time;
+      const moon = document.createElement('span');
+      moon.className = 'ia-quiet__moon';
+      moon.textContent = '\u{1F319}';
+      t1.prepend(moon);
+      const pip = document.createElement('div');
+      pip.className = 'ia-quiet__pip';
+      try { pip.appendChild(iaPipNode(30, pal)); } catch (e) { /* no face is fine */ }
+      scr.appendChild(pip);
+      const t2 = document.createElement('div');
+      t2.className = 'ia-quiet__msg';
+      t2.textContent = 'It\u2019s night for this client (' + time + ' their time). Call anyway?';
+      scr.append(t1, t2);
+      const btns = document.createElement('div');
+      btns.className = 'ia-quiet__btns';
+      const no = document.createElement('button');
+      no.type = 'button'; no.className = 'ia-quiet__no'; no.textContent = 'Cancel';
+      const yes = document.createElement('button');
+      yes.type = 'button'; yes.className = 'ia-quiet__yes'; yes.textContent = 'Call anyway';
+      btns.append(no, yes);
+      card.append(scr, btns);
+      ov.appendChild(card);
+      const done = (ok) => { document.removeEventListener('keydown', onKey, true); ov.remove(); resolve(ok); };
+      const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done(false); } else if (e.key === 'Enter') { e.preventDefault(); done(true); } };
+      no.addEventListener('click', (e) => { e.stopPropagation(); done(false); });
+      yes.addEventListener('click', (e) => { e.stopPropagation(); done(true); });
+      ov.addEventListener('click', (e) => { if (e.target === ov) done(false); });
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(ov);
+      setTimeout(() => yes.focus(), 0);
+    });
+  }
+  // For calls you start yourself: true = go ahead.
+  async function quietOk(row) {
+    const t = row ? rowLocalTime(row) : leadPageLocalTime();
+    if (!isQuietTime(t)) return true;
+    return confirmQuietCall(t);
+  }
+
   function getNextPendingRowOnPage() {
-    return getLeadRows().find((row) => hasTimerRunning(row) && !isDoneThisRound(getLeadId(row))) || null;
+    return getLeadRows().find((row) => {
+      if (!hasTimerRunning(row) || isDoneThisRound(getLeadId(row))) return false;
+      if (isQuietTime(rowLocalTime(row))) { quietSeenInScan = true; return false; }
+      return true;
+    }) || null;
   }
 
   // Prefers the specific numbered page-button matching (current page +
@@ -8042,6 +8238,7 @@ function __jsEnsureSharedObserver() {
   let levelUpArmed = false; // set once a full re-check found nothing left
   async function getNextPendingRow() {
     pendingScanState = 'ok';
+    quietSeenInScan = false;
     for (let hops = 0; hops < 40; hops++) {
       const onPage = getNextPendingRowOnPage();
       if (onPage) { levelUpArmed = false; return onPage; }
@@ -8226,6 +8423,7 @@ function __jsEnsureSharedObserver() {
       });
     });
     applyTheme(getStoredTheme());
+    setSnipingIndicator(window.__iansAssistantSniperActive);
     applySuperState();
     applyDoubleDialState();
     updateTodayStats();
@@ -8674,6 +8872,22 @@ function __jsEnsureSharedObserver() {
     triggerWave();
   }
 
+  // --- Sniper-active indicator ---------------------------------------
+  // The lead sniper (SECTION 5, below) lives in its own IIFE, so it can't
+  // touch iaWidget directly. Instead it flips a boolean on window and
+  // dispatches an event; this is the one place that listens and applies
+  // it as a class overlay on top of whatever theme is active, rather
+  // than as a fourth theme, so it always reverts to the real theme
+  // (teal/pink/black) the moment sniping turns off instead of getting
+  // "stuck" chosen like a theme would.
+  function setSnipingIndicator(active) {
+    if (!iaWidget) return;
+    iaWidget.classList.toggle('ia-widget--sniping', !!active);
+  }
+  window.addEventListener('iansassistant:sniper-state', (e) => {
+    setSnipingIndicator(e.detail && e.detail.active);
+  });
+
   function triggerWave() {
     if (!iaWidget) return;
     ['.ia-arm-left', '.ia-arm-right'].forEach((sel) => {
@@ -8804,6 +9018,43 @@ function __jsEnsureSharedObserver() {
   let pendingAutoNext = false;  // next dial is waiting for your own call to end
   let iaCallDigits = null;     // number Pip is currently calling (last 10 digits)
   let iaCallConnectedAt = 0;   // when Pip's current call connected (0 = never)
+  // A follow-up call that's been going (ringing or connected) for 3:30 means
+  // someone's on the line who needs help: the run stops, mid-call.
+  const LONG_CALL_SEC = 210;
+  let longCallTimer = null;
+  function clearLongCall() { if (longCallTimer) { clearTimeout(longCallTimer); longCallTimer = null; } }
+  function armLongCall() {
+    if (longCallTimer || !autoRunning) return;
+    longCallTimer = setTimeout(() => {
+      longCallTimer = null;
+      if (!autoRunning || !awaitingCallEnd || !callSeen) return;
+      stopAutoRun();
+      setPanelStatus('Long call \u2014 follow-up stopped');
+      playLongCallPop();
+    }, LONG_CALL_SEC * 1000);
+  }
+  // Two soft rising "pops", made on the spot (no sound file).
+  function playLongCallPop() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = playLongCallPop.ctx || (playLongCallPop.ctx = new AC());
+      if (ctx.state === 'suspended') ctx.resume();
+      const t0 = ctx.currentTime + 0.02;
+      [[0, 500, 1100], [0.12, 650, 1400]].forEach(([at, f0, f1]) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(f0, t0 + at);
+        o.frequency.linearRampToValueAtTime(f1, t0 + at + 0.09);
+        g.gain.setValueAtTime(0.0001, t0 + at);
+        g.gain.exponentialRampToValueAtTime(0.22, t0 + at + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.12);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t0 + at); o.stop(t0 + at + 0.14);
+      });
+    } catch (e) { /* no sound is fine */ }
+  }
   let leadRedialed = false;     // double-dial: this lead already got its 2nd call
   // Every live call RingCentral reports on your account: key -> { mine, seen }
   const activeCalls = new Map();
@@ -9053,6 +9304,7 @@ function __jsEnsureSharedObserver() {
         setTimeout(() => icon.classList.remove('is-fail'), 1200);
         return;
       }
+      if (!(await quietOk(box.closest('tr')))) return;
       callAndShowOnBmo(box, number);
       icon.classList.add('is-ok');
       setTimeout(() => icon.classList.remove('is-ok'), 1500);
@@ -9224,7 +9476,7 @@ function __jsEnsureSharedObserver() {
       const live = liveBoxIn(area, box);
       const icon = live && live.nextElementSibling && live.nextElementSibling.classList.contains('ia-callicon') ? live.nextElementSibling : null;
       if (live && icon) callFromIcon(live, icon);
-      else if (live) waitForNumber(live, 2500).then((n) => { if (n) callAndShowOnBmo(live, n); });
+      else if (live) waitForNumber(live, 2500).then(async (n) => { if (n && await quietOk(live.closest('tr'))) callAndShowOnBmo(live, n); });
     });
     item('Copy number', COPY_ICON_SVG, () => copyNumber(box, area));
     document.body.appendChild(m);
@@ -9297,6 +9549,7 @@ function __jsEnsureSharedObserver() {
     callSeen = false;
     iaCallDigits = digitsOf(number);
     iaCallConnectedAt = 0;
+    clearLongCall();
     if (callAppearTimer) clearTimeout(callAppearTimer);
     callAppearTimer = setTimeout(() => {
       callAppearTimer = null;
@@ -9315,6 +9568,7 @@ function __jsEnsureSharedObserver() {
   function stopAutoRun() {
     setOnCall(false);
     autoRunning = false;
+    clearLongCall();
     awaitingCallEnd = false;
     callSeen = false;
     pendingAutoNext = false;
@@ -9337,6 +9591,7 @@ function __jsEnsureSharedObserver() {
   }
 
   function onCallEnded() {
+    clearLongCall();
     setOnCall(false);
     if (!awaitingCallEnd || !callSeen) return; // not a call Pip is watching
     awaitingCallEnd = false;
@@ -9451,6 +9706,7 @@ function __jsEnsureSharedObserver() {
       activeCalls.set(key, { mine, seen: Date.now() });
       if (mine) {
         callSeen = true;
+        armLongCall(); // timed from the first sign of the call, ringing or connected
         setOnCall(true);
         if (st === 'CallConnected' && !iaCallConnectedAt) iaCallConnectedAt = Date.now();
         if (!manualCallActive()) setPanelStatus(st === 'Ringing' ? 'Ringing\u2026' : st === 'OnHold' ? 'On hold' : 'On call');
@@ -10401,7 +10657,13 @@ function __jsEnsureSharedObserver() {
       for (let guard = 0; guard < 50; guard++) {
         if (!row || currentRowDialed) {
           row = await getNextPendingRow();
-          if (!row) { await onAllLeadsDone(); return; }
+          if (!row) {
+            // Everything left is in quiet hours: not "all done" — they're
+            // still waiting for daytime.
+            if (quietSeenInScan) { stopAutoRun(); setPanelStatus('The rest are in quiet hours (22:00\u201308:00)'); return; }
+            await onAllLeadsDone();
+            return;
+          }
           // Shown immediately, labeled "Up next" — not "Currently
           // calling" — since nothing has actually been dialed for them
           // yet at this point.
@@ -10428,6 +10690,10 @@ function __jsEnsureSharedObserver() {
         break;
       }
 
+      if (!isAuto && isQuietTime(rowLocalTime(row)) && !(await confirmQuietCall(rowLocalTime(row)))) {
+        setPanelStatus('Call cancelled \u2014 quiet hours');
+        return;
+      }
       leadRedialed = false;
       dialNumber(number, !isAuto);
 
@@ -10912,6 +11178,17 @@ function __jsEnsureSharedObserver() {
 
   // --- Lead page chip -------------------------------------------------------
   function cbChipLabel(c) { return c ? cbShort(c.at) : 'Callback'; }
+  // Opens the Disclaimers & Scripts page (IA_DISC_HTML, at the end of the
+  // file) in a new tab.
+  function iaOpenDisclaimers() {
+    try {
+      const url = URL.createObjectURL(new Blob([IA_DISC_HTML], { type: 'text/html' }));
+      const w = window.open(url, '_blank');
+      if (w) { setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
+    } catch (e) { /* try the other way */ }
+    const w2 = window.open('', '_blank');
+    if (w2) { w2.document.open(); w2.document.write(IA_DISC_HTML); w2.document.close(); }
+  }
   function cbWireChip() {
     const id = cbPageLeadId();
     if (!id) return;
@@ -10927,6 +11204,18 @@ function __jsEnsureSharedObserver() {
       chip.innerHTML = CB_CLOCK + '<span></span>';
       chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); cbOpenPicker(chip, cbLeadPageInfo(id)); });
       tag.insertAdjacentElement('afterend', chip);
+    }
+    // Disclaimers & Scripts page, next to the callback chip.
+    let disc = document.querySelector('.ia-disc-chip');
+    if (disc && disc.previousElementSibling !== chip) { disc.remove(); disc = null; }
+    if (!disc) {
+      disc = document.createElement('button');
+      disc.type = 'button';
+      disc.className = 'ia-cb-chip ia-disc-chip';
+      disc.title = 'Open the disclaimers and scripts (1-click copy) in a new tab';
+      disc.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span>Disclaimers</span>';
+      disc.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); iaOpenDisclaimers(); });
+      chip.insertAdjacentElement('afterend', disc);
     }
     const c = cbFor(id);
     const t = chip.querySelector('span');
@@ -11115,8 +11404,30 @@ function __jsEnsureSharedObserver() {
       25% { filter: drop-shadow(0 0 28px rgba(255, 215, 0, 1)) brightness(1.5); }
       100% { filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4)) brightness(1); }
     }
+    /* Sniper-active overlay — wins over whichever theme (teal/pink/black)
+       is currently chosen, because it's not itself a theme: it's a
+       temporary "sniping in progress" indicator that reverts to the real
+       theme the instant Alt+Z turns the sniper back off. Placed after all
+       three theme blocks so it wins the cascade regardless of which
+       theme class is also present. */
+    .ia-widget--sniping {
+      --ia-pip-body: #dc2626;
+      --ia-pip-side: #a51d1d;
+      --ia-pip-dark: #7f1d1d;
+      --ia-pip-screen: #fee2e2;
+      --ia-pip-text: #450a0a;
+    }
+    /* Stop button goes light so it stands out on the dark red body. */
+    .ia-widget--sniping .ia-stop-face { fill: #fee2e2; }
+    .ia-widget--sniping .ia-stop-base { fill: #d9a3a3 !important; }
+    .ia-widget--sniping .ia-btn-stop .ia-btn-label { fill: #c26a6a; }
+    /* Challenging squint while sniping: eyes narrow, and a slanted lid (in
+       the screen's own color) cuts the top of each eye down toward the
+       middle. No eyebrows, same smile. */
     .ia-lid { opacity: 0; fill: var(--ia-pip-screen); transition: fill .6s ease, opacity 1.3s ease; }
     .ia-eye { transform-box: fill-box; transform-origin: center; transition: transform 1.3s ease; }
+    .ia-widget--sniping .ia-eye { transform: scaleY(.85); }
+    .ia-widget--sniping .ia-lid { opacity: 1; }
 
     /* --- 3D look: light from above, everything casts its shadow down --- */
     .ia-bodygrp { filter: drop-shadow(0 6px 5px rgba(0,0,0,.22)); }
@@ -11179,6 +11490,7 @@ function __jsEnsureSharedObserver() {
     /* Super Pip: flowing rainbow body once the day's follow-up is done. */
     .ia-rainbow { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
     .ia-widget--super .ia-rainbow { opacity: 1; }
+    .ia-widget--super.ia-widget--sniping .ia-rainbow { opacity: 0; }
     /* Bubble rainbow sits on a layer under the screen that fades in/out at
        the same .6s as everything else (a gradient background would snap). */
     .ia-bubble::after {
@@ -11280,6 +11592,14 @@ function __jsEnsureSharedObserver() {
     /* Stop pressed while running: a clear "stopped" flash. */
     .ia-widget--stop-flash .ia-stop-face { animation: ia-old-stop-flash .9s ease-out 1; }
     @keyframes ia-old-stop-flash { 0% { fill: #ffffff; } 100% { } }
+    .ia-widget--sniping .ia-bubble,
+    .ia-widget--sniping .ia-full {
+      animation: ia-sniping-pulse 1s ease-in-out infinite;
+    }
+    @keyframes ia-sniping-pulse {
+      0%, 100% { filter: drop-shadow(0 0 0 rgba(220, 38, 38, 0)); }
+      50% { filter: drop-shadow(0 0 8px rgba(220, 38, 38, .85)); }
+    }
     /* Everything themeable transitions fill/stroke together, so toggling
        the palette reads as one smooth cross-fade across the whole
        character rather than separate pieces changing at different
@@ -11477,6 +11797,20 @@ function __jsEnsureSharedObserver() {
       padding: 0 2px;
     }
     .ia-reminder__dismiss:hover { opacity: 1; }
+    .ia-quiet { position: fixed; inset: 0; z-index: 2147483600; background: rgba(6,10,24,.38); display: flex; align-items: center; justify-content: center; }
+    .ia-quiet__card { width: 300px; box-sizing: border-box; border-radius: 20px; padding: 14px; background: var(--q-sky), var(--q-glass); border: 1px solid var(--q-edge);
+      box-shadow: var(--q-shadow), inset 0 1px 0 var(--q-inner); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5); font-family: Inter, 'Segoe UI', system-ui, sans-serif; color: var(--q-title); }
+    .ia-quiet__scr { display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'pip time' 'pip msg'; column-gap: 12px; align-items: center; }
+    .ia-quiet__pip { grid-area: pip; width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--q-chip); box-shadow: var(--q-chipsh); }
+    .ia-quiet__time { grid-area: time; display: flex; align-items: center; gap: 6px; font: 800 22px/1.15 Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: -.01em; }
+    .ia-quiet__moon { font-size: 17px; }
+    .ia-quiet__msg { grid-area: msg; margin-top: 2px; font: 700 12.5px/1.35 Inter, 'Segoe UI', system-ui, sans-serif; color: var(--q-sec); }
+    .ia-quiet__btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .ia-quiet__btns button { border: 1px solid transparent; border-radius: 999px; padding: 7px 15px; font: 800 12px Inter, 'Segoe UI', system-ui, sans-serif; cursor: pointer; }
+    .ia-quiet__no { background: var(--q-chip); color: var(--q-title); box-shadow: var(--q-chipsh); }
+    .ia-quiet__no:hover { border-color: var(--q-acc); }
+    .ia-quiet__yes { background: linear-gradient(180deg, color-mix(in srgb, var(--q-acc) 78%, white), var(--q-acc)); color: var(--q-onacc); }
+    .ia-quiet__yes:focus-visible, .ia-quiet__no:focus-visible { outline: 2px solid var(--q-acc); outline-offset: 2px; }
   `);
 
 
@@ -11505,6 +11839,9 @@ function __jsEnsureSharedObserver() {
     .ia-widget.ia-mode-dark.ia-widget--super { --acc:#a78bfa; }
     .ia-widget.ia-mode-light.ia-widget--super { --acc:#7c3aed; }
     .ia-widget.ia-mode-navy.ia-widget--super { --acc:#c4b5fd; }
+    .ia-widget.ia-mode-dark.ia-widget--sniping { --acc:#f8717f; }
+    .ia-widget.ia-mode-light.ia-widget--sniping { --acc:#dc3e42; }
+    .ia-widget.ia-mode-navy.ia-widget--sniping { --acc:#ff8a8a; }
 
     /* Pip */
     .pip { display: block; flex: none; }
@@ -11519,6 +11856,8 @@ function __jsEnsureSharedObserver() {
     .pip .pip-f-call, .pip .pip-f-snipe { display: none; }
     .ia-widget--oncall .pip .pip-f-idle { display: none; }
     .ia-widget--oncall .pip .pip-f-call { display: inline; }
+    .ia-widget--sniping .pip .pip-f-idle, .ia-widget--sniping .pip .pip-f-call { display: none; }
+    .ia-widget--sniping .pip .pip-f-snipe { display: inline; }
     .ia-widget--levelup .pip { animation: pip-bounce .7s cubic-bezier(.3,1.6,.5,1) 2; }
     @keyframes pip-bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
 
@@ -11527,10 +11866,12 @@ function __jsEnsureSharedObserver() {
       box-shadow: var(--ia-shadow); transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .2s, background .3s, border-color .3s; }
     .ia-widget .ia-bubble::after { display: none; }
     .ia-widget .ia-bubble:hover { border-color: var(--acc); }
+    .ia-widget--sniping .ia-bubble { border-color: var(--acc); }
     .ia-mini { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
     .ia-mini__dot { position: absolute; top: -9px; right: -16px; }
     .ia-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ia-line2); flex: none; transition: background .3s; }
     .ia-widget--running .ia-dot { background: var(--ia-ok); animation: ia-pulse 1.6s ease-in-out infinite; }
+    .ia-widget--sniping .ia-dot { background: var(--acc); animation: ia-pulse 1s ease-in-out infinite; }
     @keyframes ia-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
     /* Open panel (280 x 331) */
@@ -11687,6 +12028,7 @@ function __jsEnsureSharedObserver() {
     .ia-cb-chip { display: inline-flex; align-items: center; gap: 5px; margin: 4px 0 0; padding: 2px 9px; border-radius: 999px; cursor: pointer;
       border: 1px solid #c7c7f5; background: #eef0ff; color: #3f3fb5; font: 800 12px/18px Inter, 'Segoe UI', system-ui, sans-serif; vertical-align: middle; }
     .ia-cb-chip:hover { border-color: #5b5bd6; }
+    .ia-disc-chip { margin-left: 6px; }
     .ia-cb-chip.is-set { background: #5b5bd6; border-color: #5b5bd6; color: #fff; }
     .ia-cb-chip.is-due { background: #e5484d; border-color: #e5484d; color: #fff; }
     /* Reminder card */
@@ -11705,7 +12047,8 @@ function __jsEnsureSharedObserver() {
     /* Switch off the old character-only effects */
     .ia-widget--gold .ia-bubble, .ia-widget--gold .ia-full,
     .ia-widget--gold-unlock .ia-full,
-    .ia-widget--cracked .ia-full, .ia-widget--cracked .ia-bubble { animation: none !important; filter: none !important; }
+    .ia-widget--cracked .ia-full, .ia-widget--cracked .ia-bubble,
+    .ia-widget--sniping .ia-bubble, .ia-widget--sniping .ia-full { animation: none !important; filter: none !important; }
   `);
 
   // ------------------------------------------------------------------
@@ -11784,6 +12127,191 @@ function __jsEnsureSharedObserver() {
   __jsEnsureSharedObserver();
   ensureBmo();
 })();
+
+// ====================================================================
+// SECTION 5 · Lead sniper (Alt+Z / Alt+X; Option+Z / Option+X on a Mac)
+// ====================================================================
+// Sniper logic taken from the standalone "CRM Master Sniper & Sales
+// Analytics" v2.2 script (10ms polling + 20ms Enter confirm). The old
+// "Lead Sniper: ON/OFF (MAX SPEED)" popup is gone — Pip turning red
+// (SECTION 4 listens for the iansassistant:sniper-state event) is the only
+// on/off indicator. Kept as its own IIFE so it's independent of the
+// Pip/power-dialer domain guard above — it runs on tmgbo.com too, where
+// Pip doesn't exist at all.
+(function () {
+  'use strict';
+
+  // Not inside the RingCentral phone frame (see SECTION 6), and never inside
+  // any frame (e.g. the hidden "send to lead" worker) — one sniper only.
+  if (/ringcentral\.com$/.test(location.hostname)) return;
+  if (window.top !== window) return;
+  if (/travelbusinessclass\.com$/.test(location.hostname) && !/^\/(leads|experts)\//.test(location.pathname)) return;
+
+  // Sniper states
+  let sniperActive = false;
+  let isStriking = false;
+
+  window.__iansAssistantSniperActive = false;
+
+  function setSniperActive(active) {
+    sniperActive = active;
+    window.__iansAssistantSniperActive = active;
+    window.dispatchEvent(new CustomEvent('iansassistant:sniper-state', { detail: { active } }));
+  }
+
+  // Listen for hotkeys
+  document.addEventListener('keydown', function (e) {
+    // ALT + Z or ALT + X: toggle the Lead Sniper (Pip turns red while ON).
+    // On a Mac it's OPTION + Z or OPTION + X (Option is the Mac's Alt key;
+    // with it held, a Mac types \u03A9 for Z and \u2248 for X, so those count too).
+    const macKey = e.key === '\u2248' || e.key === '\u03A9';
+    if (e.altKey && (e.code === 'KeyZ' || e.code === 'KeyX' || macKey)) {
+      e.preventDefault();
+      setSniperActive(!sniperActive);
+    }
+  });
+
+  // --- Randomized timings -------------------------------------------------
+  // Every wait is a fresh random whole number of ms inside its range, and
+  // never the same as the previous wait of that same kind.
+  //   first click after the button appears : 20-140 ms
+  //   Enter after each click               : 10-35 ms
+  //   each next click while the button stays: 100-140 ms
+  //   "Take lead request" after a win       : 200-600 ms
+  const TIMING = {
+    firstClick: [20, 140],
+    enter: [10, 35],
+    retryClick: [100, 140],
+    takeRequest: [200, 600],
+  };
+  const lastWait = {};
+  function randWait(kind) {
+    const [lo, hi] = TIMING[kind];
+    let v;
+    do { v = lo + Math.floor(Math.random() * (hi - lo + 1)); } while (hi > lo && v === lastWait[kind]);
+    lastWait[kind] = v;
+    return v;
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function findLeadButton() {
+    for (const btn of document.querySelectorAll('button.--warning')) {
+      if (btn.textContent.includes('New leads')) return btn;
+    }
+    return null;
+  }
+
+  // One "strike" covers one appearance of the button: a first click after
+  // 20-140 ms, Enter 10-35 ms later, then while the button is still there
+  // another click every 100-140 ms (each followed by its own Enter). When
+  // the button goes away the strike ends, so its next appearance gets a
+  // fresh first-click wait.
+  async function strike() {
+    isStriking = true;
+    try {
+      await sleep(randWait('firstClick'));
+      while (sniperActive) {
+        const btn = findLeadButton();
+        if (!btn) break;
+        btn.click();
+        await sleep(randWait('enter'));
+        if (!sniperActive) break;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        await sleep(randWait('retryClick'));
+      }
+    } finally {
+      isStriking = false;
+    }
+  }
+
+  // Watches for the button every 10 ms (only the watching is fast; the
+  // clicks follow the random waits above).
+  setInterval(() => {
+    if (!sniperActive || isStriking) return;
+    if (findLeadButton()) strike();
+  }, 10);
+
+  // --- Pop-ups (toasts) -----------------------------------------------------
+  // Only while the sniper is on (with it off, every pop-up shows as usual):
+  //  - Every red pop-up is hidden completely, whatever it says.
+  //  - Two exceptions, each shown once at the top (the second one under the
+  //    first if both are up); while one is on screen, its repeats are hidden:
+  //      "Please add at least one PQ to your lead taken previously… Click to
+  //       go to lead #…" (still clickable to open that lead), and
+  //      "Your lead limit for today has been reached. You cannot take more
+  //       than 1 new lead per hour."
+  //  - Either of those two turns the sniper off by itself.
+  //  - The green "New lead #… was assigned to you" is never touched. Each
+  //    lead number is handled once: "Take lead request" is clicked once,
+  //    200-600 ms later. If that button isn't on the page yet, it keeps
+  //    looking for up to 5 seconds before giving up on that lead.
+  const LEAD_ASSIGNED_RE = /New lead #(\d+) was assigned to you/i;
+  const KEEP = [
+    { key: 'pq', re: /Please add at least one PQ to your lead taken previously/i },
+    { key: 'limit', re: /Your lead limit for today has been reached/i },
+  ];
+  const handledAssignedLeads = new Set();
+  const keptOnScreen = {}; // key -> the one pop-up of that kind being shown
+
+  function clickTakeLeadRequest(deadline) {
+    const btn = document.querySelector('button[category="lead_take_requests"]');
+    if (btn && !btn.disabled) { btn.click(); return; }
+    if (Date.now() < deadline) setTimeout(() => clickTakeLeadRequest(deadline), 100);
+  }
+
+  function hideToast(item) {
+    item.style.setProperty('display', 'none', 'important');
+  }
+  function pinToastTop(item) {
+    let top = 12;
+    Object.keys(keptOnScreen).forEach((k) => { const o = keptOnScreen[k]; if (o && o !== item && o.isConnected) top += o.getBoundingClientRect().height + 8; });
+    ['position:fixed', 'top:' + Math.round(top) + 'px', 'left:50%', 'right:auto', 'bottom:auto', 'transform:translateX(-50%)', 'z-index:2147483647', 'margin:0']
+      .forEach((d) => { const [k, v] = d.split(':'); item.style.setProperty(k, v, 'important'); });
+  }
+
+  function scanToasts() {
+    Object.keys(keptOnScreen).forEach((k) => { if (keptOnScreen[k] && !keptOnScreen[k].isConnected) keptOnScreen[k] = null; });
+    if (!sniperActive) return;
+    document.querySelectorAll('.v-toast__text').forEach((el) => {
+      const item = el.closest('.v-toast__item') || el.parentElement;
+      if (!item || item.dataset.iaToast) return;
+      const text = el.textContent;
+
+      const win = text.match(LEAD_ASSIGNED_RE);
+      if (win) {
+        item.dataset.iaToast = 'win';
+        if (handledAssignedLeads.has(win[1])) return;
+        handledAssignedLeads.add(win[1]);
+        setTimeout(() => clickTakeLeadRequest(Date.now() + 5000), randWait('takeRequest'));
+        return;
+      }
+
+      const keep = KEEP.find((x) => x.re.test(text));
+      if (keep) {
+        if (keptOnScreen[keep.key]) { item.dataset.iaToast = 'hidden'; hideToast(item); return; }
+        item.dataset.iaToast = keep.key;
+        pinToastTop(item);
+        keptOnScreen[keep.key] = item;
+        // Either of these means no lead can be taken right now: the sniper
+        // switches itself off (Pip back to his own colour); the message
+        // stays up.
+        setSniperActive(false);
+        return;
+      }
+
+      item.dataset.iaToast = 'hidden';
+      hideToast(item);
+    });
+  }
+
+  // Checked on every page change (hides pop-ups before they're drawn) and
+  // every 50 ms as a backup.
+  __jsRegisterScan(scanToasts);
+  __jsEnsureSharedObserver();
+  setInterval(scanToasts, 50);
+
+})();
+
 
 // ====================================================================
 // SECTION 6 · Keep the RingCentral widget signed in
@@ -12537,3 +13065,367 @@ function __jsEnsureSharedObserver() {
   setInterval(scan, 3000);
   scan();
 })();
+
+// Shared hook: the itinerary builder below fills in .run(cmd) so the lead's
+// search panel (Fast Search) can drive the same terminal.
+const __iaTerm = { run: null, busy: false };
+// ====================================================================
+// SECTION 11 · Terminal helper (Sabre terminal) for Fast Search
+// ====================================================================
+// Drives the terminal's command bar for the search panel's Fast Search
+// button: opens the Terminal tab if needed, sends I, then the JR search.
+(function () {
+  'use strict';
+  if (!location.hostname.includes('travelbusinessclass.com')) return;
+  if (window.top !== window && /^jsworker-/.test(window.name || '')) return;
+
+  const CFG = {
+    INPUT: 'input[placeholder="TYPE COMMAND HERE" i]',
+    OUTPUT: '.terminal__output',
+    ECHO: '.terminal-delta__command-input',
+    SEP: '§',             // Sabre end item (tested: chains entries)
+    CHAIN_MAX: 3,         // the terminal runs at most 3 sells per entry (tested)
+    DISPLAY: '*IA',
+    CLEAR: 'I',           // ignore, sent on its own first (reply IGD)
+    SELL: (s, cls, pax) => `0${s.airline}${s.flight}${cls}${s.date}${s.from}${s.to}NN${pax}`,
+    QUIET_MS: 400,        // a reply is complete once its block stops changing this long
+    EMPTY_MS: 1500,       // chained sells often reply with nothing: accept an empty block after this
+    TIMEOUT_MS: 15000,
+    GAP_MS: 120,
+    AUTO_CLOSE_MS: 4000,
+  };
+
+  const state = { running: false, abort: false };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  /* ---------- terminal driving ---------- */
+  // The BO can keep more than one terminal in the page (closed tabs stay
+  // in the DOM, hidden): always use the visible command bar, and the output
+  // area that belongs to that same terminal.
+  const shown = (el) => !!(el && el.getClientRects().length);
+  const getInput = () => {
+    const all = Array.from(document.querySelectorAll(CFG.INPUT));
+    return all.find(shown) || all[0] || null;
+  };
+  const getOutput = () => {
+    const i = getInput();
+    if (shown(i)) {
+      for (let el = i.parentElement; el && el !== document.body; el = el.parentElement) {
+        const o = el.querySelector(CFG.OUTPUT);
+        if (o) return o;
+      }
+    }
+    const all = Array.from(document.querySelectorAll(CFG.OUTPUT));
+    return all.find(shown) || all[0] || null;
+  };
+  const blocksOf = (out) => Array.from(out.querySelectorAll('pre')).filter((p) => p.querySelector(':scope > ' + CFG.ECHO));
+  const norm = (s) => String(s).toUpperCase().replace(/[^A-Z0-9*]/g, '');
+  const echoOf = (b) => { const e = b.querySelector(':scope > ' + CFG.ECHO); return e ? norm(e.textContent.replace(/^\s*❯\s*/, '')) : ''; };
+  // The reply as it reads on screen: rendered text keeps the line breaks
+  // between rows (divs / table rows), which plain textContent would glue
+  // together into one line.
+  const outputText = (b) => {
+    const e = b.querySelector(':scope > ' + CFG.ECHO);
+    const glued = () => Array.from(b.childNodes).filter((n) => n !== e).map((n) => n.textContent).join('');
+    if (typeof b.innerText !== 'string') return glued();
+    let t = b.innerText;
+    const et = e ? e.innerText : '';
+    if (et && t.indexOf(et) === 0) t = t.slice(et.length);
+    else if (e) return glued();
+    return t;
+  };
+  function setInputValue(input, value) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function submit(input) {
+    let el = input;
+    for (let i = 0; i < 6 && el; i++) {
+      el = el.parentElement;
+      const btn = el && Array.from(el.querySelectorAll('button')).find((b) => /^\s*send\s*$/i.test(b.textContent) && !b.disabled);
+      if (btn) { btn.click(); return; }
+    }
+    ['keydown', 'keypress', 'keyup'].forEach((type) =>
+      input.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true })));
+  }
+  // The terminal first shows "Loading ..." in the reply, then swaps in the
+  // real text. That placeholder never counts as the answer.
+  const isLoading = (t) => /^\s*LOADING\b/i.test(t);
+  // strict: only return once done(block) is true (the timeout returns null).
+  // Steps the agent doesn't need to see (I, the sells, retries) are hidden
+  // the moment they appear while hideSink is set; only *IA stays on screen.
+  let hideSink = null;
+  function hideBlock(b) {
+    if (!b || !hideSink) return;
+    b.style.setProperty('display', 'none', 'important');
+    if (!hideSink.includes(b)) hideSink.push(b);
+  }
+  const unhideAll = (list) => (list || []).forEach((b) => { try { b.style.removeProperty('display'); } catch (e) { /* ignore */ } });
+  async function waitForBlock(cmd, before, done, strict, timeoutMs) {
+    const want = norm(cmd);
+    const start = Date.now();
+    let sig = '', lastChange = Date.now();
+    while (Date.now() - start < (timeoutMs || CFG.TIMEOUT_MS)) {
+      await sleep(60);
+      const out = getOutput();
+      if (!out) continue;
+      const blocks = blocksOf(out);
+      const last = blocks[blocks.length - 1];
+      if (!last || echoOf(last) !== want) continue;
+      if (last === before.node && last.textContent === before.text) continue;
+      hideBlock(last);
+      const s = last.textContent.length + ':' + last.querySelectorAll('tr').length;
+      if (s !== sig) { sig = s; lastChange = Date.now(); }
+      const quiet = Date.now() - lastChange;
+      const input = getInput();
+      const busy = !!(input && input.disabled);
+      const text = outputText(last);
+      if (isLoading(text) && !(done && done.acceptLoading)) continue; // still loading
+      if (strict) { if (done && done(last)) return last; continue; }
+      const hasReply = text.trim().length > 0 || last.querySelector('table');
+      if (hasReply && ((done && done(last)) || (!busy && quiet >= CFG.QUIET_MS))) return last;
+      if (!hasReply && !busy && quiet >= CFG.EMPTY_MS) return last; // chained sells: empty reply
+    }
+    return null;
+  }
+  async function runCommand(cmd, done, strict, timeoutMs) {
+    const input = getInput();
+    const out = getOutput();
+    if (!input) throw new Error('The terminal command bar is not on this page.');
+    if (!out) throw new Error('The terminal output area is not on this page.');
+    for (let i = 0; i < 100 && input.disabled; i++) await sleep(100);
+    const blocks = blocksOf(out);
+    const lastBefore = blocks[blocks.length - 1];
+    const before = { node: lastBefore || null, text: lastBefore ? lastBefore.textContent : '' };
+    setInputValue(input, cmd);
+    await sleep(40);
+    submit(input);
+    // If the bar didn't take it (still holding the command, or the terminal
+    // swapped in a new bar meanwhile), enter it once more. A command the bar
+    // already took is never sent twice.
+    const want = norm(cmd);
+    const echoed = () => {
+      const o = getOutput();
+      const bl = o ? blocksOf(o) : [];
+      const last = bl[bl.length - 1];
+      return !!(last && echoOf(last) === want && !(last === before.node && last.textContent === before.text));
+    };
+    for (let k = 0; k < 25 && !echoed(); k++) await sleep(60);
+    if (!echoed()) {
+      const now = getInput();
+      if (now && (now.value === cmd || (now !== input && !input.isConnected))) {
+        setInputValue(now, cmd);
+        await sleep(40);
+        submit(now);
+      }
+    }
+    return waitForBlock(cmd, before, done, strict, timeoutMs);
+  }
+
+  /* ---------- run commands from elsewhere (Fast Search) ---------- */
+  // Opens the Terminal tab if it's closed, waits for the command bar, then
+  // sends I (waits for IGD) and the given command.
+  function terminalTab() {
+    const t = Array.from(document.querySelectorAll('.tab__title')).find((x) => /^\s*Terminal\b/i.test(x.textContent || ''));
+    if (!t) return null;
+    return t.closest('.tab') || t.closest('[role="tab"]') || t.closest('.tab__content') || t;
+  }
+  const barReady = () => { const i = getInput(); return !!(i && i.getClientRects().length && getOutput()); };
+  async function openTerminal() {
+    if (barReady()) return true;
+    const tab = terminalTab();
+    if (!tab) return false;
+    tab.click();
+    const inner = tab.querySelector && tab.querySelector('.tab__content');
+    for (let k = 0; k < 100 && !barReady(); k++) {
+      await sleep(100);
+      if (k === 15 && !barReady() && inner) inner.click();
+    }
+    if (!barReady()) return false;
+    await sleep(350); // let a just-opened terminal finish setting up its bar
+    return true;
+  }
+  __iaTerm.run = async function (cmd) {
+    if (state.running || __iaTerm.busy || document.documentElement.dataset.iaItbRunning) return { ok: false, msg: 'busy' };
+    __iaTerm.busy = true;
+    document.documentElement.dataset.iaTermBusy = '1';
+    try {
+      if (!(await openTerminal())) return { ok: false, msg: 'no-terminal' };
+      const input = getInput();
+      try { input.focus(); } catch (e) { /* ignore */ }
+      // I, then the search as soon as I's reply is in (IGD or anything else;
+      // a search doesn't depend on it). If the bar didn't take the I, once more.
+      const replied = (blk) => outputText(blk).trim().length > 0;
+      const quiet = [];
+      hideSink = quiet; // the I isn't shown, only the search
+      let cleared = await runCommand(CFG.CLEAR, replied, true, 4000);
+      if (!cleared) cleared = await runCommand(CFG.CLEAR, replied, true, 4000);
+      hideSink = null;
+      if (!cleared) { unhideAll(quiet); return { ok: false, msg: 'no-reply' }; }
+      await sleep(CFG.GAP_MS);
+      // The search counts as sent once it's on screen (results can take a while).
+      const onScreen = () => true;
+      onScreen.acceptLoading = true;
+      const b = await runCommand(cmd, onScreen, true, 8000);
+      return { ok: !!b, msg: b ? 'sent' : 'no-reply' };
+    } catch (e) {
+      return { ok: false, msg: 'error' };
+    } finally {
+      hideSink = null;
+      __iaTerm.busy = false;
+      delete document.documentElement.dataset.iaTermBusy;
+    }
+  };
+
+})();
+
+// ====================================================================
+// Disclaimers & Scripts page (opened by the Disclaimers chip in a lead)
+// ====================================================================
+const IA_DISC_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disclaimers & Scripts - TBC</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b111e;--card:#151e2d;--line:#2a364a;--ink:#f8fafc;--mid:#94a3b8;
+        --grad:linear-gradient(135deg,#0ea5e9 0%,#0369a1 100%);--code:#38bdf8;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--ink);
+       padding:30px 20px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .header{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 22px;
+          display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{background:var(--grad);color:#fff;font-weight:800;font-size:22px;padding:4px 12px;
+        border-radius:8px;letter-spacing:-1px}
+  h1{font-size:17px;font-weight:800}
+  .sub{font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:1px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 12px; overflow-x: auto; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { background: transparent; border: none; color: var(--mid); font-size: 13px; font-weight: 700; cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); white-space: nowrap; }
+  .tab-btn:hover { background: rgba(255,255,255,0.05); color: var(--ink); }
+  .tab-btn.active { background: var(--grad); color: #fff; box-shadow: 0 4px 15px rgba(14,165,233,0.3); }
+  .tab-content { display: none; flex-direction: column; gap: 16px; animation: fadein 0.3s ease; }
+  .tab-content.active { display: flex; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .block-title { font-size: 11.5px; font-weight: 800; color: #7dd3fc; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+  .copy-block {
+    background: #090e17; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+    font-size: 13px; color: var(--code); white-space: pre-wrap; line-height: 1.6;
+    cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); position: relative;
+  }
+  .copy-block:hover { border-color: var(--code); background: #0c1424; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+  .copy-block::after {
+    content: 'Click to copy'; position: absolute; top: 12px; right: 14px; font-size: 10px; font-weight: 700;
+    color: rgba(56, 189, 248, 0.5); text-transform: uppercase; letter-spacing: 0.5px; transition: 0.2s;
+  }
+  .copy-block:hover::after { color: rgba(56, 189, 248, 1); }
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--grad);color:#fff;padding:10px 20px;
+         border-radius:99px;font-size:12.5px;font-weight:700;opacity:0;pointer-events:none;
+         transition:opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+         transform:translateY(20px); box-shadow: 0 10px 30px rgba(14,165,233,0.4);}
+  .toast.show{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">tbc</div>
+      <div><h1>Disclaimers & Scripts</h1><div class="sub">1-Click Copy Templates</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="openTab(event, 'discounts')">Discounts</button>
+      <button class="tab-btn" onclick="openTab(event, 'abt')">ABT Award</button>
+      <button class="tab-btn" onclick="openTab(event, 'revenue')">Revenue ELR / FRT</button>
+    </div>
+    <!-- DISCOUNTS TAB -->
+    <div id="discounts" class="tab-content active">
+      <div>
+        <span class="block-title">For UA, DL and AA bookings:</span>
+        <div class="copy-block" onclick="copyText(this)">This ticket is issued under special fare conditions and does not include a 24-hour void or refund option.
+The ticket is non-refundable under all circumstances, including flight disruptions or cancellations.
+If unused, the ticket may be canceled for future credit only, subject to airline rules, penalties, and any fare difference at the time of rebooking.
+By confirming your booking, you agree to these conditions.</div>
+      </div>
+      <div>
+        <span class="block-title">For other airlines:</span>
+        <div class="copy-block" onclick="copyText(this)">This ticket is issued under special fare conditions and does not include a 24-hour void, exchange, nor refund option.
+The ticket is non-refundable under all circumstances, including flight disruptions or cancellations.
+By confirming your booking, you agree to these conditions.</div>
+      </div>
+    </div>
+    <!-- ABT AWARD TAB -->
+    <div id="abt" class="tab-content">
+      <div>
+        <span class="block-title">Award Ticket [Only over the phone]</span>
+        <div class="copy-block" onclick="copyText(this)">Dear Customer,
+Thank you for booking with airbusinesstravel.com
+I would like to mention the following very important points.
+For any changes or cancelations or any other requests please call me directly at xxxxxxxxxxxx.
+These are non-fare tickets issued with corporate points, coupons and vouchers.
+This means that you will not be able to collect miles or benefit from other bonuses, promos or discounts provided by the airlines themselves.
+Please do not link any personal information to the booking such as telephone or email. The booking is linked to our email and we will update you on any changes. An attempt to link any personal frequent flyer information, email, or phone number to the tickets may result in technical discrepancies that may cause the tickets to be suspended.</div>
+      </div>
+      <div>
+        <span class="block-title">Taxes charged from pax CC</span>
+        <div class="copy-block" onclick="copyText(this)">====================== In case Award Ticketing advised that taxes are to be charged from pax CC =====================
+The taxes for your ticket in the amount of $.......... will be charged separately by the airline. These separate charges, which are a part of the total price, will be reflected on your bank statement separately. Please note, that any dispute or chargebacks of the following fees will be treated as a violation of the general conditions of carriage or tariffs and may result in cancellation of the ticket.
+!!! Make sure you mention the Award Program/Airline for the tax charge, eg. Air Canada, British Airways, Delta etc.</div>
+      </div>
+    </div>
+    <!-- REVENUE ELR/FRT TAB -->
+    <div id="revenue" class="tab-content">
+      <div>
+        <span class="block-title">Extra Leg [Only over the phone]</span>
+        <div class="copy-block" onclick="copyText(this)">Dear Customer,
+Once the ticket is issued and you will access your booking on the airline website I would like you to check this itinerary carefully; you have an additional segment on top of your flight. This is what we do when we try to get a better fare for you. This is how the system works: it has particular prices for specific destinations. In this case, your destination is more expensive than the destination we added. We also made the layover for more than 10-15 hours in order to give you enough time to collect your bags and take them with you from the airport, so they will not go to the final city/destination added by us.</div>
+      </div>
+      <div>
+        <span class="block-title">Fake Return [Only over the phone]</span>
+        <div class="copy-block" onclick="copyText(this)">Dear Customer,
+Once the ticket is issued and you will access your booking on the airline website I would like you to check this itinerary carefully. You have an additional segment back from XXX on the XX of XXXXX. We often book a return flight to get a better fare for you. The airlines offer better bulk contracts for round-trips than one-way tickets. Therefore, you should be informed that you have that flight included in your itinerary, to avoid any confusion at the airport. It is up to you if you would like to use that flight, but please inform us if you would like to use it, since we usually cancel that segment prior to departure to avoid a no-show status on it.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast">Copied to clipboard!</div>
+<script>
+function openTab(evt, tabId) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tab-content");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+    tabcontent[i].classList.remove("active");
+  }
+  tablinks = document.getElementsByClassName("tab-btn");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(tabId).style.display = "flex";
+  document.getElementById(tabId).classList.add("active");
+  evt.currentTarget.className += " active";
+}
+function copyText(el) {
+  var text = el.innerText;
+  var marker = "Click to copy";
+  if (text.endsWith(marker)) {
+    text = text.slice(0, -marker.length).trim();
+  }
+  navigator.clipboard.writeText(text).then(function() {
+    var toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, 2000);
+  });
+}
+<\/script>
+</body>
+</html>`;

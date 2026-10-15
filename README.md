@@ -36,7 +36,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **Basis** opens a search box with up to 3 airports on each side and a ±7-day range. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box with up to 3 airports on each side and a ±7-day range. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -48,12 +48,26 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2.
 - The panel shows today's calls, answered, skipped and round.
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
+- **Night-time protection** — the dialer skips clients where it's 10 pm–8 am their time; calling one yourself asks first. A call that passes 3½ minutes stops auto-dialing.
+- **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page (click any text to copy).
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
+
+**Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. On a Mac: **Option+Z** (or Option+X). The assistant turns red while it's on.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.5.0 — lead sniper back, disclaimers, Fast Search**
+- The lead sniper is back: **Alt+Z** or **Alt+X** (Option+Z / Option+X on a Mac) turns it on or off, and Pip turns red while it's on. While it's on it hides the BO's other pop-ups, keeps the "add a PQ to your previous lead" and "lead limit reached" messages on screen, and switches itself off when either one appears.
+- A new **Disclaimers** button inside every lead, next to the clock, opens the disclaimers and scripts page. Click any text there to copy it.
+- **FS** in the lead's search box sends the lead's Sabre search (JR) straight to the terminal. If the terminal isn't open, it opens it for you.
+- Night-time protection: the dialer skips clients where it's between 10 pm and 8 am their time and comes back to them in the daytime. Calling one yourself asks first.
+- While auto-dialing, a call that passes 3½ minutes stops the run by itself, so you're never moved on mid-conversation.
+- Matrix on one-way leads: a new option searches Business out with an Economy return 90 days later, which can price lower.
+- Merge now also fills each passenger's commission value.
+- Copying flights from Kayak works again after Kayak changed its pages.
 
 **2.4.0 — panel tidy-up**
 - The small tick box next to Double-dial has been removed from the panel. Everything else works as before.
