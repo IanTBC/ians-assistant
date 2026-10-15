@@ -53,14 +53,11 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
-**Lead sniper** — press **Alt+Z** (or Alt+X) to turn it on or off. On a Mac: **Option+Z** (or Option+X). The assistant turns red while it's on.
-
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
 
-**2.5.0 — lead sniper back, disclaimers, Fast Search**
-- The lead sniper is back: **Alt+Z** or **Alt+X** (Option+Z / Option+X on a Mac) turns it on or off, and Pip turns red while it's on. While it's on it hides the BO's other pop-ups, keeps the "add a PQ to your previous lead" and "lead limit reached" messages on screen, and switches itself off when either one appears.
+**2.5.0 — disclaimers, Fast Search and safer dialing**
 - A new **Disclaimers** button inside every lead, next to the clock, opens the disclaimers and scripts page. Click any text there to copy it.
 - **FS** in the lead's search box sends the lead's Sabre search (JR) straight to the terminal. If the terminal isn't open, it opens it for you.
 - Night-time protection: the dialer skips clients where it's between 10 pm and 8 am their time and comes back to them in the daytime. Calling one yourself asks first.
@@ -71,9 +68,6 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 **2.4.0 — panel tidy-up**
 - The small tick box next to Double-dial has been removed from the panel. Everything else works as before.
-
-**2.3.0 — lead sniper removed**
-- The lead sniper (Alt+Z / Alt+X) has been removed. Everything else works as before.
 
 **2.2.0 — call icons**
 - A small phone icon now sits next to every phone number. Click it to show the number and call it. Right-click it to choose where calls go: the RingCentral Windows app (as before) or the RingCentral website.
@@ -99,7 +93,6 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - Every Basis search, including Open all, now uses the date range you pick.
 
 **1.7.3 — Mac shortcut**
-- Mac users: turn the lead sniper on or off with Option+Z or Option+X.
 
 **1.7.2 — faster updates**
 - New versions now show up within a few minutes of being released, instead of up to half an hour. Later hides the banner for an hour.

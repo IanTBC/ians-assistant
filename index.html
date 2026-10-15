@@ -165,7 +165,7 @@ section { padding-block: 56px; border-top: 1px solid var(--line); }
 .mode .bar { height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
 .mode .ln { height: 8px; border-radius: 4px; }
 
-/* sniper */
+/* keys and tiles */
 .keys { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--soft); }
 kbd { font: 500 13px var(--font-mono); padding: 5px 9px; border-radius: 6px; border: 1px solid var(--line2); border-bottom-width: 2px; background: var(--bg); color: var(--fg-strong); }
 .tiles { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
@@ -404,27 +404,6 @@ CABIN-BUSINESS</pre>
 
   <section>
     <div class="sec-head">
-      <div class="eyebrow">Lead sniper</div>
-      <h2>Catch new leads the moment they drop</h2>
-    </div>
-    <div class="feature">
-      <div>
-        <div class="keys"><kbd>Alt</kbd>+<kbd>Z</kbd><span class="muted">or</span><kbd>Alt</kbd>+<kbd>X</kbd></div>
-        <div class="keys" style="margin-top:8px;"><span class="muted">On a Mac:</span><kbd>Option</kbd>+<kbd>Z</kbd><span class="muted">or</span><kbd>Option</kbd>+<kbd>X</kbd></div>
-        <p style="margin-top:14px;color:var(--soft);">Turns the sniper on or off. While it's on, Pip turns red. When a new lead is assigned to you, it asks for the next one straight away.</p>
-      </div>
-      <div class="stage">
-        <div class="tiles">
-          <div class="tile"><svg viewBox="10 10 76 80" width="50" height="52" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#7c7cf8"/><path d="M18 50 Q18 14 48 14 Q78 14 78 50" fill="none" stroke="#e8e8ed" stroke-width="3.4" stroke-linecap="round"/><rect x="14" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><rect x="74" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><circle cx="40" cy="47" r="3.8" fill="#0e0f13"/><circle cx="56" cy="47" r="3.8" fill="#0e0f13"/><path d="M41 57 Q48 63 55 57" fill="none" stroke="#0e0f13" stroke-width="2.8" stroke-linecap="round"/></svg></div>
-          <div class="tile red"><svg viewBox="10 10 76 80" width="50" height="52" aria-hidden="true"><path d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z" fill="#f8717f"/><path d="M18 50 Q18 14 48 14 Q78 14 78 50" fill="none" stroke="#e8e8ed" stroke-width="3.4" stroke-linecap="round"/><rect x="14" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><rect x="74" y="44" width="8" height="14" rx="3" fill="#e8e8ed"/><path d="M36 46 L44 48" stroke="#0e0f13" stroke-width="3" stroke-linecap="round"/><path d="M60 46 L52 48" stroke="#0e0f13" stroke-width="3" stroke-linecap="round"/><path d="M42 59 L54 58" stroke="#0e0f13" stroke-width="2.8" stroke-linecap="round"/></svg></div>
-        </div>
-        <div class="cap">Normal · sniping</div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="sec-head">
       <div class="eyebrow">Your look</div>
       <h2>Dark, Light or Navy</h2>
       <p class="muted">Switch with the button in the panel header, and pick an accent colour with the dot next to it. Your choice is saved.</p>
@@ -444,9 +423,8 @@ CABIN-BUSINESS</pre>
     </div>
     <div class="news">
       <div class="rel">
-        <div><div class="v">2.5.0</div><div class="d">Lead sniper back, disclaimers, Fast Search</div></div>
+        <div><div class="v">2.5.0</div><div class="d">Disclaimers, Fast Search and safer dialing</div></div>
         <ul>
-          <li>The lead sniper is back: <b>Alt+Z</b> or <b>Alt+X</b> (Option+Z / Option+X on a Mac) turns it on or off, and Pip turns red while it's on. While it's on it hides the BO's other pop-ups, keeps the "add a PQ to your previous lead" and "lead limit reached" messages on screen, and switches itself off when either one appears.</li>
           <li>A new <b>Disclaimers</b> button inside every lead, next to the clock, opens the disclaimers and scripts page. Click any text there to copy it.</li>
           <li><b>FS</b> in the lead's search box sends the lead's Sabre search (JR) straight to the terminal. If the terminal isn't open, it opens it for you.</li>
           <li>Night-time protection: the dialer skips clients where it's between 10 pm and 8 am their time and comes back to them in the daytime. Calling one yourself asks first.</li>
@@ -460,12 +438,6 @@ CABIN-BUSINESS</pre>
         <div><div class="v">2.4.0</div><div class="d">Panel tidy-up</div></div>
         <ul>
           <li>The small tick box next to Double-dial has been removed from the panel. Everything else works as before.</li>
-        </ul>
-      </div>
-      <div class="rel">
-        <div><div class="v">2.3.0</div><div class="d">Lead sniper removed</div></div>
-        <ul>
-          <li>The lead sniper (Alt+Z / Alt+X) has been removed. Everything else works as before.</li>
         </ul>
       </div>
       <div class="rel">
@@ -504,12 +476,6 @@ CABIN-BUSINESS</pre>
         <ul>
           <li>Basis now opens a search box: up to 3 airports on each side, with dates you can change and a range from fixed dates to ±7 days. Search the outbound, the return, or both.</li>
           <li>Every Basis search, including Open all, now uses the date range you pick.</li>
-        </ul>
-      </div>
-      <div class="rel">
-        <div><div class="v">1.7.3</div><div class="d">Mac shortcut</div></div>
-        <ul>
-          <li>Mac users: turn the lead sniper on or off with Option+Z or Option+X.</li>
         </ul>
       </div>
       <div class="rel">
