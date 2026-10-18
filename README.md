@@ -45,17 +45,23 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 **Calling and texting**
 - **Call** dials the next lead; the dialer keeps going after each call until you press **Stop**.
-- Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2.
+- Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2. Right-click a dot to skip calling that lead.
 - The panel shows today's calls, answered, skipped and round.
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
 - **Night-time protection** — the dialer skips clients where it's 10 pm–8 am their time; calling one yourself asks first. A call that passes 3½ minutes stops auto-dialing.
 - **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page, filled in for the lead (click any text to copy). **Tools** next to it opens VIP Itinerary, GK Converter and How to make a PNR.
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
-- The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
+- The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates. Sent follow-ups turn green and show when they went out.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.7.0 — skip a lead, sent times and safer saving**
+- Right-click the dot by a lead's ID and choose **Skip calling this lead**. The dialer then passes over it until you turn it off the same way. The dot gets a line through it.
+- In the RC tab, follow-ups you've sent now turn green and say when they went out, for example **Sent 2 hrs ago**. Your sent follow-ups are kept for good.
+- Your follow-up progress is backed up every day. If it ever goes missing, it comes back by itself.
+- Departure and destination are now read correctly even if you've moved the columns around in your leads list.
 
 **2.6.0 — lead tools and filled-in disclaimers**
 - Inside every lead, a new **Tools** button next to Disclaimers opens **VIP Itinerary**, **GK Converter** and **How to make a PNR**, each in a new tab. VIP Itinerary already has the client's name filled in.

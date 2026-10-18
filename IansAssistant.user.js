@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.6.0
+// @version      2.7.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -8046,9 +8046,14 @@ function __jsEnsureSharedObserver() {
       const titleTrimmed = titleAttr ? titleAttr.trim() : '';
       clientName = (titleTrimmed && titleTrimmed !== '-') ? titleTrimmed : '';
     }
+    // From / To found by their headers ("From", "To"), wherever an agent
+    // has put those columns; the old fixed positions only as a fallback.
+    // Only a 3-letter code counts ("???" or anything else is unknown).
     const cells = row.querySelectorAll('td');
-    const origin = cells[1] ? cells[1].textContent.trim() : '';
-    const dest = cells[2] ? cells[2].textContent.trim() : '';
+    const code3 = (td) => { const x = td ? td.textContent.trim().toUpperCase() : ''; return /^[A-Z]{3}$/.test(x) ? x : ''; };
+    const byHead = (re, i) => { const td = cellByHeader(row, re); return td ? code3(td) : code3(cells[i]); };
+    const origin = byHead(/^\s*from\s*$/i, 1);
+    const dest = byHead(/^\s*to\s*$/i, 2);
     return {
       leadId,
       href: idLink ? idLink.getAttribute('href') : ('/leads/' + leadId),
@@ -8181,6 +8186,7 @@ function __jsEnsureSharedObserver() {
   function getNextPendingRowOnPage() {
     return getLeadRows().find((row) => {
       if (!hasTimerRunning(row) || isDoneThisRound(getLeadId(row))) return false;
+      if (iaSkipOf(getLeadId(row)).call) return false; // you chose to skip calling it
       if (isQuietTime(rowLocalTime(row))) { quietSeenInScan = true; return false; }
       return true;
     }) || null;
@@ -8258,6 +8264,27 @@ function __jsEnsureSharedObserver() {
     return null;
   }
 
+  // --- Per-lead skip (right-click the lead's progress mark) ---------------
+  // { leadId: { call: true } }, kept until you turn it back off.
+  const IA_SKIP_KEY = 'ia-lead-skip';
+  function iaSkips() { try { const o = JSON.parse(GM_getValue(IA_SKIP_KEY, '{}')); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  function iaSkipOf(leadId) { return iaSkips()[String(leadId)] || {}; }
+  function iaSetSkip(leadId, what, on) {
+    const o = iaSkips();
+    const id = String(leadId);
+    const cur = Object.assign({}, o[id] || {});
+    if (on) cur[what] = true; else delete cur[what];
+    if (Object.keys(cur).length) o[id] = cur; else delete o[id];
+    try { GM_setValue(IA_SKIP_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ }
+    updateAllRowIndicators();
+  }
+  function openRowSkipMenu(row, x, y) {
+    const id = getLeadId(row);
+    if (!id) return;
+    const sk = iaSkipOf(id);
+    iaOpenMenu(x, y, [{ label: 'Skip calling this lead', on: !!sk.call, act: () => iaSetSkip(id, 'call', !sk.call) }], 'Lead #' + id);
+  }
+
   // --- Row "called today" / "skipped today" indicator ---------------------
   function ensureRowIndicator(row) {
     const idCell = row.querySelector('td.group.table__td--link');
@@ -8267,6 +8294,12 @@ function __jsEnsureSharedObserver() {
     if (!dot) {
       dot = document.createElement('span');
       dot.className = 'dialer-called-dot';
+      dot.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const r = dot.closest('tr');
+        if (r) openRowSkipMenu(r, e.clientX, e.clientY);
+      });
       idCell.appendChild(dot);
     }
     return dot;
@@ -8281,6 +8314,10 @@ function __jsEnsureSharedObserver() {
       dot.classList.toggle('is-called2', twice);
       dot.classList.toggle('is-called', !twice && isCalled(leadId));
       dot.classList.toggle('is-skipped', !twice && !isCalled(leadId) && (isSkipped(leadId) || getSet(SKIPPED2_STORAGE_PREFIX).has(leadId)));
+      const sk = iaSkipOf(leadId);
+      dot.classList.toggle('is-nocall', !!sk.call);
+      const tip = 'Right-click: skip calling this lead' + (sk.call ? '\n\u2022 Calling skipped' : '');
+      if (dot.title !== tip) dot.title = tip;
     });
   }
 
@@ -9391,6 +9428,35 @@ function __jsEnsureSharedObserver() {
     m.style.top = Math.max(8, Math.min(y, window.innerHeight - m.offsetHeight - 8)) + 'px';
     callMenu = m;
   }
+  // A small right-click menu in the same look as the call menu.
+  // items: [{ label, on (tick when true), act }]
+  function iaOpenMenu(x, y, items, title) {
+    closeCallMenu();
+    paintCallVars();
+    const m = document.createElement('div');
+    m.className = 'ia-call-menu';
+    m.setAttribute('role', 'menu');
+    if (title) { const h = document.createElement('div'); h.className = 'ia-call-menu-h'; h.textContent = title; m.appendChild(h); }
+    items.forEach((it) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('role', 'menuitemcheckbox');
+      b.setAttribute('aria-checked', String(!!it.on));
+      b.className = 'ia-call-menu-item' + (it.on ? ' is-on' : '');
+      const tick = document.createElement('span');
+      tick.className = 'ia-call-menu-tick';
+      tick.textContent = it.on ? '\u2713' : '';
+      const tx = document.createElement('span');
+      tx.textContent = it.label;
+      b.append(tick, tx);
+      b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeCallMenu(); it.act(); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    m.style.left = Math.max(8, Math.min(x, window.innerWidth - m.offsetWidth - 8)) + 'px';
+    m.style.top = Math.max(8, Math.min(y, window.innerHeight - m.offsetHeight - 8)) + 'px';
+    callMenu = m;
+  }
   document.addEventListener('mousedown', (e) => { if (callMenu && !callMenu.contains(e.target)) closeCallMenu(); }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCallMenu(); }, true);
   window.addEventListener('scroll', closeCallMenu, true);
@@ -10346,16 +10412,81 @@ function __jsEnsureSharedObserver() {
   const SMS_SENT_KEY = 'js-sms-sent';
   const smsKey = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   function smsSentMemory() { try { const o = JSON.parse(GM_getValue(SMS_SENT_KEY, '{}')); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  // When each follow-up went out: { t: { leadId: { index: time } } }.
+  // Older sends (before this was added) have no time and just say "Sent".
+  const IA_SENT_TIMES_KEY = 'ia-sent-times';
+  function iaSentTimes() { try { const o = JSON.parse(GM_getValue(IA_SENT_TIMES_KEY, '{}')); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  function iaSentAt(kind, leadId, i) { const o = iaSentTimes(); return ((o[kind] || {})[leadId] || {})[i] || null; }
+  function iaMarkSentTime(kind, leadId, i) {
+    const o = iaSentTimes();
+    o[kind] = o[kind] || {};
+    o[kind][leadId] = o[kind][leadId] || {};
+    o[kind][leadId][i] = Date.now();
+    try { GM_setValue(IA_SENT_TIMES_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ }
+  }
+  // "Sent 2 hrs ago"
+  function iaAgo(ts) {
+    if (!ts) return 'Sent';
+    const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    if (m < 1) return 'Sent just now';
+    if (m < 60) return 'Sent ' + m + ' min ago';
+    if (m < 1440) { const h = Math.floor(m / 60); return 'Sent ' + h + (h === 1 ? ' hr ago' : ' hrs ago'); }
+    const d = Math.floor(m / 1440);
+    return 'Sent ' + d + (d === 1 ? ' day ago' : ' days ago');
+  }
   function smsRememberSent(leadId, i) {
+    iaMarkSentTime('t', leadId, i);
     const o = smsSentMemory();
     const list = Array.isArray(o[leadId]) ? o[leadId] : [];
     if (!list.includes(i)) list.push(i);
     delete o[leadId];
     o[leadId] = list;
-    const keys = Object.keys(o);
-    keys.slice(0, Math.max(0, keys.length - 1500)).forEach((k) => delete o[k]);
+    // Never trimmed: every lead's progress is kept for good.
     try { GM_setValue(SMS_SENT_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ }
   }
+  // --- Saved-work protection ---------------------------------------------
+  // The follow-up history only ever grows, so if it suddenly comes back
+  // empty or far smaller than yesterday's backup (Chrome clean-up, a bad
+  // sync), the backup is merged back in. Merging never removes anything.
+  // A backup is kept for each of the last 7 days. Never rename these keys.
+  const IA_PROTECTED = [SMS_SENT_KEY, IA_SENT_TIMES_KEY];
+  (function iaGuardSavedWork() {
+    if (window.top !== window) return;
+    const read = (k) => { try { const o = JSON.parse(GM_getValue(k, '{}')); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } };
+    const count = (k, o) => (k === IA_SENT_TIMES_KEY ? Object.keys(o.t || {}).length : Object.keys(o).length);
+    const merge = (k, cur, add) => {
+      if (!add || typeof add !== 'object') return cur;
+      if (k === IA_SENT_TIMES_KEY) {
+        const a = add.t || {}; cur.t = cur.t || {};
+        Object.keys(a).forEach((id) => { cur.t[id] = Object.assign({}, a[id], cur.t[id] || {}); });
+      } else {
+        Object.keys(add).forEach((id) => {
+          if (!Array.isArray(add[id])) return;
+          const l = Array.isArray(cur[id]) ? cur[id] : [];
+          add[id].forEach((i) => { if (!l.includes(Number(i))) l.push(Number(i)); });
+          cur[id] = l;
+        });
+      }
+      return cur;
+    };
+    let days = {};
+    try { days = JSON.parse(GM_getValue('ia-backup-days', '{}')) || {}; } catch (e) { days = {}; }
+    const latest = Object.keys(days).sort().pop();
+    const snap = latest && days[latest];
+    if (snap) IA_PROTECTED.forEach((k) => {
+      const had = count(k, snap[k] || {});
+      const cur = read(k);
+      if (had >= 5 && count(k, cur) < had * 0.5) { try { GM_setValue(k, JSON.stringify(merge(k, cur, snap[k]))); } catch (e) { /* ignore */ } }
+    });
+    const day = new Date().toISOString().slice(0, 10);
+    if (!days[day]) {
+      days[day] = {};
+      IA_PROTECTED.forEach((k) => { days[day][k] = read(k); });
+      Object.keys(days).sort().slice(0, -7).forEach((d) => delete days[d]);
+      try { GM_setValue('ia-backup-days', JSON.stringify(days)); } catch (e) { /* ignore */ }
+    }
+  })();
+
   function smsSentSet(chat, leadId) {
     const sent = new Set((smsSentMemory()[leadId] || []).map(Number));
     const outs = [];
@@ -10380,6 +10511,9 @@ function __jsEnsureSharedObserver() {
       c.classList.toggle('ia-sms-chip--next', c === next);
       const tick = c.querySelector('.ia-sms-chip__tick');
       if (tick) tick.hidden = !isSent;
+      let ago = c.querySelector('.ia-sms-chip__ago');
+      if (isSent && !ago) { ago = document.createElement('span'); ago.className = 'ia-sms-chip__ago'; const nm = c.querySelector('.ia-sms-chip__name'); if (nm) nm.after(ago); }
+      if (ago) { const txt = isSent ? iaAgo(iaSentAt('t', leadId, +c.dataset.i)) : ''; if (ago.textContent !== txt) ago.textContent = txt; ago.hidden = !isSent; }
     });
   }
   function smsRefreshChips() {
@@ -10523,8 +10657,9 @@ function __jsEnsureSharedObserver() {
     .ia-sms-chip__tick[hidden] { display: none; }
     .ia-sms-chip--next { background: #5b5bd6; border-color: #5b5bd6; color: #fff; box-shadow: 0 1px 6px rgba(37,99,235,.45); }
     .ia-sms-chip--next:hover { background: #1d4ed8; border-color: #1d4ed8; }
-    .ia-sms-chip--sent { opacity: .42; background: transparent; border-style: dashed; }
-    .ia-sms-chip--sent:hover { opacity: .8; }
+    .ia-sms-chip--sent { opacity: 1; background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.55); }
+    .ia-sms-chip__ago { margin-left: 2px; font-size: 11px; font-weight: 700; color: #16a34a; white-space: nowrap; }
+    .ia-sms-chip__ago[hidden] { display: none; }
     .ia-sms-chip--sent .ia-sms-chip__tick { color: #22c55e; }
     .ia-sms-row { display: flex; gap: 8px; align-items: flex-end; }
     .ia-sms textarea { flex: 1; width: 100%; resize: none; overflow: hidden; box-sizing: border-box; min-height: 38px; padding: 6px 8px; border-radius: 6px;
@@ -11395,6 +11530,9 @@ function __jsEnsureSharedObserver() {
       border: 2px solid rgba(255,255,255,.35);
       box-sizing: border-box;
     }
+    .dialer-called-dot { cursor: context-menu; }
+    .dialer-called-dot.is-nocall::after { content: ''; position: absolute; left: -2px; right: -2px; top: 50%; height: 2px; margin-top: -1px; background: #94a3b8; transform: rotate(-45deg); border-radius: 2px; }
+    .dialer-called-dot.is-nocall:not(.is-called):not(.is-skipped):not(.is-called2) { border-color: #94a3b8; }
     .dialer-called-dot.is-called { background: #2ecc71; border-color: #2ecc71; box-shadow: 0 0 5px rgba(46,204,113,.8); }
     .dialer-called-dot.is-skipped { background: #f1c40f; border-color: #f1c40f; box-shadow: 0 0 5px rgba(241,196,15,.8); }
     .dialer-called-dot.is-called2 { background: #e53935; border-color: #e53935; box-shadow: 0 0 5px rgba(229,57,53,.85); }
