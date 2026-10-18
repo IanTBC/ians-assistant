@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.5.0
+// @version      2.6.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -45,8 +45,8 @@
  *    SECTION 1 .............. flight sites: GDS copy, Lead ID, Sell box
  *    SECTIONS 2-3 ........... the BO: Add option tools, search panel, flags
  *    SECTION 4 .............. the assistant panel: dialer, texting, Pip
- *    SECTIONS 5-11 .......... lead sniper, RingCentral helpers, checks,
- *                             quote card, terminal helper
+ *    SECTIONS 5-11 .......... RingCentral helpers, checks, quote card,
+ *                             terminal helper, lead tool pages
  *
  *  Saved settings keep their original key names on purpose, so agents
  *  never lose their templates, theme or progress when they update.
@@ -6856,8 +6856,11 @@ function __jsEnsureSharedObserver() {
     } catch (e) { /* fall back to the search link */ }
     return Math.max(1, (lead.adults || 0) + (lead.children || 0) + (lead.infants || 0));
   }
+  // Basis access now allows one airport each side and a ±1 day range only.
+  const SRCH_BASIS_MAX = 1;
+  const SRCH_BASIS_RANGE = 1;
   function srchBasisStop(from, to, date, flex) {
-    return { origin: [{ code: from, city: from }], destination: [{ code: to, city: to }], date: { value: date, range: Math.min(Math.max(parseInt(flex, 10) || 0, 0), 7) } };
+    return { origin: [{ code: from, city: from }], destination: [{ code: to, city: to }], date: { value: date, range: SRCH_BASIS_RANGE } };
   }
   function srchBasis(lead, leg, cab, flex) {
     const payload = {
@@ -6872,7 +6875,7 @@ function __jsEnsureSharedObserver() {
   // Multi-airport search: up to 3 airports on each side.
   const srchCodes = (list) => list.map((c) => ({ code: c, city: c }));
   function srchBasisMulti(lead, from, to, outDate, retDate, cab, flex) {
-    const stop = (a, b, d) => ({ origin: srchCodes(a), destination: srchCodes(b), date: { value: d, range: Math.min(Math.max(parseInt(flex, 10) || 0, 0), 7) } });
+    const stop = (a, b, d) => ({ origin: srchCodes(a.slice(0, SRCH_BASIS_MAX)), destination: srchCodes(b.slice(0, SRCH_BASIS_MAX)), date: { value: d, range: SRCH_BASIS_RANGE } });
     const payload = {
       tripType: retDate ? 'roundtrip' : 'oneway',
       stops: retDate ? [stop(from, to, outDate), stop(to, from, retDate)] : [stop(from, to, outDate)],
@@ -6904,7 +6907,7 @@ function __jsEnsureSharedObserver() {
     h.className = 'ia-fxp-menu-h';
     h.className += ' ia-fxp-ma-h';
     const hT = document.createElement('span');
-    hT.textContent = 'Basis \u00b7 up to 3 airports each side \u00b7 up to \u00b17 days';
+    hT.textContent = 'Basis \u00b7 one airport each side \u00b7 \u00b11 day';
     const hX = document.createElement('button');
     hX.type = 'button';
     hX.className = 'ia-fxp-ma-close';
@@ -6930,7 +6933,7 @@ function __jsEnsureSharedObserver() {
       inp.spellcheck = false;
       inp.autocomplete = 'off';
       inp.maxLength = 3;
-      const st = { list: val.slice(0, 3), w, inp };
+      const st = { list: val.slice(0, SRCH_BASIS_MAX), w, inp };
       const paint = () => {
         chips.textContent = '';
         st.list.forEach((code, idx) => {
@@ -6947,18 +6950,18 @@ function __jsEnsureSharedObserver() {
           chips.appendChild(c);
         });
         inp.placeholder = st.list.length ? '' : ph;
-        inp.style.display = st.list.length >= 3 ? 'none' : '';
+        inp.style.display = st.list.length >= SRCH_BASIS_MAX ? 'none' : '';
         err.textContent = '';
       };
       st.add = (t) => {
         const code = String(t || '').toUpperCase().replace(/[^A-Z]/g, '');
         if (code.length !== 3) return false;
-        if (!st.list.includes(code) && st.list.length < 3) st.list.push(code);
+        if (!st.list.includes(code)) { if (st.list.length >= SRCH_BASIS_MAX) st.list = [code]; else st.list.push(code); }
         inp.value = '';
         paint();
         return true;
       };
-      st.set = (list) => { st.list = list.slice(0, 3); paint(); };
+      st.set = (list) => { st.list = list.slice(0, SRCH_BASIS_MAX); paint(); };
       inp.addEventListener('input', () => {
         inp.value = inp.value.toUpperCase().replace(/[^A-Z]/g, '');
         if (inp.value.length === 3) st.add(inp.value);
@@ -6969,7 +6972,9 @@ function __jsEnsureSharedObserver() {
         if ((e.key === ' ' || e.key === ',' || e.key === '+') ) { e.preventDefault(); st.add(inp.value); return; }
         if (e.key === 'Enter') { e.preventDefault(); if (inp.value) st.add(inp.value); else go(sides.ret ? 'rt' : 'out'); }
       });
-      w.addEventListener('click', () => { if (st.list.length < 3) inp.focus(); });
+      // Full: clicking the box lets you type a new code that replaces the old one.
+      w.addEventListener('click', () => { inp.style.display = ''; inp.focus(); });
+      inp.addEventListener('blur', () => { if (!inp.value) paint(); });
       w.append(i, chips, inp);
       st.paint = paint;
       return st;
@@ -7010,21 +7015,19 @@ function __jsEnsureSharedObserver() {
       dRet = dateIn(sides.ret, 'Return date');
       info.append(arrow, dRet);
     }
-    let range = Math.min(Math.max(parseInt(flex, 10) || 0, 0), 7);
+    // Basis allows ±1 day only now: always applied, nothing to pick.
+    const range = SRCH_BASIS_RANGE;
     const pills = document.createElement('span');
     pills.className = 'ia-fxp-ma-pills';
-    pills.setAttribute('role', 'group');
     pills.setAttribute('aria-label', 'Date range');
-    const paintPills = () => pills.querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.v === range));
-    [0, 1, 2, 3, 4, 5, 6, 7].forEach((v) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.dataset.v = String(v);
-      b.textContent = v ? '\u00b1' + v : 'Fixed';
-      b.addEventListener('click', (e) => { e.stopPropagation(); range = v; paintPills(); });
-      pills.appendChild(b);
-    });
-    paintPills();
+    const fixedPill = document.createElement('button');
+    fixedPill.type = 'button';
+    fixedPill.className = 'on';
+    fixedPill.tabIndex = -1;
+    fixedPill.title = 'Basis searches \u00b11 day around each date';
+    fixedPill.textContent = '\u00b11 day';
+    fixedPill.addEventListener('click', (e) => e.stopPropagation());
+    pills.appendChild(fixedPill);
     info.appendChild(pills);
     const acts = document.createElement('div');
     acts.className = 'ia-fxp-ma-acts';
@@ -7032,7 +7035,7 @@ function __jsEnsureSharedObserver() {
       [A, B].forEach((x) => { if (x.inp.value) x.add(x.inp.value); });
       const from = A.list, to = B.list;
       if (!from.length || !to.length) { err.textContent = 'Add at least one airport on each side'; return; }
-      if (from.length > 3 || to.length > 3) { err.textContent = 'Up to 3 airports on each side'; return; }
+      if (from.length > SRCH_BASIS_MAX || to.length > SRCH_BASIS_MAX) { err.textContent = 'One airport on each side'; return; }
       // Both = two one-way searches (outbound and return), not a round trip.
       const urls = [];
       const out = dOut.value, ret = dRet ? dRet.value : null;
@@ -11180,15 +11183,59 @@ function __jsEnsureSharedObserver() {
   function cbChipLabel(c) { return c ? cbShort(c.at) : 'Callback'; }
   // Opens the Disclaimers & Scripts page (IA_DISC_HTML, at the end of the
   // file) in a new tab.
-  function iaOpenDisclaimers() {
+  // Opens one of the built-in pages in a new tab. `lead` (client name,
+  // destination) is handed to the page as window.IA_LEAD for pre-filling.
+  function iaOpenPage(html, lead) {
+    const data = '<script>window.IA_LEAD=' + JSON.stringify(lead || {}).replace(/</g, '\\u003c') + ';<\/script>';
+    const page = html.replace('</head>', data + '</head>');
     try {
-      const url = URL.createObjectURL(new Blob([IA_DISC_HTML], { type: 'text/html' }));
+      const url = URL.createObjectURL(new Blob([page], { type: 'text/html' }));
       const w = window.open(url, '_blank');
       if (w) { setTimeout(() => URL.revokeObjectURL(url), 60000); return; }
     } catch (e) { /* try the other way */ }
     const w2 = window.open('', '_blank');
-    if (w2) { w2.document.open(); w2.document.write(IA_DISC_HTML); w2.document.close(); }
+    if (w2) { w2.document.open(); w2.document.write(page); w2.document.close(); }
   }
+  function iaLeadPrefill() {
+    const id = cbPageLeadId();
+    const info = id ? cbLeadPageInfo(id) : {};
+    const codes = String(info.route || '').split('\u2192').map((s) => s.trim()).filter(Boolean);
+    return { client: info.name || '', dest: codes.length > 1 ? codes[codes.length - 1] : '', leadId: id || '' };
+  }
+  function iaOpenDisclaimers() { iaOpenPage(IA_DISC_HTML, iaLeadPrefill()); }
+  const IA_TOOL_ICON = (d) => '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  const IA_TOOL_CHIPS = [
+    { key: 'vip', label: 'VIP Itinerary', note: 'Client itinerary picture + email',  title: 'Make a VIP itinerary for the client (new tab)', html: () => IA_VIP_HTML,
+      icon: IA_TOOL_ICON('<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>') },
+    { key: 'gk', label: 'GK Converter', note: 'Segments to GK sell entries',  title: 'Turn Sabre segments into GK sell entries (new tab)', html: () => IA_GK_HTML,
+      icon: IA_TOOL_ICON('<path d="M4 7h13l-3-3M20 17H7l3 3"/>') },
+    { key: 'pnr', label: 'How to make a PNR', note: 'Step-by-step guide',  title: 'Step-by-step PNR guide (new tab)', html: () => IA_PNR_HTML,
+      icon: IA_TOOL_ICON('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>') },
+  ];
+  let iaToolsMenu = null;
+  function iaCloseToolsMenu() { if (iaToolsMenu) { iaToolsMenu.remove(); iaToolsMenu = null; } document.querySelectorAll('.ia-tools-chip.is-open').forEach((c) => c.classList.remove('is-open')); }
+  function iaToggleToolsMenu(chip) {
+    if (iaToolsMenu) { iaCloseToolsMenu(); return; }
+    const m = document.createElement('div');
+    m.className = 'ia-tools-menu';
+    IA_TOOL_CHIPS.forEach((tc) => {
+      const it = document.createElement('button');
+      it.type = 'button';
+      it.className = 'ia-tools-item';
+      it.innerHTML = '<span class="ia-tools-ic">' + tc.icon + '</span><span class="ia-tools-tx"><b>' + tc.label + '</b><small>' + tc.note + '</small></span>';
+      it.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); iaCloseToolsMenu(); iaOpenPage(tc.html(), iaLeadPrefill()); });
+      m.appendChild(it);
+    });
+    document.body.appendChild(m);
+    const r = chip.getBoundingClientRect();
+    m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - m.offsetWidth - 8)) + 'px';
+    m.style.top = (r.bottom + 6) + 'px';
+    chip.classList.add('is-open');
+    iaToolsMenu = m;
+  }
+  document.addEventListener('mousedown', (e) => { if (iaToolsMenu && !iaToolsMenu.contains(e.target) && !e.target.closest('.ia-tools-chip')) iaCloseToolsMenu(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') iaCloseToolsMenu(); }, true);
+  window.addEventListener('scroll', () => iaCloseToolsMenu(), true);
   function cbWireChip() {
     const id = cbPageLeadId();
     if (!id) return;
@@ -11216,6 +11263,19 @@ function __jsEnsureSharedObserver() {
       disc.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span>Disclaimers</span>';
       disc.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); iaOpenDisclaimers(); });
       chip.insertAdjacentElement('afterend', disc);
+    }
+    // Tools ▾ (VIP Itinerary / GK Converter / How to make a PNR), after
+    // Disclaimers: one chip with a small menu, so the lead header stays tidy.
+    let tools = document.querySelector('.ia-tools-chip');
+    if (tools && tools.previousElementSibling !== disc) { tools.remove(); tools = null; }
+    if (!tools) {
+      tools = document.createElement('button');
+      tools.type = 'button';
+      tools.className = 'ia-cb-chip ia-disc-chip ia-tools-chip';
+      tools.title = 'VIP Itinerary, GK Converter, How to make a PNR';
+      tools.innerHTML = IA_TOOL_ICON('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>') + '<span>Tools</span><span class="ia-tools-caret">\u25be</span>';
+      tools.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); iaToggleToolsMenu(tools); });
+      disc.insertAdjacentElement('afterend', tools);
     }
     const c = cbFor(id);
     const t = chip.querySelector('span');
@@ -12029,6 +12089,19 @@ function __jsEnsureSharedObserver() {
       border: 1px solid #c7c7f5; background: #eef0ff; color: #3f3fb5; font: 800 12px/18px Inter, 'Segoe UI', system-ui, sans-serif; vertical-align: middle; }
     .ia-cb-chip:hover { border-color: #5b5bd6; }
     .ia-disc-chip { margin-left: 6px; }
+    .ia-cb-chip { white-space: nowrap; flex: none; height: 22px; box-sizing: border-box; line-height: 18px; }
+    .ia-cb-chip svg { flex: none; }
+    .ia-tools-caret { font-size: 10px; margin-left: -1px; opacity: .8; }
+    .ia-tools-chip.is-open { border-color: #5b5bd6; }
+    .ia-tools-menu { position: fixed; z-index: 2147483000; min-width: 230px; padding: 6px; border-radius: 14px; display: grid; gap: 2px;
+      background: var(--ias-sky, none), var(--ias-glass, #1b2132); border: 1px solid var(--ias-edge, rgba(255,255,255,.12)); box-shadow: var(--ias-shadow, 0 18px 40px rgba(0,0,0,.5)), inset 0 1px 0 var(--ias-inner, rgba(255,255,255,.06));
+      -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4); font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-tools-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 9px; border: 0; border-radius: 10px; background: transparent; color: var(--ias-title, #fff); text-align: left; cursor: pointer; }
+    .ia-tools-item:hover { background: var(--ias-chip, rgba(255,255,255,.08)); }
+    .ia-tools-ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--ias-chip, rgba(255,255,255,.08)); color: var(--ias-acc, #7c7cf8); }
+    .ia-tools-tx { display: grid; line-height: 1.25; }
+    .ia-tools-tx b { font: 800 12.5px Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-tools-tx small { font: 600 11px Inter, 'Segoe UI', system-ui, sans-serif; color: var(--ias-muted, #9aa0b8); }
     .ia-cb-chip.is-set { background: #5b5bd6; border-color: #5b5bd6; color: #fff; }
     .ia-cb-chip.is-due { background: #e5484d; border-color: #e5484d; color: #fff; }
     /* Reminder card */
@@ -13331,6 +13404,16 @@ const IA_DISC_HTML = `<!DOCTYPE html>
          transition:opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
          transform:translateY(20px); box-shadow: 0 10px 30px rgba(14,165,233,0.4);}
   .toast.show{opacity:1;transform:translateY(0);}
+
+/* Fill in for this lead (Ian's Assistant) */
+.ia-fill{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;margin:0 0 18px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.ia-fill h3{grid-column:1/-1;margin:0;font:800 12px/1.2 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#7dd3fc}
+.ia-fill label{display:grid;gap:4px;font:700 11px Inter,system-ui,sans-serif;color:#94a3b8;min-width:0}
+.ia-fill input{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.65);color:#e2e8f0;font:600 13px Inter,system-ui,sans-serif;outline:none}
+.ia-fill input:focus{border-color:#38bdf8}
+.ia-fill .hint{grid-column:1/-1;font:600 11px Inter,system-ui,sans-serif;color:#64748b}
+.copy-block mark{background:rgba(56,189,248,.18);color:inherit;border-radius:4px;padding:0 2px}
+@media (max-width:640px){.ia-fill{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -13340,6 +13423,16 @@ const IA_DISC_HTML = `<!DOCTYPE html>
       <div class="logo">tbc</div>
       <div><h1>Disclaimers & Scripts</h1><div class="sub">1-Click Copy Templates</div></div>
     </div>
+  </div>
+  <div class="ia-fill">
+    <h3>Fill in for this lead</h3>
+    <label>Client name<input id="f-client" placeholder="Customer"></label>
+    <label>Your direct number<input id="f-phone" placeholder="xxxxxxxxxxxx"></label>
+    <label>Taxes amount ($)<input id="f-tax" placeholder=".........."></label>
+    <label>Award program / airline<input id="f-airline" placeholder="e.g. Air Canada"></label>
+    <label>Fake return from<input id="f-retfrom" placeholder="XXX"></label>
+    <label>Fake return date<input id="f-retdate" placeholder="e.g. 12 of December"></label>
+    <div class="hint">The texts below update as you type. Empty boxes keep the original wording. Your number is remembered.</div>
   </div>
   <div class="panel">
     <div class="tabs">
@@ -13426,6 +13519,1493 @@ function copyText(el) {
     setTimeout(function() { toast.classList.remove('show'); }, 2000);
   });
 }
+
+/* Fill in for this lead (Ian's Assistant) */
+(function(){
+  var L = window.IA_LEAD || {};
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = function(s){ return String(s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); };
+  var blocks = Array.prototype.slice.call(document.querySelectorAll('.copy-block'));
+  blocks.forEach(function(b){ b.setAttribute('data-orig', b.innerHTML); });
+  try { $('f-phone').value = localStorage.getItem('ia-disc-phone') || ''; } catch (e) {}
+  if (L.client) $('f-client').value = L.client;
+  if (L.dest) $('f-retfrom').value = L.dest;
+  function v(id){ return $(id).value.trim(); }
+  function render(){
+    var client = v('f-client'), phone = v('f-phone'), tax = v('f-tax'), airline = v('f-airline'), from = v('f-retfrom'), date = v('f-retdate');
+    var m = function(s){ return '<mark>' + esc(s) + '</mark>'; };
+    blocks.forEach(function(b){
+      var h = b.getAttribute('data-orig');
+      if (client) h = h.replace('Dear Customer,', 'Dear ' + m(client) + ',');
+      if (phone) h = h.replace('xxxxxxxxxxxx', m(phone));
+      if (tax) h = h.replace('$..........', m('$' + tax.replace(/^\\$/, '')));
+      if (airline) {
+        h = h.replace('will be charged separately by the airline.', 'will be charged separately by ' + m(airline) + '.');
+        h = h.replace(/\\n?!!! Make sure you mention the Award Program\\/Airline[^\\n]*/, '');
+      }
+      if (from || date) h = h.replace('from XXX on the XX of XXXXX', 'from ' + (from ? m(from) : 'XXX') + ' on the ' + (date ? m(date) : 'XX of XXXXX'));
+      b.innerHTML = h;
+    });
+    try { localStorage.setItem('ia-disc-phone', phone); } catch (e) {}
+  }
+  ['f-client','f-phone','f-tax','f-airline','f-retfrom','f-retdate'].forEach(function(id){ $(id).addEventListener('input', render); });
+  render();
+})();
 <\/script>
 </body>
 </html>`;
+
+// ====================================================================
+// Lead tool pages: VIP Itinerary Maker, GK Converter, PNR guide
+// (opened by the chips next to Disclaimers inside a lead)
+// ====================================================================
+
+const IA_VIP_HTML_BASE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TBC VIP Itinerary Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+<style>
+  :root{
+    --bg:#f3f4f6; --card:#ffffff; --soft:#f9fafb;
+    --ink:#111827; --mid:#6b7280; --soft-ink:#9ca3af;
+    --line:#e5e7eb; --rule:#d1d5db;
+    --plum:#8c1238; --plum-soft:rgba(140,18,56,.07);
+    --grad:linear-gradient(135deg,#a31649 0%,#750f2e 100%);
+    --ok:#059669; --chip:#1f2937; --shadow:0 1px 2px rgba(17,24,39,.06),0 6px 16px rgba(17,24,39,.07);
+  }
+  body.dark{
+    --bg:#0b111e; --card:#151e2d; --soft:#101827;
+    --ink:#f8fafc; --mid:#94a3b8; --soft-ink:#64748b;
+    --line:#2a364a; --rule:#334155;
+    --plum:#e8447a; --plum-soft:rgba(212,31,88,.13);
+    --grad:linear-gradient(135deg,#e32965 0%,#9e143d 100%);
+    --ok:#34d399; --chip:#0d1524; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);
+       color:var(--ink);margin:0;padding:20px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .top{display:flex;justify-content:space-between;align-items:center}
+  .top h1{margin:0;font-size:17px;font-weight:800;letter-spacing:-.4px;color:var(--plum)}
+  .ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);padding:6px 14px;
+       border-radius:20px;cursor:pointer;font-weight:600;font-size:12px;font-family:inherit}
+  .panel{background:var(--card);padding:16px;border-radius:12px;border:1px solid var(--line)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  input[type=text],textarea{width:100%;font-family:inherit;padding:9px 11px;border:1px solid var(--line);
+       border-radius:8px;background:var(--card);color:var(--ink);font-size:13px}
+  textarea{height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical}
+  input:focus,textarea:focus{outline:none;border-color:var(--plum)}
+  .hint{font-size:11px;color:var(--soft-ink);margin-top:7px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;align-items:center}
+  button.go{background:var(--grad);color:#fff;border:none;padding:9px 17px;font-size:13px;cursor:pointer;
+       border-radius:7px;font-weight:600;font-family:inherit}
+  button.go:hover{filter:brightness(1.12)}
+  .act{display:none;gap:8px}
+  .doc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;display:none}
+  .brand{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;
+       border-bottom:2px solid var(--plum);padding-bottom:11px;margin-bottom:16px}
+  .brand-l{display:flex;align-items:center;gap:10px}
+  .mark{background:var(--grad);color:#fff;font-weight:800;font-size:21px;letter-spacing:-1.2px;
+       padding:3px 10px;border-radius:7px;line-height:1.15}
+  .co{font-size:14px;font-weight:700;letter-spacing:-.2px}
+  .co-sub{font-size:9px;font-weight:600;color:var(--soft-ink);letter-spacing:1.2px;text-transform:uppercase}
+  .who{text-align:right}
+  .who-name{font-size:14.5px;font-weight:700;color:var(--plum);line-height:1.2}
+  .who-ref{font-size:10px;color:var(--mid);font-weight:600;margin-top:2px;letter-spacing:.5px;text-transform:uppercase}
+  .jrn{margin-bottom:18px}
+  .jrn:last-of-type{margin-bottom:6px}
+  .jrn-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:9px}
+  .jrn-l{display:flex;align-items:baseline;gap:10px;min-width:0}
+  .jrn-tag{font-size:9px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--plum);white-space:nowrap}
+  .jrn-route{font-size:13.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .jrn-meta{font-size:11px;font-weight:600;color:var(--mid);white-space:nowrap}
+  .card{border:1px solid var(--line);border-radius:11px;background:var(--card);padding:10px 15px 11px;
+       box-shadow:var(--shadow)}
+  .card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+       padding-bottom:7px;margin-bottom:9px;border-bottom:1px solid var(--line)}
+  .f-l{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+  .f-r{display:flex;align-items:center;gap:7px;flex:none}
+  .f-no{font-size:11.5px;font-weight:700;white-space:nowrap}
+  .dot-sep{color:var(--rule);font-size:9px}
+  .leg{display:grid;grid-template-columns:1fr minmax(150px,1.15fr) 1fr;align-items:center;gap:12px}
+  .end{min-width:0}
+  .end.r{text-align:right}
+  .t{font-size:19px;font-weight:700;letter-spacing:-.6px;line-height:1.05}
+  .t sup{font-size:10px;font-weight:800;color:var(--plum);margin-left:2px;top:-.6em}
+  .code{font-size:12.5px;font-weight:800;color:var(--plum);margin-top:3px;letter-spacing:.3px}
+  .city{font-size:11px;color:var(--mid);font-weight:500;line-height:1.35;white-space:nowrap;
+       overflow:hidden;text-overflow:ellipsis}
+  .day{font-size:10px;color:var(--soft-ink);font-weight:500;margin-top:2px;display:flex;align-items:baseline;gap:3px}
+  .end.r .day{justify-content:flex-end}
+  .mid-col{display:flex;flex-direction:column;align-items:center;gap:1px}
+  .dur{font-size:10.5px;font-weight:700;color:var(--mid);white-space:nowrap}
+  .path{display:flex;align-items:center;gap:5px;width:100%}
+  .path i{height:1px;flex:1;background:var(--rule)}
+  .path b{width:5px;height:5px;border-radius:50%;background:var(--plum);flex:none}
+  .plane{color:var(--plum);font-size:12px;line-height:1;flex:none}
+  .nonstop{font-size:9px;color:var(--soft-ink);letter-spacing:1px;text-transform:uppercase;font-weight:600}
+  .conn{display:flex;align-items:center;gap:9px;padding:0;margin:0}
+  .conn i{height:16px;width:1px;background:var(--rule);margin-left:26px;flex:none}
+  .conn-txt{font-size:10.5px;font-weight:600;color:var(--mid);padding:6px 0}
+  .conn-row{display:flex;align-items:center;gap:9px}
+  .warn{font-size:10px;font-weight:600;color:#b45309;background:#fffbeb;border:1px solid #fde68a;
+       border-radius:5px;padding:1px 7px}
+  body.dark .warn{color:#fbbf24;background:#39290a;border-color:#7c5a12}
+  .split{background:transparent;border:1px solid var(--line);color:var(--soft-ink);font-size:9px;
+       padding:1px 6px;border-radius:5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .split:hover{border-color:var(--plum);color:var(--plum)}
+  .jrn-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;
+       padding-top:7px;border-top:1px solid var(--line)}
+  input.e{background:transparent;border:1px dashed transparent;color:var(--mid);font-family:inherit;
+       font-size:11px;font-weight:500;padding:1px 4px;border-radius:4px;width:auto;text-overflow:ellipsis}
+  input.e.term{width:152px}
+  input.e.term.r{text-align:right}
+  input.e.eqp{width:160px}
+  input.e.note{flex:1 1 190px;min-width:120px}
+  input.e:hover,input.e:focus{border-color:var(--line);background:var(--soft);color:var(--ink);outline:none}
+  select.s{background:transparent;border:1px solid transparent;font-family:inherit;font-size:10.5px;
+       font-weight:700;color:var(--ink);cursor:pointer;padding:4px 8px;border-radius:5px;
+       appearance:none;-webkit-appearance:none;display:inline-flex;align-items:center;justify-content:center;
+       text-align:center;text-align-last:center;height:26px;box-sizing:border-box;}
+  select.s:hover{background:var(--soft);border-color:var(--line)}
+  select.s:focus{outline:none;border-color:var(--plum)}
+  select.s option{background:var(--chip);color:#fff}
+  select.cabin{color:#fff;background:var(--grad);border:none;border-radius:20px;
+       padding:0 14px;font-size:10px;font-weight:800;letter-spacing:.6px;
+       text-transform:uppercase;line-height:26px;display:inline-flex;align-items:center;justify-content:center;
+       text-align:center;text-align-last:center;height:26px;}
+  select.cabin:hover{background:var(--grad);filter:brightness(1.1)}
+  select.bag{color:var(--mid);background:var(--soft);border:1px solid var(--line);border-radius:20px;
+       padding:0 12px;font-size:10.5px;font-weight:600;line-height:26px;display:inline-flex;align-items:center;justify-content:center;
+       text-align:center;text-align-last:center;height:26px;}
+  select.bag:hover{background:var(--soft);border-color:var(--plum);color:var(--ink)}
+  select.status{color:var(--ok)}
+  .fine{margin-top:14px;padding-top:9px;border-top:1px solid var(--line);display:flex;
+       justify-content:space-between;gap:10px;font-size:9.5px;color:var(--soft-ink);font-weight:500}
+  .is-exporting .split{display:none!important}
+  .is-exporting select.s{pointer-events:none}
+  .is-exporting select.s:not(.cabin):not(.bag){border-color:transparent!important;background:transparent!important}
+  .mode-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .mode-row select{width:auto;min-width:210px}
+  .tk{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--soft)}
+  .tk-head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .tk-name{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--plum)}
+  .tk-head input{flex:0 0 200px;padding:6px 9px;font-size:12px}
+  .tk-del{margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--soft-ink);
+          font-size:11px;padding:3px 9px;border-radius:6px;cursor:pointer;font-family:inherit}
+  .tk-del:hover{border-color:#ef4444;color:#ef4444}
+  .add-tk{background:transparent;border:1px dashed var(--rule);color:var(--mid);padding:7px 14px;
+          border-radius:8px;cursor:pointer;font-weight:600;font-size:12px;font-family:inherit}
+  .add-tk:hover{border-color:var(--plum);color:var(--plum)}
+  .tk-bar{display:flex;align-items:center;gap:8px;margin:14px 0 6px;flex-wrap:wrap}
+  .tk-bar .lbl{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--plum)}
+  .tk-bar button{background:var(--card);border:1px solid var(--line);color:var(--ink);font-size:11px;
+                 padding:4px 10px;border-radius:14px;cursor:pointer;font-family:inherit;font-weight:600}
+  .tk-bar button:hover{border-color:var(--plum);color:var(--plum)}
+  .mail-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .mail-head h2{font-size:14px;font-weight:800;margin:0;color:var(--plum)}
+  .mail-actions{display:flex;gap:8px;flex-wrap:wrap}
+  #mailBody{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:#fff;color:#111;
+            max-height:520px;overflow:auto;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5}
+  #mailBody:focus{outline:none;border-color:var(--plum)}
+  #mailBody img{max-width:100%;height:auto;border:1px solid #ddd;border-radius:6px}
+  .mail-hint{font-size:11px;color:var(--soft-ink);margin-top:8px}
+  .busy{opacity:.55;pointer-events:none}
+  .top-l{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .brandtabs{display:inline-flex;gap:4px;background:var(--soft);border:1px solid var(--line);
+       border-radius:999px;padding:3px}
+  .brandtabs button{border:none;background:transparent;color:var(--mid);font-family:inherit;
+       font-size:12px;font-weight:800;letter-spacing:.6px;padding:6px 18px;border-radius:999px;
+       cursor:pointer;transition:.15s}
+  .brandtabs button:hover{color:var(--ink)}
+  .brandtabs button.on{background:var(--grad);color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="top-l">
+      <h1 id="brandTitle">TBC VIP Itinerary Maker</h1>
+      <div class="brandtabs">
+        <button id="bt-tbc" class="on" onclick="setBrand('tbc')">TBC</button>
+        <button id="bt-abt" onclick="setBrand('abt')">ABT</button>
+      </div>
+    </div>
+    <button class="ghost" onclick="toggleDark()">Dark mode</button>
+  </div>
+  <div class="panel">
+    <div class="row2">
+      <input type="text" id="pax" placeholder="Passenger name (e.g. Mr. John Doe)">
+      <input type="text" id="pnr" placeholder="PNR / record locator (e.g. ABC123)">
+    </div>
+    <div class="mode-row">
+      <label class="hint" style="margin:0">Disclaimer type</label>
+      <select id="mode" onchange="onModeChange()">
+        <option value="mixed">Mixed cabin - one ticket</option>
+        <option value="separate">Separate tickets</option>
+      </select>
+      <button class="add-tk" id="addTk" style="display:none" onclick="addTicket()">+ Add ticket</button>
+    </div>
+    <div id="tickets"></div>
+    <div class="hint">Reads VI*, *I and *IA. Codeshare stars, terminals, aircraft, cabins and "operated by" are detected automatically.</div>
+    <div class="btns">
+      <button class="go" onclick="regenerate()">Generate itinerary</button>
+      <div id="act" class="act">
+        <button class="ghost" onclick="buildEmail()">Build disclaimer email</button>
+      </div>
+    </div>
+  </div>
+  <div id="docs"></div>
+  <div class="panel" id="mailPanel" style="display:none">
+    <div class="mail-head">
+      <h2>Disclaimer email</h2>
+      <div class="mail-actions">
+        <button class="go" onclick="copyEmail()">Copy email + screenshots</button>
+        <button class="ghost" onclick="buildEmail()">Rebuild</button>
+      </div>
+    </div>
+    <div id="mailBody" contenteditable="true"></div>
+    <div class="mail-hint">Edit anything above, then Copy and paste straight into a Gmail compose window - the screenshots travel with the text. Baggage lines and the cabin sentence come from the dropdowns on each flight card, so set those first and hit Rebuild.</div>
+  </div>
+</div>
+<script>
+var MONTHS = { JAN:0, FEB:1, MAR:2, APR:3, MAY:4, JUN:5,
+               JUL:6, AUG:7, SEP:8, OCT:9, NOV:10, DEC:11 };
+var AIRLINES = {
+  AA:'American Airlines', AC:'Air Canada', AF:'Air France', AI:'Air India', AM:'Aeromexico',
+  AR:'Aerolineas Argentinas', AS:'Alaska Airlines', AT:'Royal Air Maroc', AV:'Avianca', AY:'Finnair',
+  AZ:'ITA Airways', A3:'Aegean Airlines', BA:'British Airways', BR:'EVA Air', B6:'JetBlue',
+  CI:'China Airlines', CM:'Copa Airlines', CX:'Cathay Pacific', CZ:'China Southern', DL:'Delta Air Lines',
+  EI:'Aer Lingus', EK:'Emirates', ET:'Ethiopian Airlines', EY:'Etihad Airways', FI:'Icelandair',
+  F9:'Frontier Airlines', GA:'Garuda Indonesia', GF:'Gulf Air', HA:'Hawaiian Airlines', IB:'Iberia',
+  JL:'Japan Airlines', KE:'Korean Air', KL:'KLM', KQ:'Kenya Airways', LA:'LATAM Airlines',
+  LH:'Lufthansa', LO:'LOT Polish Airlines', LX:'Swiss', MS:'EgyptAir', MU:'China Eastern',
+  NH:'ANA', NK:'Spirit Airlines', NZ:'Air New Zealand', OS:'Austrian Airlines', OZ:'Asiana Airlines',
+  PR:'Philippine Airlines', PS:'Ukraine International', QF:'Qantas', QR:'Qatar Airways',
+  RJ:'Royal Jordanian', SA:'South African Airways', SK:'SAS', SN:'Brussels Airlines',
+  SQ:'Singapore Airlines', SU:'Aeroflot', SV:'Saudia', TG:'Thai Airways', TK:'Turkish Airlines',
+  TP:'TAP Air Portugal', UA:'United Airlines', UX:'Air Europa', VA:'Virgin Australia',
+  VN:'Vietnam Airlines', VS:'Virgin Atlantic', WN:'Southwest Airlines', WS:'WestJet', WY:'Oman Air'
+};
+var AIRPORTS = {
+  AMS:'Amsterdam', ARN:'Stockholm', ATH:'Athens', ATL:'Atlanta', AUH:'Abu Dhabi', AUS:'Austin',
+  BCN:'Barcelona', BER:'Berlin', BKK:'Bangkok', BNE:'Brisbane', BOG:'Bogota', BOM:'Mumbai',
+  BOS:'Boston', BRU:'Brussels', BUD:'Budapest', BWI:'Baltimore', CAI:'Cairo', CDG:'Paris Charles de Gaulle',
+  CLT:'Charlotte', CMN:'Casablanca', CPH:'Copenhagen', CPT:'Cape Town', CRW:'Charleston', CUN:'Cancun',
+  DEL:'Delhi', DEN:'Denver', DFW:'Dallas Fort Worth', DOH:'Doha', DUB:'Dublin', DUS:'Dusseldorf',
+  DXB:'Dubai', EWR:'Newark', EZE:'Buenos Aires', FCO:'Rome Fiumicino', FLL:'Fort Lauderdale',
+  FRA:'Frankfurt', GIG:'Rio de Janeiro', GRU:'Sao Paulo', GVA:'Geneva', HAM:'Hamburg', HEL:'Helsinki',
+  HKG:'Hong Kong', HND:'Tokyo Haneda', HNL:'Honolulu', IAD:'Washington Dulles', IAH:'Houston',
+  ICN:'Seoul Incheon', IST:'Istanbul', JED:'Jeddah', JFK:'New York JFK', JNB:'Johannesburg',
+  KEF:'Reykjavik', KUL:'Kuala Lumpur', LAS:'Las Vegas', LAX:'Los Angeles', LGA:'New York LaGuardia',
+  LGW:'London Gatwick', LHR:'London Heathrow', LIM:'Lima', LIS:'Lisbon', MAD:'Madrid', MAN:'Manchester',
+  MCO:'Orlando', MEL:'Melbourne', MEX:'Mexico City', MIA:'Miami', MLE:'Male', MNL:'Manila',
+  MSP:'Minneapolis', MUC:'Munich', MXP:'Milan Malpensa', NBO:'Nairobi', NCE:'Nice', NRT:'Tokyo Narita',
+  ORD:"Chicago O'Hare", ORY:'Paris Orly', OSL:'Oslo', PDX:'Portland', PEK:'Beijing', PHL:'Philadelphia',
+  PHX:'Phoenix', PMI:'Palma de Mallorca', PRG:'Prague', PTY:'Panama City', PVG:'Shanghai Pudong',
+  RUH:'Riyadh', SAN:'San Diego', SCL:'Santiago', SEA:'Seattle', SFO:'San Francisco',
+  SGN:'Ho Chi Minh City', SIN:'Singapore', SJU:'San Juan', SLC:'Salt Lake City', STR:'Stuttgart',
+  SVO:'Moscow', SYD:'Sydney', TLV:'Tel Aviv', TPE:'Taipei', VCE:'Venice', VIE:'Vienna', WAW:'Warsaw',
+  YOW:'Ottawa', YUL:'Montreal', YVR:'Vancouver', YYC:'Calgary', YYZ:'Toronto', ZRH:'Zurich'
+};
+var EQP = {
+  '221':'Airbus A220-100','223':'Airbus A220-300','CS1':'Airbus A220-100','CS3':'Airbus A220-300',
+  '318':'Airbus A318','319':'Airbus A319','31N':'Airbus A319neo',
+  '320':'Airbus A320','32A':'Airbus A320','32N':'Airbus A320neo',
+  '321':'Airbus A321','32B':'Airbus A321','32Q':'Airbus A321neo','32X':'Airbus A321XLR',
+  '330':'Airbus A330','332':'Airbus A330-200','333':'Airbus A330-300','338':'Airbus A330-800neo','339':'Airbus A330-900neo',
+  '340':'Airbus A340','342':'Airbus A340-200','343':'Airbus A340-300','345':'Airbus A340-500','346':'Airbus A340-600',
+  '350':'Airbus A350','359':'Airbus A350-900','351':'Airbus A350-1000','35K':'Airbus A350-1000',
+  '380':'Airbus A380','388':'Airbus A380-800',
+  '717':'Boeing 717','727':'Boeing 727',
+  '733':'Boeing 737-300','734':'Boeing 737-400','735':'Boeing 737-500',
+  '736':'Boeing 737-600','73G':'Boeing 737-700','737':'Boeing 737-700','73W':'Boeing 737-700',
+  '738':'Boeing 737-800','73H':'Boeing 737-800','739':'Boeing 737-900','73J':'Boeing 737-900ER','73ER':'Boeing 737-900ER',
+  '7M7':'Boeing 737 MAX 7','7M8':'Boeing 737 MAX 8','7M9':'Boeing 737 MAX 9','7M1':'Boeing 737 MAX 10','7MJ':'Boeing 737 MAX 10',
+  '744':'Boeing 747-400','747':'Boeing 747-400','74H':'Boeing 747-8','748':'Boeing 747-8',
+  '757':'Boeing 757','752':'Boeing 757-200','753':'Boeing 757-300',
+  '767':'Boeing 767','762':'Boeing 767-200','763':'Boeing 767-300','76W':'Boeing 767-300ER','764':'Boeing 767-400ER',
+  '777':'Boeing 777','772':'Boeing 777-200','77L':'Boeing 777-200LR','773':'Boeing 777-300','77W':'Boeing 777-300ER','779':'Boeing 777-9',
+  '787':'Boeing 787 Dreamliner','788':'Boeing 787-8','789':'Boeing 787-9','78J':'Boeing 787-10','781':'Boeing 787-10',
+  'E70':'Embraer 170','E75':'Embraer 175','E7W':'Embraer 175','E90':'Embraer 190','E95':'Embraer 195',
+  '290':'Embraer E190-E2','295':'Embraer E195-E2','E29':'Embraer E195-E2',
+  'ER3':'Embraer ERJ-135','ER4':'Embraer ERJ-140','ERD':'Embraer ERJ-145','ERJ':'Embraer ERJ-145',
+  'CR1':'Bombardier CRJ-100','CR2':'Bombardier CRJ-200','CR5':'Bombardier CRJ-550',
+  'CR7':'Bombardier CRJ-700','CR9':'Bombardier CRJ-900','CRK':'Bombardier CRJ-1000',
+  'AT4':'ATR 42','AT5':'ATR 42-500','AT7':'ATR 72','726':'ATR 72-600',
+  'DH1':'De Havilland Dash 8-100','DH2':'De Havilland Dash 8-200','DH3':'De Havilland Dash 8-300','DH4':'De Havilland Dash 8 Q400','Q400':'De Havilland Dash 8 Q400'
+};
+var OPERATOR_FIX = {
+  'SKYWEST':'SkyWest','GOJET':'GoJet','COMMUTEAIR':'CommuteAir','PSA':'PSA','MESA':'Mesa',
+  'ENVOY':'Envoy','PIEDMONT':'Piedmont','ENDEAVOR':'Endeavor','REPUBLIC':'Republic','JAZZ':'Jazz',
+  'BINTER':'Binter','SILVER':'Silver','LTD':'','CO':'','COMPANY':'','INC':'','AIRLINES':'Airlines'
+};
+function normalize(t){
+  return String(t)
+    .replace(/(\\d{1,4}[AP])[^\\dA-Za-z\\s-](\\d)/gi,'$1#$2')
+    .replace(/([A-Z0-9]{2})\\s*\\*\\s*(\\d{1,4})(?=\\D|$)/gi,'$1 $2');
+}
+function titleCase(s){ return !s ? '' : s.toLowerCase().replace(/\\b\\w/g,function(c){ return c.toUpperCase(); }); }
+function city(code){ return AIRPORTS[code] || code; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function cabinFromClass(c){
+  c = (c||'').toUpperCase();
+  if (!c) return 'Economy';
+  if ('FA'.indexOf(c) > -1) return 'First';
+  if ('JCDIZ'.indexOf(c) > -1) return 'Business';
+  if ('WEPS'.indexOf(c) > -1) return 'Premium Economy';
+  return 'Economy';
+}
+function cabinName(s){
+  var u = String(s||'').toUpperCase();
+  if (/FIRST/.test(u)) return 'First';
+  if (/BUSINESS/.test(u)) return 'Business';
+  if (/PREMIUM/.test(u)) return 'Premium Economy';
+  if (/ECONOMY|COACH/.test(u)) return 'Economy';
+  return '';
+}
+function mkDate(dateStr, timeStr, year){
+  var d = parseInt(dateStr.slice(0,2),10), m = MONTHS[dateStr.slice(2,5).toUpperCase()];
+  var n = timeStr.slice(0,-1).replace(/\\D/g,'');
+  while (n.length < 4) n = '0' + n;
+  var h = parseInt(n.slice(0,2),10), mi = parseInt(n.slice(2,4),10);
+  var pm = /P$/i.test(timeStr);
+  if (pm && h !== 12) h += 12;
+  if (!pm && h === 12) h = 0;
+  return new Date(year, m, d, h, mi);
+}
+function fmtTime(dt){
+  var h = dt.getHours(), m = dt.getMinutes(), ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  return h + ':' + String(m).padStart(2,'0') + ' ' + ap;
+}
+function fmtDay(dt){ return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()] + ' ' + dt.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()]; }
+function fmtFullDay(dt){ return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()] + ' ' + dt.getDate() + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()] + ' ' + dt.getFullYear(); }
+function fmtElapsed(s){
+  if (!s) return '';
+  var p = s.split('.');
+  return parseInt(p[0],10) + 'h ' + String(parseInt(p[1]||0,10)).padStart(2,'0') + 'm';
+}
+function gap(a, b){
+  var mins = Math.round((b - a) / 60000);
+  if (mins < 0) return { text:'connection', hours:0, mins:0 };
+  var h = Math.floor(mins/60), m = mins % 60;
+  if (h >= 24) return { text: Math.floor(h/24) + 'd ' + (h%24) + 'h stopover', hours:h, mins:mins };
+  return { text: h + 'h ' + String(m).padStart(2,'0') + 'm connection', hours:h, mins:mins };
+}
+function fixOperator(s){
+  return s.split(' ').map(function(w){
+    var k = w.toUpperCase().replace(/[.,]/g,'');
+    if (OPERATOR_FIX.hasOwnProperty(k)) return OPERATOR_FIX[k];
+    if (AIRLINES[k]) return AIRLINES[k];
+    return titleCase(w);
+  }).join(' ').replace(/\\s+/g,' ').trim();
+}
+var SEG_RE = /^\\s*\\d{1,2}\\s+([A-Z0-9]{2})\\s*(\\d{1,4})\\s*([A-Z])?\\s+(\\d{2}[A-Z]{3})\\s+(?:[A-Z]\\s+)?([A-Z]{3})\\s*([A-Z]{3})\\s*\\*?\\s*(?:[A-Z]{2}\\d{1,2})?\\s+(\\d{1,4}[AP])\\s+(\\d{1,4}[AP])(?:([^\\s\\dA-Za-z])?(\\d))?(?:\\s+(\\d{2}[A-Z]{3}))?/i;
+var VI_TAIL = /\\d{1,2}\\.\\d{2}\\s+\\d{2,5}\\s+[A-Z]\\s*$/;
+var VI_RE = /^\\s*\\d{1,2}\\s+([A-Z0-9]{2})\\s+(\\d{1,4})\\s+(\\d{2}[A-Z]{3})\\s+([A-Z]{3})\\s+([A-Z]{3})\\s+(\\d{1,4}[AP])\\S*\\s+(\\d{1,4}[AP])(\\S*)\\s+.*?([A-Z0-9]{3})\\s+(\\d{1,2}\\.\\d{2})\\s+\\d{2,5}\\s+[A-Z]\\s*$/i;
+function dayShift(s){
+  if (!s) return 0;
+  var m = String(s).match(/(-)?(\\d)/);
+  if (!m) return 0;
+  return m[1] ? -parseInt(m[2],10) : parseInt(m[2],10);
+}
+function parse(raw){
+  var lines = normalize(raw).split('\\n');
+  var flights = [], vis = [], vi = null, last = null;
+  lines.forEach(function(line){
+    var t = line.trim();
+    if (!t) return;
+    if (VI_TAIL.test(t)){
+      var m = t.match(VI_RE);
+      if (m){
+        vi = { cxr:m[1].toUpperCase(), flt:m[2], date:m[3].toUpperCase(),
+               orig:m[4].toUpperCase(), dest:m[5].toUpperCase(),
+               dep:m[6].toUpperCase(), arr:m[7].toUpperCase(), off:dayShift(m[8]),
+               eqp:m[9].toUpperCase(), elapsed:m[10] };
+        vis.push(vi);
+      }
+      last = null;
+      return;
+    }
+    if (/(DEP|ARR)-/i.test(t)){
+      var d = t.match(/DEP-\\s*([A-Z0-9 ]+?)(?=\\s{2,}|\\s*ARR-|\\s*$)/i);
+      var a = t.match(/ARR-\\s*([A-Z0-9 ]+?)\\s*$/i);
+      var target = vi || last;
+      if (target){
+        if (d) target.depTerm = titleCase(d[1].trim());
+        if (a) target.arrTerm = titleCase(a[1].trim());
+      }
+      return;
+    }
+    if (/CABIN-/i.test(t)){
+      var tgt = vi || last;
+      if (tgt) tgt.cabin = cabinName(t.split(/CABIN-/i)[1]);
+      return;
+    }
+    if (/OPERATED\\s+BY/i.test(t)) return;
+    var g = t.match(SEG_RE);
+    if (g){
+      last = { cxr:g[1].toUpperCase(), no:g[2], cls:(g[3]||'').toUpperCase(), date:g[4].toUpperCase(),
+               orig:g[5].toUpperCase(), dest:g[6].toUpperCase(), dep:g[7].toUpperCase(), arr:g[8].toUpperCase(),
+               off: g[10] ? (g[9] === '-' ? -parseInt(g[10],10) : parseInt(g[10],10)) : 0,
+               arrDate: g[11] ? g[11].toUpperCase() : null };
+      flights.push(last); vi = null;
+    }
+  });
+  if (!flights.length && vis.length){
+    flights = vis.map(function(v){
+      return { cxr:v.cxr, no:v.flt, cls:'', date:v.date, orig:v.orig, dest:v.dest, dep:v.dep, arr:v.arr, off:v.off, arrDate:null };
+    });
+  }
+  var seen = {}, unique = [];
+  flights.forEach(function(f){
+    var k = f.cxr + '|' + f.no + '|' + f.date + '|' + f.orig + '|' + f.dest;
+    if (!seen[k]){ seen[k] = f; unique.push(f); return; }
+    var kept = seen[k], p;
+    for (p in f){ if (f[p] && !kept[p]) kept[p] = f[p]; }
+  });
+  flights = unique;
+  flights.forEach(function(f){
+    for (var i=0;i<vis.length;i++){
+      var v = vis[i];
+      if (v.cxr === f.cxr && v.flt === f.no && v.date === f.date){
+        f.eqp = EQP[v.eqp] || v.eqp;
+        f.elapsed = fmtElapsed(v.elapsed);
+        if (v.depTerm) f.depTerm = v.depTerm;
+        if (v.arrTerm) f.arrTerm = v.arrTerm;
+        if (v.cabin) f.cabin = v.cabin;
+        if (!f.off && v.off) f.off = v.off;
+        if (!f.arrDate && v.off && !f.off) f.off = v.off;
+        break;
+      }
+    }
+    if (!f.cabin) f.cabin = cabinFromClass(f.cls);
+  });
+  var year = null, prev = null;
+  flights.forEach(function(f){
+    var d;
+    if (year === null){
+      d = mkDate(f.date, f.dep, new Date().getFullYear());
+      if (d.getTime() < Date.now() - 30*86400000) d.setFullYear(d.getFullYear()+1);
+      year = d.getFullYear();
+    } else {
+      d = mkDate(f.date, f.dep, year);
+      if (prev && d < prev){ year += 1; d = mkDate(f.date, f.dep, year); }
+    }
+    f.depDT = d;
+    var a = mkDate(f.arrDate || f.date, f.arr, d.getFullYear());
+    if (!f.arrDate && f.off) a.setDate(a.getDate() + f.off);
+    f.arrDT = a;
+    f.plus = Math.round((new Date(a.getFullYear(),a.getMonth(),a.getDate()) -
+                         new Date(d.getFullYear(),d.getMonth(),d.getDate())) / 86400000);
+    prev = a;
+  });
+  return flights;
+}
+/* ---------- branding ---------- */
+var BRANDS = {
+  tbc: {
+    name:'TBC', mark:'tbc', company:'Travel Business Class',
+    domain:'travelbusinessclass.com', title:'TBC VIP Itinerary Maker',
+    light:{ plum:'#8c1238', grad:'linear-gradient(135deg,#a31649 0%,#750f2e 100%)' },
+    dark :{ plum:'#e8447a', grad:'linear-gradient(135deg,#e32965 0%,#9e143d 100%)',
+            bg:'#0b111e', card:'#151e2d', soft:'#101827',
+            line:'#2a364a', rule:'#334155', chip:'#0d1524' }
+  },
+  abt: {
+    name:'ABT', mark:'abt', company:'Air Business Travel',
+    domain:'airbusinesstravel.com', title:'ABT VIP Itinerary Maker',
+    light:{ plum:'#7d0a94', grad:'linear-gradient(135deg,#980098 0%,#470865 100%)' },
+    dark :{ plum:'#d96ae8', grad:'linear-gradient(135deg,#b302b3 0%,#5a0a7a 100%)',
+            bg:'#140720', card:'#1e0f2b', soft:'#180b24',
+            line:'#3a2447', rule:'#4a2f5c', chip:'#150a1f' }
+  }
+};
+var VARKEYS = ['bg','card','soft','line','rule','plum','grad','chip'];
+var brand = 'tbc';
+function B(){ return BRANDS[brand]; }
+function setBrand(k){
+  if (!BRANDS[k]) return;
+  brand = k;
+  try { localStorage.setItem('vipBrand', k); } catch(e){}
+  paint();
+}
+function toggleDark(){ document.body.classList.toggle('dark'); paint(); }
+function paint(){
+  var b = B(), dark = document.body.classList.contains('dark');
+  var v = dark ? b.dark : b.light, st = document.body.style;
+  VARKEYS.forEach(function(k){ st.removeProperty('--' + k); });
+  Object.keys(v).forEach(function(k){ st.setProperty('--' + k, v[k]); });
+  document.title = b.title;
+  var t = document.getElementById('brandTitle'); if (t) t.textContent = b.title;
+  var bt = document.getElementById('bt-tbc'), ba = document.getElementById('bt-abt');
+  if (bt) bt.className = (brand === 'tbc' ? 'on' : '');
+  if (ba) ba.className = (brand === 'abt' ? 'on' : '');
+  document.querySelectorAll('#docs .mark').forEach(function(el){ el.textContent = b.mark; });
+  document.querySelectorAll('#docs .co').forEach(function(el){ el.textContent = b.company; });
+  document.querySelectorAll('#docs .fine span:last-child').forEach(function(el){ el.textContent = b.domain; });
+}
+function initBrand(){
+  var k = null;
+  try { k = localStorage.getItem('vipBrand'); } catch(e){}
+  if (BRANDS[k]) brand = k;
+  paint();
+}
+/* ---------- tickets ---------- */
+var tickets = [{ pnr:'', src:'' }];
+var splits  = new Set();
+var lastRender = [];
+function mode(){ return document.getElementById('mode').value; }
+function onModeChange(){
+  stashTickets();
+  var sep = mode() === 'separate';
+  document.getElementById('addTk').style.display = sep ? '' : 'none';
+  document.getElementById('pnr').style.display   = sep ? 'none' : '';
+  if (!sep) tickets = [tickets[0]];
+  renderTickets();
+}
+function addTicket(){
+  stashTickets();
+  if (tickets.length >= 6) return;
+  tickets.push({ pnr:'', src:'' });
+  renderTickets();
+}
+function delTicket(i){
+  if (tickets.length <= 1) return;
+  tickets.splice(i,1);
+  renderTickets();
+}
+function stashTickets(){
+  document.querySelectorAll('#tickets .tk').forEach(function(el){
+    var i = +el.getAttribute('data-i');
+    var p = el.querySelector('.tk-pnr');
+    if (p) tickets[i].pnr = p.value;
+    tickets[i].src = el.querySelector('textarea').value;
+  });
+}
+function renderTickets(){
+  var sep = mode() === 'separate', box = document.getElementById('tickets'), html = '';
+  tickets.forEach(function(t,i){
+    html += '<div class="tk" data-i="' + i + '">';
+    if (sep){
+      html += '<div class="tk-head"><span class="tk-name">Ticket #' + (i+1) + '</span>' +
+              '<input type="text" class="tk-pnr" placeholder="PNR for this ticket" value="' + esc(t.pnr) + '">' +
+              (tickets.length > 1 ? '<button class="tk-del" onclick="stashTickets();delTicket(' + i + ')">Remove</button>' : '') +
+              '</div>';
+    }
+    html += '<textarea placeholder="Paste the Sabre segments here.">' + esc(t.src) + '</textarea></div>';
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('textarea').forEach(function(ta){
+    ta.addEventListener('paste', function(){
+      var el = this; setTimeout(function(){ el.value = normalize(el.value); }, 0);
+    });
+  });
+}
+/* ---------- render ---------- */
+function regenerate(){ splits.clear(); render(); }
+function splitAt(ti, idx){ splits.add(ti + ':' + idx); render(); }
+function group(flights, ti){
+  var out = [], cur = [];
+  flights.forEach(function(f, i){
+    f.idx = i;
+    if (!cur.length){ cur.push(f); return; }
+    var p = cur[cur.length-1];
+    var g = gap(p.arrDT, f.depDT);
+    if (splits.has(ti + ':' + p.idx) || p.dest !== f.orig || g.hours > 48){ out.push(cur); cur = [f]; }
+    else { f.gap = g; cur.push(f); }
+  });
+  if (cur.length) out.push(cur);
+  return out;
+}
+function label(i, n){
+  if (n === 1) return 'Itinerary';
+  if (n === 2) return i === 0 ? 'Outbound' : 'Return';
+  return 'Flight ' + (i + 1);
+}
+function minConnection(a){ return (a === 'ORD' || a === 'DFW' || a === 'ATL') ? 45 : 45; }
+function render(){
+  stashTickets();
+  var sep = mode() === 'separate';
+  var paxName = document.getElementById('pax').value.trim();
+  var docsEl = document.getElementById('docs');
+  var out = '', any = false;
+  lastRender = [];
+  tickets.forEach(function(t, ti){
+    var flights = [];
+    try { flights = parse(t.src); } catch(e){ flights = []; }
+    if (!flights.length) return;
+    any = true;
+    var trips = group(flights, ti);
+    lastRender.push({ ti: ti, flights: flights, trips: trips });
+    var pnr = sep ? t.pnr.trim() : document.getElementById('pnr').value.trim();
+    if (sep){
+      out += '<div class="tk-bar"><span class="lbl">Ticket #' + (ti+1) + '</span>' +
+             '<button onclick="exportImage(\\'copy\\',' + ti + ')">Copy image</button>' +
+             '<button onclick="exportImage(\\'download\\',' + ti + ')">Download PNG</button></div>';
+    } else {
+      out += '<div class="tk-bar">' +
+             '<button onclick="exportImage(\\'copy\\',' + ti + ')">Copy image</button>' +
+             '<button onclick="exportImage(\\'download\\',' + ti + ')">Download PNG</button></div>';
+    }
+    out += '<div class="doc" id="doc' + ti + '" data-ticket="' + ti + '" style="display:block">' +
+      '<div class="brand"><div class="brand-l"><div class="mark">' + B().mark + '</div><div>' +
+        '<div class="co">' + B().company + '</div>' +
+        '<div class="co-sub">Flight itinerary' + (sep ? ' - Ticket ' + (ti+1) : '') + '</div>' +
+      '</div></div><div class="who">' +
+        '<div class="who-name">' + esc(paxName || 'Flight itinerary') + '</div>' +
+        '<div class="who-ref">' + (pnr ? 'Booking ref: ' + esc(pnr) : '') + '</div>' +
+      '</div></div>' + tripsHtml(trips, ti) +
+      '<div class="fine"><span>All times are local to each airport.</span>' +
+      '<span>' + B().domain + '</span></div></div>';
+  });
+  if (!any){ alert('No valid Sabre segments detected.'); return; }
+  docsEl.innerHTML = out;
+  document.getElementById('act').style.display = 'flex';
+}
+function tripsHtml(trips, ti){
+  var html = '';
+  trips.forEach(function(trip, tix){
+    var a = trip[0], z = trip[trip.length-1], stops = trip.length - 1;
+    html += '<section class="jrn">' +
+      '<div class="jrn-head">' +
+        '<div class="jrn-l"><span class="jrn-tag">' + label(tix, trips.length) + '</span>' +
+        '<span class="jrn-route">' + city(a.orig) + ' (' + a.orig + ')  &rarr;  ' + city(z.dest) + ' (' + z.dest + ')</span></div>' +
+        '<div class="jrn-meta">' + fmtFullDay(a.depDT) + '  &middot;  ' +
+          (stops ? stops + ' stop' + (stops>1?'s':'') : 'Non-stop') + '</div>' +
+      '</div>';
+    trip.forEach(function(f, li){
+      if (li > 0){
+        var tight = f.gap.hours < 1 && f.gap.mins < minConnection(f.orig) + 15;
+        var termChange = trip[li-1].arrTerm && f.depTerm && trip[li-1].arrTerm !== f.depTerm;
+        html += '<div class="conn"><i></i><div class="conn-row">' +
+          '<span class="conn-txt">' + f.gap.text + ' in ' + city(f.orig) + '</span>' +
+          (tight ? '<span class="warn">Tight connection</span>' : '') +
+          (termChange ? '<span class="warn">' + trip[li-1].arrTerm + ' &rarr; ' + f.depTerm + '</span>' : '') +
+          '<button class="split" onclick="splitAt(' + ti + ',' + trip[li-1].idx + ')" title="Start a new journey here">Split</button>' +
+        '</div></div>';
+      }
+      var airline = AIRLINES[f.cxr] || f.cxr;
+      var cabins = ['Economy','Premium Economy','Business','First'].map(function(c){
+        return '<option value="' + c + '"' + (c === f.cabin ? ' selected' : '') + '>' + c + '</option>';
+      }).join('');
+      var bags = ['2 x 32kg','1 x 32kg','2 x 23kg','1 x 23kg','3 x 23kg','Hand baggage only'].map(function(b){
+        return '<option value="' + b + '"' + (b === '2 x 23kg' ? ' selected' : '') + '>' +
+               (b === 'Hand baggage only' ? b : 'Baggage: ' + b) + '</option>';
+      }).join('');
+      html += '<div class="card" data-orig="' + f.orig + '" data-dest="' + f.dest + '">' +
+        '<div class="card-top">' +
+          '<div class="f-l">' +
+            '<span class="f-no">' + airline + ' ' + f.cxr + ' ' + f.no + '</span>' +
+            '<span class="dot-sep">&#9679;</span>' +
+            '<input type="text" class="e eqp" value="' + esc(f.eqp || '') + '" placeholder="+ Aircraft">' +
+          '</div>' +
+          '<div class="f-r">' +
+            '<select class="s bag">' + bags + '</select>' +
+            '<select class="s cabin">' + cabins + '</select>' +
+          '</div>' +
+        '</div>' +
+        '<div class="leg">' +
+          '<div class="end">' +
+            '<div class="t">' + fmtTime(f.depDT) + '</div>' +
+            '<div class="code">' + f.orig + '</div>' +
+            '<div class="city">' + city(f.orig) + '</div>' +
+            '<div class="day">' + fmtDay(f.depDT) +
+              '<input type="text" class="e term" value="' + esc(f.depTerm ? 'Departure ' + f.depTerm : '') + '" placeholder="+ Departure terminal"></div>' +
+          '</div>' +
+          '<div class="mid-col">' +
+            '<span class="dur">' + (f.elapsed || '') + '</span>' +
+            '<div class="path"><b></b><i></i><span class="plane">&#9992;</span><i></i><b></b></div>' +
+          '</div>' +
+          '<div class="end r">' +
+            '<div class="t">' + fmtTime(f.arrDT) + (f.plus > 0 ? '<sup>+' + f.plus + '</sup>' : '') + '</div>' +
+            '<div class="code">' + f.dest + '</div>' +
+            '<div class="city">' + city(f.dest) + '</div>' +
+            '<div class="day">' + fmtDay(f.arrDT) +
+              '<input type="text" class="e term r" value="' + esc(f.arrTerm ? 'Arrival ' + f.arrTerm : '') + '" placeholder="+ Arrival terminal"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '<div class="jrn-foot">' +
+        '<select class="s status"><option>Confirmed</option><option>Schedule change</option><option>On request</option></select>' +
+        '<input type="text" class="e note" placeholder="+ Notes or VIP perks for this journey...">' +
+      '</div></section>';
+  });
+  return html;
+}
+/* ---------- screenshot ---------- */
+function snapExport(doc){
+  var swaps = [];
+  doc.classList.add('is-exporting');
+  doc.querySelectorAll('select.s').forEach(function(sel){
+    var span = document.createElement('span'), cs = getComputedStyle(sel);
+    span.style.fontSize = cs.fontSize;
+    span.style.fontWeight = cs.fontWeight;
+    span.style.color = cs.color;
+    span.style.padding = cs.padding;
+    span.style.borderRadius = cs.borderRadius;
+    span.style.background = cs.background;
+    span.style.border = cs.border;
+    span.style.letterSpacing = cs.letterSpacing;
+    span.style.textTransform = cs.textTransform;
+    span.style.lineHeight = '24px';
+    span.style.height = '26px';
+    span.style.display = 'inline-flex';
+    span.style.alignItems = 'center';
+    span.style.justifyContent = 'center';
+    span.style.boxSizing = 'border-box';
+    span.textContent = sel.options[sel.selectedIndex].text;
+    sel.parentNode.insertBefore(span, sel);
+    sel.style.display = 'none';
+    swaps.push({ el: sel, tmp: span });
+  });
+  doc.querySelectorAll('input.e').forEach(function(inp){
+    if (!inp.value.trim()){ inp.style.display = 'none'; swaps.push({ el: inp, tmp: null }); return; }
+    var d = document.createElement('span'), cs = getComputedStyle(inp);
+    ['fontSize','fontWeight','fontStyle','color','padding'].forEach(function(k){ d.style[k] = cs[k]; });
+    d.style.whiteSpace = 'nowrap';
+    d.textContent = (inp.classList.contains('term') ? ' · ' : '') + inp.value;
+    inp.parentNode.insertBefore(d, inp); inp.style.display = 'none';
+    swaps.push({ el: inp, tmp: d });
+  });
+  return swaps;
+}
+function snapRestore(doc, swaps){
+  doc.classList.remove('is-exporting');
+  swaps.forEach(function(s){ if (s.tmp) s.tmp.remove(); s.el.style.display = ''; });
+}
+async function shoot(doc){
+  var bg = document.body.classList.contains('dark') ? '#0b111e' : '#f3f4f6';
+  var swaps = snapExport(doc);
+  try {
+    await new Promise(function(r){ setTimeout(r, 60); });
+    return await html2canvas(doc, { scale: 2, useCORS: true, backgroundColor: bg });
+  } finally { snapRestore(doc, swaps); }
+}
+async function exportImage(action, ti){
+  var doc = document.getElementById('doc' + ti);
+  if (!doc) return;
+  var canvas = await shoot(doc);
+  if (action === 'download'){
+    var a = document.createElement('a');
+    a.download = B().name + '_Itinerary_' + (ti + 1) + '.png';
+    a.href = canvas.toDataURL('image/png'); a.click();
+  } else {
+    canvas.toBlob(async function(blob){
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); alert('Screenshot copied to clipboard!'); }
+      catch(e){ alert('Clipboard blocked by the browser — use Download PNG instead.'); }
+    });
+  }
+}
+/* ---------- disclaimer email ---------- */
+var BAG_TEXT = {
+  '2 x 32kg':'2 pieces EACH PIECE UP TO 70 POUNDS/32 KILOGRAMS AND UP TO 62 LINEAR INCHES/158 LINEAR CENTIMETERS',
+  '1 x 32kg':'1 piece UP TO 70 POUNDS/32 KILOGRAMS AND UP TO 62 LINEAR INCHES/158 LINEAR CENTIMETERS',
+  '2 x 23kg':'2 pieces EACH PIECE UP TO 50 POUNDS/23 KILOGRAMS AND UP TO 62 LINEAR INCHES/158 LINEAR CENTIMETERS',
+  '1 x 23kg':'1 piece UP TO 50 POUNDS/23 KILOGRAMS AND UP TO 62 LINEAR INCHES/158 LINEAR CENTIMETERS',
+  '3 x 23kg':'3 pieces EACH PIECE UP TO 50 POUNDS/23 KILOGRAMS AND UP TO 62 LINEAR INCHES/158 LINEAR CENTIMETERS',
+  'Hand baggage only':'NO CHECKED BAG INCLUDED - CARRY-ON ONLY'
+};
+var NUMWORD = ['zero','one','two','three','four','five','six','seven','eight','nine'];
+function numWord(n){ return NUMWORD[n] || String(n); }
+function cabinWord(c){
+  return { 'Economy':'economy', 'Premium Economy':'premium economy',
+           'Business':'business', 'First':'first' }[c] || String(c).toLowerCase();
+}
+function legsFromDocs(){
+  var legs = [];
+  document.querySelectorAll('#docs .doc').forEach(function(doc){
+    var ti = +doc.getAttribute('data-ticket');
+    doc.querySelectorAll('.card').forEach(function(card){
+      var bag = card.querySelector('select.bag'), cab = card.querySelector('select.cabin');
+      legs.push({
+        ti: ti,
+        orig: card.getAttribute('data-orig'),
+        dest: card.getAttribute('data-dest'),
+        bag: bag ? bag.value : '2 x 23kg',
+        cabin: cab ? cab.value : 'Economy'
+      });
+    });
+  });
+  return legs;
+}
+function routeInfo(){
+  var allTrips = [];
+  lastRender.forEach(function(r){ allTrips = allTrips.concat(r.trips); });
+  if (!allTrips.length) return null;
+  var firstTrip = allTrips[0], lastTrip = allTrips[allTrips.length - 1];
+  var origin = firstTrip[0].orig;
+  var finalDest = lastTrip[lastTrip.length - 1].dest;
+  var dest = allTrips.length > 1 ? firstTrip[firstTrip.length - 1].dest : finalDest;
+  var word = allTrips.length === 1 ? 'one-way' : (finalDest === origin ? 'round-trip' : 'multi-city');
+  return { origin: origin, dest: dest, word: word };
+}
+function cabinRank(c){ return { 'Economy':0, 'Premium Economy':1, 'Business':2, 'First':3 }[c] || 0; }
+function cabinSentence(legs){
+  if (legs.length < 2) return '';
+  var counts = {};
+  legs.forEach(function(l){ counts[l.cabin] = (counts[l.cabin] || 0) + 1; });
+  var used = Object.keys(counts);
+  if (used.length < 2) return '';
+  var main = used.slice().sort(function(a,b){
+    return (counts[b] - counts[a]) || (cabinRank(b) - cabinRank(a));
+  })[0];
+  var odd = legs.filter(function(l){ return l.cabin !== main; });
+  var byCabin = {};
+  odd.forEach(function(l){ (byCabin[l.cabin] = byCabin[l.cabin] || []).push(l); });
+  var clauses = Object.keys(byCabin).sort(function(a,b){ return cabinRank(a) - cabinRank(b); }).map(function(c){
+    var list = byCabin[c].map(function(l){ return 'from ' + l.orig + ' to ' + l.dest; });
+    var joined = list.length === 1 ? list[0]
+      : list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+    return (list.length === 1 ? 'the flight ' : 'the flights ') + joined +
+           (list.length === 1 ? ' is in ' : ' are in ') + cabinWord(c);
+  });
+  var body = clauses.length === 1 ? clauses[0]
+    : clauses.slice(0, -1).join(', ') + ' and ' + clauses[clauses.length - 1];
+  return body.charAt(0).toUpperCase() + body.slice(1) + ', the others are in ' + cabinWord(main) + '.';
+}
+async function buildEmail(){
+  var docs = Array.prototype.slice.call(document.querySelectorAll('#docs .doc'));
+  if (!docs.length){ alert('Generate the itinerary first.'); return; }
+  var panel = document.getElementById('mailPanel');
+  panel.classList.add('busy');
+  panel.style.display = 'block';
+  document.getElementById('mailBody').innerHTML = '<p>Capturing screenshots...</p>';
+  try {
+    var shots = [];
+    for (var i = 0; i < docs.length; i++){
+      var c = await shoot(docs[i]);
+      shots.push(c.toDataURL('image/png'));
+    }
+    var sep   = mode() === 'separate';
+    var name  = document.getElementById('pax').value.trim() || 'traveller';
+    var legs  = legsFromDocs();
+    var info  = routeInfo() || { origin:'?', dest:'?', word:'' };
+    var P = function(s){ return '<p style="margin:0 0 12px">' + s + '</p>'; };
+    var h = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;line-height:1.5">';
+    h += P('Dear ' + esc(name) + ',');
+    h += P('Your ' + info.word + ' journey from ' + info.origin + ' to ' + info.dest +
+           (sep ? ' is composed of ' + numWord(docs.length) + ' separate bookings outlined below:'
+                : ' is outlined below:'));
+    shots.forEach(function(src, k){
+      if (sep) h += P('<b>Ticket #' + (k+1) + ':</b>');
+      h += '<p style="margin:0 0 16px"><img src="' + src + '" style="max-width:680px;width:100%"></p>';
+    });
+    legs.forEach(function(l){
+      h += P('BAG ALLOWANCE &nbsp;&nbsp;&nbsp;&nbsp; ' + l.orig + ' to ' + l.dest + ' ' +
+             (BAG_TEXT[l.bag] || l.bag));
+    });
+    h += P('<b>Important to note:</b>');
+    var n = 1;
+    if (sep){
+      h += P('<b>' + (n++) + '. Connection process:</b><br>As your itinerary consists of ' +
+             numWord(docs.length) + ' separate bookings, you will be required to check out and check in at the connection point.');
+    }
+    h += P('<b>' + (n++) + '. Schedule changes/missed flights:</b><br>All of the separate bookings will be independently treated in terms of schedule changes, should the affected itinerary disrupt the subsequent flight segments any changes to other than the affected booking will be treated as voluntary and all fare rules will apply. Failure to use all flight segments in order will result in No-Show and our company will not be held liable or responsible to cover any fees or losses associated to any aspects of this booking that result due to airline operations.');
+    h += P('<b>' + (n++) + '. Baggage allowance:</b><br>For short legs in economy class, check-in bags are not included in the fare, but can be added to the booking against normal fees at the airports. Please note that in case of purchasing an additional bag, the weight limit will remain the same as for an economy ticket - 50lbs per bag');
+    var cs = cabinSentence(legs);
+    if (cs) h += P('<b>' + (n++) + '.</b> ' + cs);
+    h += P('Kindly reply to this email with a confirmation that you have read and approved the above.');
+    h += P('Your prompt response is greatly appreciated.');
+    h += P('Safe travels!');
+    h += '</div>';
+    document.getElementById('mailBody').innerHTML = h;
+  } catch(e){
+    document.getElementById('mailBody').innerHTML = '<p>Could not build the email: ' + esc(e.message) + '</p>';
+  } finally {
+    panel.classList.remove('busy');
+    panel.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+}
+async function copyEmail(){
+  var el = document.getElementById('mailBody');
+  if (!el.innerHTML.trim()){ alert('Build the email first.'); return; }
+  var html = el.innerHTML, text = el.innerText;
+  try {
+    await navigator.clipboard.write([ new ClipboardItem({
+      'text/html' : new Blob([html], { type:'text/html'  }),
+      'text/plain': new Blob([text], { type:'text/plain' })
+    })]);
+    alert('Email copied. Open a Gmail compose window and paste — the screenshots come with it.');
+  } catch(e){
+    var r = document.createRange(); r.selectNodeContents(el);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e2){}
+    s.removeAllRanges();
+    alert(ok ? 'Email copied. Paste it into Gmail.'
+             : 'Clipboard blocked. Select everything in the preview box and copy manually.');
+  }
+}
+renderTickets();
+initBrand();
+<\/script>
+</body>
+</html>`;
+
+const IA_GK_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GK Converter - TBC</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b111e;--card:#151e2d;--line:#2a364a;--ink:#f8fafc;--mid:#94a3b8;
+        --grad:linear-gradient(135deg,#e32965 0%,#9e143d 100%);--code:#38bdf8;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--ink);
+       padding:30px 20px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  .header{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 22px;
+          display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{background:var(--grad);color:#fff;font-weight:800;font-size:22px;padding:4px 12px;
+        border-radius:8px;letter-spacing:-1px}
+  h1{font-size:17px;font-weight:800}
+  .sub{font-size:11px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:1px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  label.lbl{display:block;font-size:10px;font-weight:800;text-transform:uppercase;
+            letter-spacing:.6px;color:var(--mid);margin-bottom:5px}
+  textarea{width:100%;height:150px;background:#090e17;border:1px solid var(--line);border-radius:10px;
+           padding:10px 12px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:12px;
+           outline:none;resize:vertical}
+  textarea:focus{border-color:#e8447a}
+  .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
+  .fld{display:flex;flex-direction:column;gap:4px}
+  select,input.num{background:#090e17;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+                   color:var(--ink);font-family:inherit;font-size:12px;outline:none}
+  input.num{width:70px}
+  button.go{background:var(--grad);color:#fff;border:none;border-radius:8px;padding:9px 18px;
+            font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+  button.go:hover{filter:brightness(1.12)}
+  .out{background:#090e17;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;
+       font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--code);
+       white-space:pre-wrap;line-height:1.6;cursor:pointer;min-height:48px}
+  .out:hover{border-color:var(--code)}
+  .note{font-size:11.5px;color:var(--mid);margin-top:8px}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--grad);color:#fff;padding:8px 16px;
+         border-radius:20px;font-size:12px;font-weight:700;opacity:0;pointer-events:none;
+         transition:opacity .2s,transform .2s;transform:translateY(10px)}
+  .toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">tbc</div>
+      <div><h1>GK Converter</h1><div class="sub">Passive segment builder</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <label class="lbl">Paste Sabre segments (*I / *IA / VI*)</label>
+    <textarea id="src" placeholder=" 1 TK  85J 29AUG Q TLVIST*SS1   615A  920A /DCTK /E
+ 2 TK  79J 29AUG Q ISTJFK*SS1  1155A  310P /DCTK /E"></textarea>
+    <div class="row">
+      <div class="fld">
+        <label class="lbl">Status</label>
+        <select id="status">
+          <option value="GK">GK - passive / ghost</option>
+          <option value="HK">HK - confirmed</option>
+          <option value="BK">BK - booked</option>
+          <option value="YK">YK - waitlist</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label class="lbl">Seats</label>
+        <input class="num" id="seats" type="number" min="1" max="9" value="1">
+      </div>
+      <div class="fld">
+        <label class="lbl">Times</label>
+        <select id="times">
+          <option value="0">Omit times</option>
+          <option value="1">Include times</option>
+        </select>
+      </div>
+      <button class="go" onclick="convert()">Convert</button>
+    </div>
+  </div>
+  <div class="panel">
+    <label class="lbl">Sell commands - click to copy</label>
+    <div class="out" id="out" onclick="copyOut()">Paste segments above, then press Convert.</div>
+    <div class="note">Each line is one passive segment. Verify carrier, class, date and time format against your GDS before selling.</div>
+  </div>
+</div>
+<div class="toast" id="toast">Copied to clipboard!</div>
+<script>
+var SEG = /^\\s*\\d{1,2}\\s+([A-Z0-9]{2})\\s*(\\d{1,4})\\s*([A-Z])?\\s+(\\d{2}[A-Z]{3})\\s+(?:[A-Z]\\s+)?([A-Z]{3})\\s*([A-Z]{3})\\s*\\*?\\s*(?:[A-Z]{2}\\d{1,2})?\\s+(\\d{1,4}[AP])\\s+(\\d{1,4}[AP])/i;
+function pad4(t){
+  var ap = t.slice(-1).toUpperCase();
+  var n  = t.slice(0,-1).replace(/\\D/g,'');
+  while (n.length < 4) n = '0' + n;
+  return n + ap;
+}
+function convert(){
+  var lines  = document.getElementById('src').value.split('\\n');
+  var status = document.getElementById('status').value;
+  var seats  = parseInt(document.getElementById('seats').value,10) || 1;
+  var withT  = document.getElementById('times').value === '1';
+  var cmds = [];
+  lines.forEach(function(line){
+    var m = line.trim().match(SEG);
+    if (!m) return;
+    var cxr = m[1].toUpperCase(), flt = m[2], cls = (m[3]||'Y').toUpperCase();
+    var dt  = m[4].toUpperCase(), org = m[5].toUpperCase(), dst = m[6].toUpperCase();
+    var cmd = '0' + cxr + flt + cls + dt + org + dst + status + seats;
+    if (withT) cmd += '/' + pad4(m[7]) + ' ' + pad4(m[8]);
+    cmds.push(cmd);
+  });
+  document.getElementById('out').textContent =
+    cmds.length ? cmds.join('\\n') : 'No valid segments detected. Check the paste format.';
+}
+function copyOut(){
+  var t = document.getElementById('out').textContent;
+  if (!t || t.indexOf('No valid') === 0 || t.indexOf('Paste segments') === 0) return;
+  navigator.clipboard.writeText(t).then(function(){
+    var el = document.getElementById('toast');
+    el.classList.add('show');
+    setTimeout(function(){ el.classList.remove('show'); }, 2000);
+  });
+}
+<\/script>
+</body>
+</html>`;
+
+const IA_PNR_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDS PNR Creation Guide - TBC</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-body: #0b111e; --bg-card: #151e2d; --bg-sub: #101827;
+    --text-main: #f8fafc; --text-muted: #94a3b8; --border: #2a364a;
+    --tbc-plum: #e8447a; --tbc-gradient: linear-gradient(135deg, #e32965 0%, #9e143d 100%);
+    --code-bg: #090e17; --code-border: #1e293b; --code-text: #38bdf8;
+    --accent-blue: #6366f1; --tag-bg: rgba(99, 102, 241, 0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    padding: 30px 20px;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .container { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .header {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .brand-group { display: flex; align-items: center; gap: 12px; }
+  .logo-badge {
+    background: var(--tbc-gradient);
+    color: #fff;
+    font-weight: 800;
+    font-size: 22px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    letter-spacing: -1px;
+  }
+  .title-group h1 { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+  .title-group p { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+  .status-chip {
+    background: var(--tag-bg);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+  .builder-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  }
+  .builder-top {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+  }
+  .builder-title { font-size: 13px; font-weight: 800; color: #818cf8; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+  .btn-add-pax {
+    background: var(--tbc-gradient); color: #fff; border: none; border-radius: 7px;
+    padding: 5px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;
+  }
+  .btn-add-pax:hover { filter: brightness(1.15); }
+  .pax-rows-container { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .pax-row {
+    display: flex; gap: 6px; align-items: center; background: #090e17;
+    padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border);
+  }
+  .pax-row-num {
+    font-size: 11px; font-weight: 800; color: #818cf8; width: 22px; text-align: center; flex-shrink: 0;
+  }
+  .builder-input, .builder-select {
+    background: #151e2d; border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 8px; color: #fff; font-size: 11.5px; outline: none; font-family: inherit;
+  }
+  .builder-input:focus, .builder-select:focus { border-color: #818cf8; }
+  .inp-last { flex: 1.2; min-width: 0; }
+  .inp-first { flex: 1.2; min-width: 0; }
+  .inp-dob { width: 95px; flex-shrink: 0; }
+  .inp-type { width: 115px; flex-shrink: 0; }
+  .inp-gender { width: 100px; flex-shrink: 0; }
+  .inp-ref { width: 50px; text-align: center; flex-shrink: 0; }
+  .btn-del-pax {
+    background: transparent; border: none; color: #ef4444; font-size: 15px; cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1; flex-shrink: 0;
+  }
+  .btn-del-pax:hover { background: rgba(239, 68, 68, 0.15); }
+  .builder-outputs { display: flex; flex-direction: column; gap: 8px; }
+  .gen-row { display: flex; flex-direction: column; gap: 4px; }
+  .gen-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.6px; }
+  .builder-output {
+    background: #090e17; border: 1px solid #1e293b; border-radius: 8px;
+    padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+    color: #38bdf8; display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer;
+    white-space: pre-line; line-height: 1.4;
+  }
+  .builder-output:hover { border-color: #38bdf8; }
+  .search-bar {
+    width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; color: #fff; font-size: 12.5px; outline: none;
+    font-family: inherit; transition: border-color 0.15s;
+  }
+  .search-bar:focus { border-color: var(--tbc-plum); }
+  .intro-card {
+    background: linear-gradient(135deg, rgba(227, 41, 101, 0.08), rgba(99, 102, 241, 0.08));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 12.5px;
+    color: #cbd5e1;
+  }
+  .steps-grid { display: flex; flex-direction: column; gap: 12px; }
+  .step-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .step-card:hover { border-color: rgba(99, 102, 241, 0.4); }
+  .step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .step-num {
+    background: var(--tbc-gradient); color: #fff; font-weight: 800; font-size: 12px;
+    width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-title { font-size: 14px; font-weight: 700; color: #fff; }
+  .step-content { font-size: 12.5px; color: #94a3b8; display: flex; flex-direction: column; gap: 8px; }
+  .step-content strong { color: #f1f5f9; }
+  .code-block {
+    background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 8px;
+    padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code-text);
+    display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 3px 0;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .code-block:hover { border-color: rgba(56, 189, 248, 0.4); background: #0c1424; }
+  .code-text-val { flex: 1; word-break: break-all; }
+  .copy-btn {
+    background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1;
+    padding: 3px 8px; border-radius: 5px; font-size: 10px; font-weight: 700; cursor: pointer;
+    font-family: 'Inter', sans-serif; flex-shrink: 0; transition: 0.15s; margin-left: 8px;
+  }
+  .code-block:hover .copy-btn, .builder-output:hover .copy-btn { background: var(--tbc-gradient); color: #fff; border-color: transparent; }
+  .note-box { background: var(--bg-sub); border-left: 3px solid var(--tbc-plum); padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 11.5px; color: #cbd5e1; margin-top: 4px; }
+  .alert-box { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fde68a; padding: 10px 14px; border-radius: 8px; font-size: 12px; margin-top: 6px; }
+  .toast {
+    position: fixed; bottom: 20px; right: 20px; background: var(--tbc-gradient); color: #fff;
+    padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4); opacity: 0; pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s; transform: translateY(10px);
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="brand-group">
+      <div class="logo-badge">tbc</div>
+      <div class="title-group">
+        <h1>How to Create a PNR in GDS</h1>
+        <p>Standard Operating Procedure</p>
+      </div>
+    </div>
+    <div class="status-chip">Multi-Pax Generator (Max 9)</div>
+  </div>
+  <div class="builder-card">
+    <div class="builder-top">
+      <div class="builder-title">&#9881; Multi-Passenger Sabre Command Generator</div>
+      <button class="btn-add-pax" id="btnAddPax" onclick="addPaxRow()">+ Add Passenger</button>
+    </div>
+    <div class="pax-rows-container" id="paxContainer"></div>
+    <div class="builder-outputs">
+      <div class="gen-row">
+        <span class="gen-label">1. Passenger Name Command(s)</span>
+        <div class="builder-output" onclick="copySnippet(document.getElementById('outCmdName').textContent)">
+          <span id="outCmdName">-LASTNAME/FIRSTNAME MR</span>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+      <div class="gen-row">
+        <span class="gen-label">2. TSA / APIS Command(s) (3DOCS)</span>
+        <div class="builder-output" onclick="copySnippet(document.getElementById('outCmdDocs').textContent)">
+          <span id="outCmdDocs">3DOCS/DB/30JAN62/M/LASTNAME/FIRSTNAME-1.1</span>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+      <div class="gen-row" id="outInftRow" style="display:none;">
+        <span class="gen-label" style="color:#fde68a;">3. Mandatory Infant Remark(s) (3INFT)</span>
+        <div class="builder-output" style="border-color:#f59e0b;" onclick="copySnippet(document.getElementById('outCmdInft').textContent)">
+          <span id="outCmdInft" style="color:#fde68a;">3INFT/LASTNAME/FIRSTNAME/30JAN62-1.1</span>
+          <button class="copy-btn">Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="text" class="search-bar" id="guideSearch" placeholder="&#128269; Search commands or steps (e.g. infant, CTCR, TK, WPRQ, TSA)...">
+  <div class="intro-card">
+    <strong>Dear Team,</strong><br>
+    Please find below the detailed steps to correctly create a PNR in GDS. Click any code box to copy commands directly.
+  </div>
+  <div class="steps-grid" id="stepsList">
+    <div class="step-card" data-search="itinerary seats pcc infant lap 1">
+      <div class="step-head"><div class="step-num">1</div><div class="step-title">Build the Itinerary</div></div>
+      <div class="step-content">
+        <p>&bull; Always use the correct <strong>PCC</strong>.</p>
+        <p>&bull; The number of seats taken should match the number of passengers being added.</p>
+        <div class="note-box"><strong>Note:</strong> An infant on lap does not require an additional seat.</div>
+      </div>
+    </div>
+    <div class="step-card" data-search="names passenger adult child infant seat 2">
+      <div class="step-head"><div class="step-num">2</div><div class="step-title">Insert Passenger Names</div></div>
+      <div class="step-content">
+        <p>Use the following formats depending on passenger type:</p>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-top:2px;">Adult:</p>
+        <div class="code-block" onclick="copySnippet('-LASTNAME/FIRST MIDDLE')"><span class="code-text-val">-LASTNAME/FIRST MIDDLE</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-top:4px;">Child:</p>
+        <div class="code-block" onclick="copySnippet('-LASTNAME/FIRST MIDDLE*P-C07')"><span class="code-text-val">-LASTNAME/FIRST MIDDLE*P-C07</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-top:4px;">Infant without a seat (on lap):</p>
+        <div class="code-block" onclick="copySnippet('-I/LASTNAME/FIRST MIDDLE*DOB18AUG20')"><span class="code-text-val">-I/LASTNAME/FIRST MIDDLE*DOB18AUG20</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-top:4px;">Infant with a seat:</p>
+        <div class="code-block" onclick="copySnippet('-LASTNAME/FIRST MIDDLE*P-INS')"><span class="code-text-val">-LASTNAME/FIRST MIDDLE*P-INS</span><button class="copy-btn">Copy</button></div>
+      </div>
+    </div>
+    <div class="step-card" data-search="create reopen pnr *pnrpnr 3 4">
+      <div class="step-head"><div class="step-num">3</div><div class="step-title">Create & Reopen PNR</div></div>
+      <div class="step-content">
+        <p>Type the following to create the record:</p>
+        <div class="code-block" onclick="copySnippet('PNR')"><span class="code-text-val">PNR</span><button class="copy-btn">Copy</button></div>
+        <p style="margin-top:4px;">Command to reopen:</p>
+        <div class="code-block" onclick="copySnippet('*PNRPNR')"><span class="code-text-val">*PNRPNR</span><button class="copy-btn">Copy</button></div>
+      </div>
+    </div>
+    <div class="step-card" data-search="tsa secure flight docs 3docs 4docs apis infant 3inft aa ba 5">
+      <div class="step-head"><div class="step-num">4</div><div class="step-title">Add TSA Information</div></div>
+      <div class="step-content">
+        <p>Follow the formats below:</p>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1;">Adult / Child:</p>
+        <div class="code-block" onclick="copySnippet('3DOCS/DB/30JAN62/M/LASTNAME/FIRSTNAME/MIDDLENAME-1.1')"><span class="code-text-val">3DOCS/DB/30JAN62/M/LASTNAME/FIRSTNAME/MIDDLENAME-1.1</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; color:#64748b;">&bull; <strong>30JAN62</strong> &rarr; Date of birth &nbsp;|&nbsp; <strong>M/F</strong> &rarr; Gender &nbsp;|&nbsp; <strong>-1.1</strong> &rarr; Passenger reference</p>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-top:4px;">Infant:</p>
+        <div class="code-block" onclick="copySnippet('3DOCS/DB/29JUN24/FI/WILLIAMS/WREN BROOKE-1.1')"><span class="code-text-val">3DOCS/DB/29JUN24/FI/WILLIAMS/WREN BROOKE-1.1</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; color:#64748b;">&bull; <strong>-1.1</strong> indicates the infant is linked to the first adult in the booking.</p>
+        <div class="alert-box">
+          <strong>Important:</strong> Once an infant is added, you must also insert the following remark:
+          <div class="code-block" style="margin-top:6px; background:#1e1b4b;" onclick="copySnippet('3INFT/WILLIAMS/WREN BROOKE/29JUN24-1.1')">
+            <span class="code-text-val" style="color:#c7d2fe;">3INFT/WILLIAMS/WREN BROOKE/29JUN24-1.1</span>
+            <button class="copy-btn">Copy</button>
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:6px;"><strong>Note:</strong> For AA/BA, use <strong>4DOC</strong> instead of <strong>3DOC</strong>.</div>
+      </div>
+    </div>
+    <div class="step-card" data-search="sign save signature er 6ruby 6">
+      <div class="step-head"><div class="step-num">5</div><div class="step-title">Sign & Save</div></div>
+      <div class="step-content">
+        <div class="code-block" onclick="copySnippet('6RUBY')"><span class="code-text-val">6RUBY</span><span style="font-size:11px; color:#64748b; margin-right:8px;">// Signature</span><button class="copy-btn">Copy</button></div>
+        <div class="code-block" onclick="copySnippet('ER')"><span class="code-text-val">ER</span><span style="font-size:11px; color:#64748b; margin-right:8px;">// Save & End Transaction</span><button class="copy-btn">Copy</button></div>
+      </div>
+    </div>
+    <div class="step-card" data-search="ctcr remarks contact email phone tk turkish 7">
+      <div class="step-head"><div class="step-num">6</div><div class="step-title">Add CTCR Remarks (When Required)</div></div>
+      <div class="step-content">
+        <p>For some airlines (e.g., <strong>TK</strong>), adding CTCR remarks (contact details) is mandatory:</p>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1;">Email:</p>
+        <div class="code-block" onclick="copySnippet('3CTCE/SCHEDULE.CHANGES//TRAVELBUSINESSCLASS.COM-1.1')"><span class="code-text-val">3CTCE/SCHEDULE.CHANGES//TRAVELBUSINESSCLASS.COM-1.1</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; font-weight:700; color:#cbd5e1; margin-top:4px;">Phone number:</p>
+        <div class="code-block" onclick="copySnippet('3CTCM/8558551221-1.1')"><span class="code-text-val">3CTCM/8558551221-1.1</span><button class="copy-btn">Copy</button></div>
+        <p style="font-size:11.5px; color:#64748b;">(Replace passenger reference -1.1 as per the passenger order in the booking.)</p>
+      </div>
+    </div>
+    <div class="step-card" data-search="store save fare wprq wprq¥pv wppjcb¥rq wprq¥pl *pq pqd-all 8">
+      <div class="step-head"><div class="step-num">7</div><div class="step-title">Store and Save Fare</div></div>
+      <div class="step-content">
+        <p>Always rebook into the correct booking classes before storing.</p>
+        <div class="code-block" onclick="copySnippet('WPRQ')"><span class="code-text-val">WPRQ</span><span style="font-size:11px; color:#64748b; margin-right:8px;">// Store adult fare</span><button class="copy-btn">Copy</button></div>
+        <div class="code-block" onclick="copySnippet('WPRQ¥PV')"><span class="code-text-val">WPRQ¥PV</span><span style="font-size:11px; color:#64748b; margin-right:8px;">// Price & store private</span><button class="copy-btn">Copy</button></div>
+        <div class="code-block" onclick="copySnippet('WPPJCB¥RQ')"><span class="code-text-val">WPPJCB¥RQ</span><span style="font-size:11px; color:#64748b; margin-right:8px;">// Price & store JCB</span><button class="copy-btn">Copy</button></div>
+        <div class="code-block" onclick="copySnippet('WPRQ¥PL')"><span class="code-text-val">WPRQ¥PL</span><span style="font-size:11px; color:#64748b; margin-right:8px;">// Price & store published</span><button class="copy-btn">Copy</button></div>
+        <p style="margin-top:4px;">Sign & Save:</p>
+        <div class="code-block" onclick="copySnippet('6NICKNAME§ER')"><span class="code-text-val">6NICKNAME + ER</span><button class="copy-btn">Copy</button></div>
+        <div class="note-box">&bull; <strong>*PQ</strong> &rarr; Check stored fare<br>&bull; <strong>PQD-ALL</strong> &rarr; Delete storing</div>
+      </div>
+    </div>
+    <div class="step-card" data-search="submitting pnr email thread pcc *pnrpnr *pq 9">
+      <div class="step-head"><div class="step-num">8</div><div class="step-title">Submitting the PNR</div></div>
+      <div class="step-content">
+        <p>When sharing a PNR for a sale in an email thread, you must always provide:</p>
+        <p>&bull; <strong>PCC</strong> used to create the PNR</p>
+        <p>&bull; PNR display: <code style="font-family:'JetBrains Mono'; color:#38bdf8; cursor:pointer;" onclick="copySnippet('*PNRPNR')">*PNRPNR</code></p>
+        <p>&bull; Stored fare display: <code style="font-family:'JetBrains Mono'; color:#38bdf8; cursor:pointer;" onclick="copySnippet('*PQ')">*PQ</code></p>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast">Copied to clipboard!</div>
+<script>
+  let paxList = [];
+  function copySnippet(text) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const toast = document.getElementById('toast');
+      toast.textContent = 'Copied to clipboard!';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    });
+  }
+  function addPaxRow(data) {
+    if (paxList.length >= 9) {
+      alert("Maximum 9 passengers reached.");
+      return;
+    }
+    const idx = paxList.length;
+    const defaultData = data || {
+      last: idx === 0 ? 'HASSAN' : (paxList[0]?.last || 'LASTNAME'),
+      first: idx === 0 ? 'HANY' : 'FIRSTNAME',
+      dob: '30JAN62',
+      type: 'ADT',
+      gender: 'M',
+      ref: (idx + 1) + '.1'
+    };
+    paxList.push(defaultData);
+    renderPaxRows();
+  }
+  function deletePaxRow(idx) {
+    if (paxList.length <= 1) return;
+    paxList.splice(idx, 1);
+    paxList.forEach((p, i) => { p.ref = (i + 1) + '.1'; });
+    renderPaxRows();
+  }
+  function renderPaxRows() {
+    const container = document.getElementById('paxContainer');
+    container.innerHTML = '';
+    paxList.forEach((pax, idx) => {
+      const row = document.createElement('div');
+      row.className = 'pax-row';
+      row.innerHTML = \`
+        <span class="pax-row-num">#\${idx + 1}</span>
+        <input type="text" class="builder-input inp-last" placeholder="Last Name" value="\${pax.last}" data-idx="\${idx}" data-field="last">
+        <input type="text" class="builder-input inp-first" placeholder="First Name" value="\${pax.first}" data-idx="\${idx}" data-field="first">
+        <input type="text" class="builder-input inp-dob" placeholder="DOB" value="\${pax.dob}" data-idx="\${idx}" data-field="dob">
+        <select class="builder-select inp-type" data-idx="\${idx}" data-field="type">
+          <option value="ADT" \${pax.type === 'ADT' ? 'selected' : ''}>Adult</option>
+          <option value="CNN" \${pax.type === 'CNN' ? 'selected' : ''}>Child (C07)</option>
+          <option value="INF" \${pax.type === 'INF' ? 'selected' : ''}>Infant (Lap)</option>
+          <option value="INS" \${pax.type === 'INS' ? 'selected' : ''}>Infant (Seat)</option>
+        </select>
+        <select class="builder-select inp-gender" data-idx="\${idx}" data-field="gender">
+          <option value="M" \${pax.gender === 'M' ? 'selected' : ''}>Male (M)</option>
+          <option value="F" \${pax.gender === 'F' ? 'selected' : ''}>Female (F)</option>
+          <option value="MI" \${pax.gender === 'MI' ? 'selected' : ''}>Infant M (MI)</option>
+          <option value="FI" \${pax.gender === 'FI' ? 'selected' : ''}>Infant F (FI)</option>
+        </select>
+        <input type="text" class="builder-input inp-ref" placeholder="Ref" value="\${pax.ref}" data-idx="\${idx}" data-field="ref">
+        \${paxList.length > 1 ? \`<button class="btn-del-pax" onclick="deletePaxRow(\${idx})" title="Remove Passenger">&times;</button>\` : ''}
+      \`;
+      container.appendChild(row);
+    });
+    document.getElementById('btnAddPax').style.display = paxList.length >= 9 ? 'none' : 'flex';
+    updateOutputs();
+  }
+  function updateOutputs() {
+    let nameCmds = [];
+    let docsCmds = [];
+    let inftCmds = [];
+    paxList.forEach((pax) => {
+      const last = (pax.last || 'LASTNAME').trim().toUpperCase();
+      const first = (pax.first || 'FIRSTNAME').trim().toUpperCase();
+      const dob = (pax.dob || '30JAN62').trim().toUpperCase();
+      const pType = pax.type;
+      const gender = pax.gender;
+      const ref = (pax.ref || '1.1').trim();
+      let nameCmd = '-' + last + '/' + first;
+      if (pType === 'CNN') nameCmd += '*P-C07';
+      else if (pType === 'INF') nameCmd = '-I/' + last + '/' + first + '*DOB' + dob;
+      else if (pType === 'INS') nameCmd += '*P-INS';
+      nameCmds.push(nameCmd);
+      const docsFirst = first.replace(/\\s*(MR|MRS|MS|MSTR|MISS)$/i, '').trim();
+      const docsCmd = '3DOCS/DB/' + dob + '/' + gender + '/' + last + '/' + docsFirst + '-' + ref;
+      docsCmds.push(docsCmd);
+      if (pType === 'INF' || gender.includes('I')) {
+        const inftCmd = '3INFT/' + last + '/' + docsFirst + '/' + dob + '-' + ref;
+        inftCmds.push(inftCmd);
+      }
+    });
+    document.getElementById('outCmdName').textContent = nameCmds.join('\\n');
+    document.getElementById('outCmdDocs').textContent = docsCmds.join('\\n');
+    const inftRow = document.getElementById('outInftRow');
+    if (inftCmds.length > 0) {
+      inftRow.style.display = 'flex';
+      document.getElementById('outCmdInft').textContent = inftCmds.join('\\n');
+    } else {
+      inftRow.style.display = 'none';
+    }
+  }
+  document.getElementById('paxContainer').addEventListener('input', function(e) {
+    const idx = e.target.getAttribute('data-idx');
+    const field = e.target.getAttribute('data-field');
+    if (idx !== null && field) {
+      paxList[idx][field] = e.target.value;
+      updateOutputs();
+    }
+  });
+  document.getElementById('paxContainer').addEventListener('change', function(e) {
+    const idx = e.target.getAttribute('data-idx');
+    const field = e.target.getAttribute('data-field');
+    if (idx !== null && field) {
+      paxList[idx][field] = e.target.value;
+      updateOutputs();
+    }
+  });
+  addPaxRow({ last: 'HASSAN', first: 'HANY', dob: '30JAN62', type: 'ADT', gender: 'M', ref: '1.1' });
+  document.getElementById('guideSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    const cards = document.querySelectorAll('#stepsList .step-card');
+    cards.forEach(card => {
+      const hay = (card.getAttribute('data-search') + ' ' + card.innerText).toLowerCase();
+      card.style.display = (hay.includes(q) ? 'block' : 'none');
+    });
+  });
+<\/script>
+</body>
+</html>`;
+const IA_VIP_HTML = IA_VIP_HTML_BASE.replace('</head>', "<script>document.addEventListener('DOMContentLoaded',function(){try{var L=window.IA_LEAD||{};var p=document.getElementById('pax');if(p&&!p.value&&L.client)p.value=L.client;}catch(e){}});<\/script>" + '</head>');

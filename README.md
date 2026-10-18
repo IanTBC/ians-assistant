@@ -36,7 +36,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box with up to 3 airports on each side and a ±7-day range. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box with one airport on each side and ±1 day. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -49,13 +49,18 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - The panel shows today's calls, answered, skipped and round.
 - **Double-dial** redials an unanswered lead once. **Redial** calls the last number again.
 - **Night-time protection** — the dialer skips clients where it's 10 pm–8 am their time; calling one yourself asks first. A call that passes 3½ minutes stops auto-dialing.
-- **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page (click any text to copy).
+- **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page, filled in for the lead (click any text to copy). **Tools** next to it opens VIP Itinerary, GK Converter and How to make a PNR.
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.6.0 — lead tools and filled-in disclaimers**
+- Inside every lead, a new **Tools** button next to Disclaimers opens **VIP Itinerary**, **GK Converter** and **How to make a PNR**, each in a new tab. VIP Itinerary already has the client's name filled in.
+- The Disclaimers page now has a **Fill in for this lead** box at the top: client name, your direct number, the taxes amount, the award program and the fake-return city and date. The texts fill in as you type, so you copy a finished text. Your number is remembered.
+- **Basis** now searches one airport on each side, always with ±1 day. To change an airport, click its box and type the new code.
 
 **2.5.0 — disclaimers, Fast Search and safer dialing**
 - A new **Disclaimers** button inside every lead, next to the clock, opens the disclaimers and scripts page. Click any text there to copy it.
