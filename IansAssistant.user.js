@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ian's Assistant
 // @namespace    ians-assistant
-// @version      2.7.0
+// @version      2.8.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -6993,7 +6993,35 @@ function __jsEnsureSharedObserver() {
     sw.textContent = '\u21c4';
     sw.addEventListener('click', (e) => { e.stopPropagation(); const t = A.list.slice(); A.set(B.list); B.set(t); });
     row.append(A.w, sw, B.w);
-    // Dates (editable) and date range (Fixed … ±7 days) for this search.
+    // Booking class for this Basis search (starts on the lead's cabin).
+    let bCab = ['B', 'W', 'F', 'Y'].includes(cab) ? cab : 'B';
+    const cabRow = document.createElement('div');
+    cabRow.className = 'ia-fxp-ma-info ia-fxp-ma-cabrow';
+    const cabLbl = document.createElement('span');
+    cabLbl.className = 'ia-fxp-ma-lbl';
+    cabLbl.textContent = 'Class';
+    const cabPills = document.createElement('span');
+    cabPills.className = 'ia-fxp-ma-pills ia-fxp-ma-cab';
+    cabPills.setAttribute('role', 'radiogroup');
+    cabPills.setAttribute('aria-label', 'Booking class');
+    [['B', 'Business'], ['W', 'Premium'], ['F', 'First'], ['Y', 'Economy']].forEach(([v, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.cab = v;
+      b.setAttribute('role', 'radio');
+      b.textContent = label;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        bCab = v;
+        cabPills.querySelectorAll('button').forEach((x) => { const on = x.dataset.cab === bCab; x.classList.toggle('on', on); x.setAttribute('aria-checked', String(on)); });
+      });
+      const on = v === bCab;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+      cabPills.appendChild(b);
+    });
+    cabRow.append(cabLbl, cabPills);
+    // Dates (editable); Basis always searches ±1 day around each one.
     const info = document.createElement('div');
     info.className = 'ia-fxp-ma-info';
     const dateIn = (val, label) => {
@@ -7041,8 +7069,8 @@ function __jsEnsureSharedObserver() {
       const out = dOut.value, ret = dRet ? dRet.value : null;
       if ((mode === 'out' || mode === 'rt') && !out) { err.textContent = 'Pick the outbound date'; return; }
       if ((mode === 'ret' || mode === 'rt') && !ret) { err.textContent = 'Pick the return date'; return; }
-      if (mode === 'out' || mode === 'rt') urls.push(srchBasisMulti(lead, from, to, out, null, cab, range));
-      if (mode === 'ret' || mode === 'rt') urls.push(srchBasisMulti(lead, to, from, ret, null, cab, range));
+      if (mode === 'out' || mode === 'rt') urls.push(srchBasisMulti(lead, from, to, out, null, bCab, range));
+      if (mode === 'ret' || mode === 'rt') urls.push(srchBasisMulti(lead, to, from, ret, null, bCab, range));
       // The box stays open, so the other leg can be searched next.
       // It closes with x, Esc, or a click anywhere outside it.
       urls.forEach((u) => srchOpenBg(u)); // new tabs in the background: you stay on the lead
@@ -7064,7 +7092,7 @@ function __jsEnsureSharedObserver() {
     };
     mkAct('Outbound', 'out', !sides.ret);
     if (sides.ret) { mkAct('Return', 'ret', false); mkAct('Both \u2197', 'rt', true); }
-    el.append(h, row, info, acts, err);
+    el.append(h, row, cabRow, info, acts, err);
     el.addEventListener('mousedown', (e) => e.stopPropagation());
     document.body.appendChild(el);
     const r = btn.getBoundingClientRect();
@@ -7484,6 +7512,8 @@ function __jsEnsureSharedObserver() {
     .ia-fxp-ma-date { height: 28px; padding: 0 6px; border: 1px solid #445071; border-radius: 6px; background: #232a3d; color: #e5e7eb; font: 700 11.5px system-ui, sans-serif; color-scheme: dark; }
     .ia-fxp-ma-date:focus { outline: none; border-color: #8b7cf6; }
     .ia-fxp-ma-arrow { color: #9aa3ba; font-size: 12px; }
+    .ia-fxp-ma-lbl { font: 800 11px Inter, 'Segoe UI', system-ui, sans-serif; color: var(--ias-sec, #9aa3ba); margin-right: 2px; }
+    .ia-fxp-ma-pills.ia-fxp-ma-cab { margin-left: 0; }
     .ia-fxp-ma-pills { display: inline-flex; margin-left: auto; border: 1px solid #445071; border-radius: 6px; overflow: hidden; }
     .ia-fxp-ma-pills button { border: 0; border-left: 1px solid #2c3550; background: #1b2132; color: #c9cfe0; font: 700 11px system-ui, sans-serif; padding: 0 7px; height: 26px; cursor: pointer; }
     .ia-fxp-ma-pills button:first-child { border-left: 0; }

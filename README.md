@@ -36,7 +36,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box with one airport on each side and ±1 day. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box where you pick the class and the dates, with one airport on each side and ±1 day. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -56,6 +56,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.8.0 — pick the class in Basis**
+- The **Basis** box inside a lead now lets you choose the class (Business, Premium, First or Economy) and change the dates before you search. It always searches ±1 day around each date.
 
 **2.7.0 — skip a lead, sent times and safer saving**
 - Right-click the dot by a lead's ID and choose **Skip calling this lead**. The dialer then passes over it until you turn it off the same way. The dot gets a line through it.
