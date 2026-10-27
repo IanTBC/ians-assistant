@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Ian's Assistant
+// @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.9.0
+// @version      2.10.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
-// @description  Ian's Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
+// @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
 // @match        *://*.flybasis.com/*
 // @match        *://agentsearch.vercel.app/*
 // @match        *://*.awardlogic.com/*
@@ -34,7 +34,7 @@
 
 /*
  * ┌──────────────────────────────────────────────────────────────────┐
- * │  Ian's Assistant                                  © Ian Brown     │
+ * │  TBC Assistant                                    © Ian Brown     │
  * │  Sabre GDS, BO and calling toolkit for Travel Business Class     │
  * │  agents. Guide and install: https://iantbc.github.io/ians-assistant/ │
  * └──────────────────────────────────────────────────────────────────┘
@@ -122,7 +122,7 @@ function iaPipNode(size, p) {
     box.id = 'ia-update-banner';
     box.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:2147483647;display:flex;align-items:center;gap:10px;background:" + p.sky + "," + p.glass + ";-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);color:" + p.text + ";border:1px solid " + p.edge + ";border-radius:16px;padding:9px 11px;font:700 12.5px Inter,'Segoe UI',system-ui,sans-serif;box-shadow:" + p.shadow + ";";
     const txt = document.createElement('span');
-    txt.textContent = "Ian's Assistant " + version + ' is available';
+    txt.textContent = "TBC Assistant " + version + ' is available';
     const go = document.createElement('button');
     go.textContent = 'Update';
     go.style.cssText = 'border:0;border-radius:10px;padding:7px 13px;background:' + p.acc + ';color:' + p.onacc + ';font:800 12px Inter,\'Segoe UI\',system-ui,sans-serif;cursor:pointer;';
@@ -692,7 +692,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       user-select: none;
       white-space: nowrap;
     }
-    /* Ian's Assistant dark dashboard: one look for every site's GDS button */
+    /* TBC Assistant dark dashboard: one look for every site's GDS button */
     .gds-btn-base.gds-btn-base {
       background: #0f172a !important; color: #a5a5fb !important;
       border: 1px solid #7c7cf8 !important; border-radius: 8px !important;
@@ -3167,14 +3167,14 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     styleEl.textContent = POPOVER_CSS(th);
     root.appendChild(styleEl);
     buildNodes(`
-      <div class="wrap"><div class="body"><div class="title"><svg width="18" height="19" viewBox="10 10 76 80" aria-hidden="true">${PIP_MINI(th)}</svg>Ian's Assistant</div><div class="screen">
+      <div class="wrap"><div class="body"><div class="title"><svg width="18" height="19" viewBox="10 10 76 80" aria-hidden="true">${PIP_MINI(th)}</svg>TBC Assistant</div><div class="screen">
         <button class="gds" type="button">GDS</button>
         <input class="lead" type="text" inputmode="numeric" placeholder="LEAD ID" autocomplete="off" spellcheck="false">
         <div class="sellrow"><label class="sell-on" title="Set the sell price when adding (off = $0.00 as usual)"><input class="sell-cb" type="checkbox"><span class="sell-l">SELL</span></label><span class="sell-d">$</span><input class="sell" type="text" inputmode="decimal" maxlength="9" placeholder="auto" autocomplete="off" spellcheck="false"></div>
         <div class="price"></div>
         <div class="extra"></div>
         <div class="status"></div>
-        <div class="copy">\u00a9 Ian Brown</div>
+        <div class="copy">\u00a9 TBC Assistant</div>
       </div></div></div>`).forEach((n) => root.appendChild(n));
     document.documentElement.appendChild(host);
     const wrap = root.querySelector('.wrap');
@@ -3424,7 +3424,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
         const sv = st.sell && st.sell.ADT;
         if (sv) { const si = root.querySelector('.sell'); si.value = String(sv); }
         const sellTxt = sv ? ' · Sell $' + Number(sv).toLocaleString('en-US') : '';
-        if (state.boStale) { done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + '<br>Your BO tab runs an older Ian\'s Assistant \u2014 reload it (F5)', 'err'); return; }
+        if (state.boStale) { done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + '<br>Your BO tab runs an older TBC Assistant \u2014 reload it (F5)', 'err'); return; }
         if (st.sell && st.sell.error) done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + '<br>Sell price not set: ' + st.sell.error, 'err');
         else done('✓ Added to lead ' + leadId + (st.optionId ? ' · option ' + st.optionId : '') + sellTxt, 'ok');
       } else if (st.phase === 'error') {
@@ -3503,7 +3503,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
       try {
         const trig = document.createElement('span');
         trig.className = 'gds-pip-trigger';
-        trig.title = "Ian's Assistant: GDS copy / send to lead";
+        trig.title = "TBC Assistant: GDS copy / send to lead";
         setMarkup(trig, FACE_SVG(faceTheme()));
         trig.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openBmoPopover(trig, orig); }, true);
         ['mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach((t) => trig.addEventListener(t, (e) => e.stopPropagation()));
@@ -6048,7 +6048,7 @@ function __jsEnsureSharedObserver() {
     try { const all = JSON.parse(GM_getValue(OPTION_COST_KEY, '{}')) || {}; if (all[id] && !all[id].split) return all[id]; } catch (e) { /* ignore */ }
     const cands = [detailCache.get(String(id)), optionObjCache.get(id)].filter(Boolean);
     for (const obj of cands) { const c = costFromObj(obj); if (c) return c; }
-    try { console.warn("[Ian's Assistant] merge:" + ' no cost found for option ' + id, cands.length ? cands : '(option not in the BO data)'); } catch (e) { /* ignore */ }
+    try { console.warn("[TBC Assistant] merge:" + ' no cost found for option ' + id, cands.length ? cands : '(option not in the BO data)'); } catch (e) { /* ignore */ }
     return null;
   }
 
@@ -6707,7 +6707,7 @@ function __jsEnsureSharedObserver() {
   // Basis ▾, Kayak) plus cabin / ±days and "Open all" (Kayak + Matrix in
   // background tabs). The lead's route, dates and passengers are read from
   // the BO's own Matrix link inside that same box. URL builders adapted
-  // from Ian Brown's Flight Search widget.
+  // from the Flight Search widget.
   // ==================================================================
   const FXP_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const FXP_ITA_CABIN = { COACH: 'Y', ECONOMY: 'Y', 'PREMIUM-COACH': 'W', PREMIUM_COACH: 'W', 'PREMIUM-ECONOMY': 'W', PREMIUM_ECONOMY: 'W', BUSINESS: 'B', FIRST: 'F' };
@@ -7560,7 +7560,7 @@ function __jsEnsureSharedObserver() {
   `);
 
   // ------------------------------------------------------------------
-  // Search panel in Ian's Assistant colours. Follows the agent's mode
+  // Search panel in TBC Assistant colours. Follows the agent's mode
   // (dark / light / navy) and accent: the values are copied onto the page
   // as --ias-* variables whenever either setting changes.
   // ------------------------------------------------------------------
@@ -7611,7 +7611,7 @@ function __jsEnsureSharedObserver() {
     .ia-fxp-chk { border-color: var(--ias-line2); color: var(--ias-onacc); }
     .ia-fxp-chk.on { background: var(--ias-acc); border-color: var(--ias-acc); }
     .ia-fxp-menu-c.is-off span { color: var(--ias-muted); }
-    /* Basis multi-airport search box, in Ian's Assistant colours */
+    /* Basis multi-airport search box, in TBC Assistant colours */
     .ia-fxp-ma-box { border-color: var(--ias-line2) !important; background: var(--ias-bg) !important; border-radius: 10px !important; }
     .ia-fxp-ma-box:focus-within { border-color: var(--ias-acc) !important; }
     .ia-fxp-ma-ic { color: var(--ias-muted) !important; }
@@ -8368,7 +8368,7 @@ function __jsEnsureSharedObserver() {
 
 
   // "Hi, <first name>!" on the LED panel under the screen, from the BO's
-  // own "Ian Brown #1234" style label. Remembered, so it shows on every page.
+  // own "First Last #1234" style label. Remembered, so it shows on every page.
   const AGENT_NAME_KEY = 'bmo-first-name';
   function readAgentFirstName() {
     const el = Array.from(document.querySelectorAll('div.font-medium')).find((d) => /^\s*\S.*#\d+\s*$/.test(d.textContent) && d.children.length === 0);
@@ -8409,14 +8409,14 @@ function __jsEnsureSharedObserver() {
         <div class="ia-reminder__text"></div>
         <button type="button" class="ia-reminder__dismiss">&times;</button>
       </div>
-      <div class="ia-bubble" title="Open Ian's Assistant">
+      <div class="ia-bubble" title="Open TBC Assistant">
         <div class="ia-mini"><svg class="pip" viewBox="10 10 76 80" width="50" height="53" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g></svg><span class="ia-dot ia-mini__dot"></span></div>
       </div>
       <div class="ia-full ia-panel">
         <div class="ia-head">
           <svg class="pip" viewBox="10 10 76 80" width="30" height="32" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g></svg>
           <div class="ia-head__txt">
-            <div class="ia-head__title">Ian's Assistant</div>
+            <div class="ia-head__title">TBC Assistant</div>
             <div class="ia-hs ia-head__greet" data-k="S"><span class="ia-led"></span></div>
           </div>
           <span class="ia-dot" title="Status"></span>
@@ -8456,7 +8456,7 @@ function __jsEnsureSharedObserver() {
             <span>Double-dial</span><span class="ia-switch"><span></span></span>
           </div>
         </div>
-        <div class="ia-hs ia-foot" data-k="P">\u00A9 Ian Brown</div>
+        <div class="ia-hs ia-foot" data-k="P">\u00A9 TBC Assistant</div>
       </div>
     `;
     document.body.appendChild(iaWidget);
@@ -8804,14 +8804,14 @@ function __jsEnsureSharedObserver() {
   const THEME_STORAGE_KEY = 'bmo-theme';
   const THEME_CYCLE = ['midnight', 'teal', 'pink', 'black'];
 
-  // All skins (incl. gold + rainbow) are unlocked in Ian's Assistant.
+  // All skins (incl. gold + rainbow) are unlocked in TBC Assistant.
   const isOwner = true;
 
   function themeCycle() {
     return isOwner ? THEME_CYCLE.concat('gold', 'rainbow') : THEME_CYCLE;
   }
 
-  function checkOwner() { /* no owner check in Ian's Assistant */ }
+  function checkOwner() { /* no owner check in TBC Assistant */ }
 
   // Regular users only ever have the three normal colors saved/cycled;
   // gold and rainbow are never saved for them, so they never come back on
@@ -11995,7 +11995,7 @@ function __jsEnsureSharedObserver() {
 
 
   // ------------------------------------------------------------------
-  // Ian's Assistant — Pip + clean panel in three modes (dark / light /
+  // TBC Assistant — Pip + clean panel in three modes (dark / light /
   // navy). Added last so it wins over the original character styles.
   // Colours mirror IA_MODES / IA_ACCENTS at the top of the file.
   // ------------------------------------------------------------------
@@ -13332,7 +13332,7 @@ const IA_DISC_HTML = `<!DOCTYPE html>
          transform:translateY(20px); box-shadow: 0 10px 30px rgba(14,165,233,0.4);}
   .toast.show{opacity:1;transform:translateY(0);}
 
-/* Fill in for this lead (Ian's Assistant) */
+/* Fill in for this lead (TBC Assistant) */
 .ia-fill{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;margin:0 0 18px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
 .ia-fill h3{grid-column:1/-1;margin:0;font:800 12px/1.2 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#7dd3fc}
 .ia-fill label{display:grid;gap:4px;font:700 11px Inter,system-ui,sans-serif;color:#94a3b8;min-width:0}
@@ -13447,7 +13447,7 @@ function copyText(el) {
   });
 }
 
-/* Fill in for this lead (Ian's Assistant) */
+/* Fill in for this lead (TBC Assistant) */
 (function(){
   var L = window.IA_LEAD || {};
   var $ = function(id){ return document.getElementById(id); };

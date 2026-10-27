@@ -1,10 +1,10 @@
-# Ian's Assistant
+# TBC Assistant
 
 A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites, CRM shortcuts, a power dialer and RingCentral texting.
 
 **Full guide with pictures:** https://iantbc.github.io/ians-assistant/
 
-[![Install Ian's Assistant](https://img.shields.io/badge/Install-Ian's%20Assistant-7c7cf8?style=for-the-badge)](https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js)
+[![Install TBC Assistant](https://img.shields.io/badge/Install-TBC%20Assistant-7c7cf8?style=for-the-badge)](https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js)
 
 **Install link:** https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 
@@ -20,7 +20,7 @@ A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites,
 
 ## Updates
 
-Updates install by themselves. Within a few minutes of a new version coming out you'll also see a small **"Ian's Assistant x.x is available"** banner — click **Update** to get it right away.
+Updates install by themselves. Within a few minutes of a new version coming out you'll also see a small **"TBC Assistant x.x is available"** banner — click **Update** to get it right away.
 
 To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript updates**.
 
@@ -56,6 +56,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.10.0 — new name**
+- The tool has a new name: **TBC Assistant**. Everything works as before, and your settings are kept.
 
 **2.9.0 — tidy-up**
 - Behind-the-scenes tidy-up. Everything works as before.
@@ -147,4 +150,4 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ---
 
-© Ian Brown
+© TBC Assistant
