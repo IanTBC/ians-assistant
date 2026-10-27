@@ -57,6 +57,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ## What's new
 
+**2.9.0 — tidy-up**
+- Behind-the-scenes tidy-up. Everything works as before.
+
 **2.8.0 — pick the class in Basis**
 - The **Basis** box inside a lead now lets you choose the class (Business, Premium, First or Economy) and change the dates before you search. It always searches ±1 day around each date.
 
@@ -105,8 +108,6 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **1.8.0 — Basis search**
 - Basis now opens a search box: up to 3 airports on each side, with dates you can change and a range from fixed dates to ±7 days. Search the outbound, the return, or both.
 - Every Basis search, including Open all, now uses the date range you pick.
-
-**1.7.3 — Mac shortcut**
 
 **1.7.2 — faster updates**
 - New versions now show up within a few minutes of being released, instead of up to half an hour. Later hides the banner for an hour.

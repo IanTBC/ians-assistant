@@ -45,7 +45,7 @@
  *    SECTION 1 .............. flight sites: GDS copy, Lead ID, Sell box
  *    SECTIONS 2-3 ........... the BO: Add option tools, search panel, flags
  *    SECTION 4 .............. the assistant panel: dialer, texting, Pip
- *    SECTIONS 5-11 .......... RingCentral helpers, checks, quote card,
+ *    SECTIONS 6-11 .......... RingCentral helpers, checks, quote card,
  *                             terminal helper, lead tool pages
  *
  *  Saved settings keep their original key names on purpose, so agents
@@ -8343,11 +8343,11 @@ function __jsEnsureSharedObserver() {
         <button type="button" class="ia-reminder__dismiss">&times;</button>
       </div>
       <div class="ia-bubble" title="Open Ian's Assistant">
-        <div class="ia-mini"><svg class="pip" viewBox="10 10 76 80" width="50" height="53" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g><g class="pip-f pip-f-snipe"><path class="pip-line" d="M36 46 L44 48"/><path class="pip-line" d="M60 46 L52 48"/><path class="pip-line" d="M42 59 L54 58"/></g></svg><span class="ia-dot ia-mini__dot"></span></div>
+        <div class="ia-mini"><svg class="pip" viewBox="10 10 76 80" width="50" height="53" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g></svg><span class="ia-dot ia-mini__dot"></span></div>
       </div>
       <div class="ia-full ia-panel">
         <div class="ia-head">
-          <svg class="pip" viewBox="10 10 76 80" width="30" height="32" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g><g class="pip-f pip-f-snipe"><path class="pip-line" d="M36 46 L44 48"/><path class="pip-line" d="M60 46 L52 48"/><path class="pip-line" d="M42 59 L54 58"/></g></svg>
+          <svg class="pip" viewBox="10 10 76 80" width="30" height="32" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g></svg>
           <div class="ia-head__txt">
             <div class="ia-head__title">Ian's Assistant</div>
             <div class="ia-hs ia-head__greet" data-k="S"><span class="ia-led"></span></div>
@@ -8426,7 +8426,6 @@ function __jsEnsureSharedObserver() {
       });
     });
     applyTheme(getStoredTheme());
-    setSnipingIndicator(window.__iansAssistantSniperActive);
     applySuperState();
     applyDoubleDialState();
     updateTodayStats();
@@ -8874,22 +8873,6 @@ function __jsEnsureSharedObserver() {
     setTimeout(() => iaWidget && iaWidget.classList.remove('ia-widget--gold-unlock'), 1600);
     triggerWave();
   }
-
-  // --- Sniper-active indicator ---------------------------------------
-  // The lead sniper (SECTION 5, below) lives in its own IIFE, so it can't
-  // touch iaWidget directly. Instead it flips a boolean on window and
-  // dispatches an event; this is the one place that listens and applies
-  // it as a class overlay on top of whatever theme is active, rather
-  // than as a fourth theme, so it always reverts to the real theme
-  // (teal/pink/black) the moment sniping turns off instead of getting
-  // "stuck" chosen like a theme would.
-  function setSnipingIndicator(active) {
-    if (!iaWidget) return;
-    iaWidget.classList.toggle('ia-widget--sniping', !!active);
-  }
-  window.addEventListener('iansassistant:sniper-state', (e) => {
-    setSnipingIndicator(e.detail && e.detail.active);
-  });
 
   function triggerWave() {
     if (!iaWidget) return;
@@ -11464,30 +11447,8 @@ function __jsEnsureSharedObserver() {
       25% { filter: drop-shadow(0 0 28px rgba(255, 215, 0, 1)) brightness(1.5); }
       100% { filter: drop-shadow(0 0 4px rgba(255, 215, 0, .4)) brightness(1); }
     }
-    /* Sniper-active overlay — wins over whichever theme (teal/pink/black)
-       is currently chosen, because it's not itself a theme: it's a
-       temporary "sniping in progress" indicator that reverts to the real
-       theme the instant Alt+Z turns the sniper back off. Placed after all
-       three theme blocks so it wins the cascade regardless of which
-       theme class is also present. */
-    .ia-widget--sniping {
-      --ia-pip-body: #dc2626;
-      --ia-pip-side: #a51d1d;
-      --ia-pip-dark: #7f1d1d;
-      --ia-pip-screen: #fee2e2;
-      --ia-pip-text: #450a0a;
-    }
-    /* Stop button goes light so it stands out on the dark red body. */
-    .ia-widget--sniping .ia-stop-face { fill: #fee2e2; }
-    .ia-widget--sniping .ia-stop-base { fill: #d9a3a3 !important; }
-    .ia-widget--sniping .ia-btn-stop .ia-btn-label { fill: #c26a6a; }
-    /* Challenging squint while sniping: eyes narrow, and a slanted lid (in
-       the screen's own color) cuts the top of each eye down toward the
-       middle. No eyebrows, same smile. */
     .ia-lid { opacity: 0; fill: var(--ia-pip-screen); transition: fill .6s ease, opacity 1.3s ease; }
     .ia-eye { transform-box: fill-box; transform-origin: center; transition: transform 1.3s ease; }
-    .ia-widget--sniping .ia-eye { transform: scaleY(.85); }
-    .ia-widget--sniping .ia-lid { opacity: 1; }
 
     /* --- 3D look: light from above, everything casts its shadow down --- */
     .ia-bodygrp { filter: drop-shadow(0 6px 5px rgba(0,0,0,.22)); }
@@ -11522,7 +11483,7 @@ function __jsEnsureSharedObserver() {
     .ia-label-skip { fill: #1d6b8f; color: #1d6b8f; }
     .ia-label-2x { fill: #3f7419; }
     /* Rainbow: a deep violet bottom edge reads better under the rainbow. */
-    .ia-widget--super:not(.ia-widget--sniping) { --ia-pip-side: #5b3a8c; }
+    .ia-widget.ia-widget--super { --ia-pip-side: #5b3a8c; }
     .ia-label-stop { fill: #9b2010; filter: drop-shadow(0 .8px 0 rgba(255,255,255,.4)) drop-shadow(0 -.6px 0 rgba(0,0,0,.3)); }
 
     /* Double-dial switch: the small dot by 2X is a red lamp. Off = dark,
@@ -11550,7 +11511,6 @@ function __jsEnsureSharedObserver() {
     /* Super Pip: flowing rainbow body once the day's follow-up is done. */
     .ia-rainbow { opacity: 0; transition: opacity .6s ease; pointer-events: none; }
     .ia-widget--super .ia-rainbow { opacity: 1; }
-    .ia-widget--super.ia-widget--sniping .ia-rainbow { opacity: 0; }
     /* Bubble rainbow sits on a layer under the screen that fades in/out at
        the same .6s as everything else (a gradient background would snap). */
     .ia-bubble::after {
@@ -11561,7 +11521,7 @@ function __jsEnsureSharedObserver() {
       opacity: 0; transition: opacity .6s ease; pointer-events: none;
     }
     .ia-bubble > svg { position: relative; z-index: 1; }
-    .ia-widget--super:not(.ia-widget--sniping) .ia-bubble::after { opacity: 1; }
+    .ia-widget.ia-widget--super .ia-bubble::after { opacity: 1; }
     @keyframes ia-rainbow-flow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
     /* Keep button labels readable on the rainbow. The outlines always
        exist but are fully transparent until the rainbow is on, so they fade
@@ -11569,9 +11529,9 @@ function __jsEnsureSharedObserver() {
     .ia-btn-label { stroke: rgba(0,0,0,0); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; }
     .ia-cross rect { stroke: rgba(0,0,0,0); stroke-width: 1.2px; }
     .ia-btn-label, .ia-cross rect { transition: stroke .6s ease, fill .6s ease, transform .1s ease !important; }
-    .ia-widget--super:not(.ia-widget--sniping) .ia-btn-label { stroke: rgba(0,0,0,0); }
+    .ia-widget.ia-widget--super .ia-btn-label { stroke: rgba(0,0,0,0); }
     .ia-widget--super .ia-btn-doubledial .ia-btn-label { stroke: rgba(0,0,0,0); }
-    .ia-widget--super:not(.ia-widget--sniping) .ia-cross rect { stroke: rgba(0,0,0,0); }
+    .ia-widget.ia-widget--super .ia-cross rect { stroke: rgba(0,0,0,0); }
 
     /* Locked color button wiggle (Super Pip day). */
     .ia-locked-wiggle { transform-box: fill-box; transform-origin: center; animation: ia-wiggle .45s ease 1; }
@@ -11652,14 +11612,6 @@ function __jsEnsureSharedObserver() {
     /* Stop pressed while running: a clear "stopped" flash. */
     .ia-widget--stop-flash .ia-stop-face { animation: ia-old-stop-flash .9s ease-out 1; }
     @keyframes ia-old-stop-flash { 0% { fill: #ffffff; } 100% { } }
-    .ia-widget--sniping .ia-bubble,
-    .ia-widget--sniping .ia-full {
-      animation: ia-sniping-pulse 1s ease-in-out infinite;
-    }
-    @keyframes ia-sniping-pulse {
-      0%, 100% { filter: drop-shadow(0 0 0 rgba(220, 38, 38, 0)); }
-      50% { filter: drop-shadow(0 0 8px rgba(220, 38, 38, .85)); }
-    }
     /* Everything themeable transitions fill/stroke together, so toggling
        the palette reads as one smooth cross-fade across the whole
        character rather than separate pieces changing at different
@@ -11899,9 +11851,6 @@ function __jsEnsureSharedObserver() {
     .ia-widget.ia-mode-dark.ia-widget--super { --acc:#a78bfa; }
     .ia-widget.ia-mode-light.ia-widget--super { --acc:#7c3aed; }
     .ia-widget.ia-mode-navy.ia-widget--super { --acc:#c4b5fd; }
-    .ia-widget.ia-mode-dark.ia-widget--sniping { --acc:#f8717f; }
-    .ia-widget.ia-mode-light.ia-widget--sniping { --acc:#dc3e42; }
-    .ia-widget.ia-mode-navy.ia-widget--sniping { --acc:#ff8a8a; }
 
     /* Pip */
     .pip { display: block; flex: none; }
@@ -11913,11 +11862,9 @@ function __jsEnsureSharedObserver() {
     .pip .pip-line { fill: none; stroke: var(--ia-eye); stroke-width: 2.8; stroke-linecap: round; }
     .pip .pip-wave { fill: none; stroke: var(--ia-ok); stroke-width: 2.4; stroke-linecap: round; animation: pip-wave 1.2s ease-in-out infinite; }
     @keyframes pip-wave { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-    .pip .pip-f-call, .pip .pip-f-snipe { display: none; }
+    .pip .pip-f-call { display: none; }
     .ia-widget--oncall .pip .pip-f-idle { display: none; }
     .ia-widget--oncall .pip .pip-f-call { display: inline; }
-    .ia-widget--sniping .pip .pip-f-idle, .ia-widget--sniping .pip .pip-f-call { display: none; }
-    .ia-widget--sniping .pip .pip-f-snipe { display: inline; }
     .ia-widget--levelup .pip { animation: pip-bounce .7s cubic-bezier(.3,1.6,.5,1) 2; }
     @keyframes pip-bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
 
@@ -11926,12 +11873,10 @@ function __jsEnsureSharedObserver() {
       box-shadow: var(--ia-shadow); transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .2s, background .3s, border-color .3s; }
     .ia-widget .ia-bubble::after { display: none; }
     .ia-widget .ia-bubble:hover { border-color: var(--acc); }
-    .ia-widget--sniping .ia-bubble { border-color: var(--acc); }
     .ia-mini { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; }
     .ia-mini__dot { position: absolute; top: -9px; right: -16px; }
     .ia-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ia-line2); flex: none; transition: background .3s; }
     .ia-widget--running .ia-dot { background: var(--ia-ok); animation: ia-pulse 1.6s ease-in-out infinite; }
-    .ia-widget--sniping .ia-dot { background: var(--acc); animation: ia-pulse 1s ease-in-out infinite; }
     @keyframes ia-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
     /* Open panel (280 x 331) */
@@ -12120,8 +12065,7 @@ function __jsEnsureSharedObserver() {
     /* Switch off the old character-only effects */
     .ia-widget--gold .ia-bubble, .ia-widget--gold .ia-full,
     .ia-widget--gold-unlock .ia-full,
-    .ia-widget--cracked .ia-full, .ia-widget--cracked .ia-bubble,
-    .ia-widget--sniping .ia-bubble, .ia-widget--sniping .ia-full { animation: none !important; filter: none !important; }
+    .ia-widget--cracked .ia-full, .ia-widget--cracked .ia-bubble { animation: none !important; filter: none !important; }
   `);
 
   // ------------------------------------------------------------------
@@ -12200,191 +12144,6 @@ function __jsEnsureSharedObserver() {
   __jsEnsureSharedObserver();
   ensureBmo();
 })();
-
-// ====================================================================
-// SECTION 5 · Lead sniper (Alt+Z / Alt+X; Option+Z / Option+X on a Mac)
-// ====================================================================
-// Sniper logic taken from the standalone "CRM Master Sniper & Sales
-// Analytics" v2.2 script (10ms polling + 20ms Enter confirm). The old
-// "Lead Sniper: ON/OFF (MAX SPEED)" popup is gone — Pip turning red
-// (SECTION 4 listens for the iansassistant:sniper-state event) is the only
-// on/off indicator. Kept as its own IIFE so it's independent of the
-// Pip/power-dialer domain guard above — it runs on tmgbo.com too, where
-// Pip doesn't exist at all.
-(function () {
-  'use strict';
-
-  // Not inside the RingCentral phone frame (see SECTION 6), and never inside
-  // any frame (e.g. the hidden "send to lead" worker) — one sniper only.
-  if (/ringcentral\.com$/.test(location.hostname)) return;
-  if (window.top !== window) return;
-  if (/travelbusinessclass\.com$/.test(location.hostname) && !/^\/(leads|experts)\//.test(location.pathname)) return;
-
-  // Sniper states
-  let sniperActive = false;
-  let isStriking = false;
-
-  window.__iansAssistantSniperActive = false;
-
-  function setSniperActive(active) {
-    sniperActive = active;
-    window.__iansAssistantSniperActive = active;
-    window.dispatchEvent(new CustomEvent('iansassistant:sniper-state', { detail: { active } }));
-  }
-
-  // Listen for hotkeys
-  document.addEventListener('keydown', function (e) {
-    // ALT + Z or ALT + X: toggle the Lead Sniper (Pip turns red while ON).
-    // On a Mac it's OPTION + Z or OPTION + X (Option is the Mac's Alt key;
-    // with it held, a Mac types \u03A9 for Z and \u2248 for X, so those count too).
-    const macKey = e.key === '\u2248' || e.key === '\u03A9';
-    if (e.altKey && (e.code === 'KeyZ' || e.code === 'KeyX' || macKey)) {
-      e.preventDefault();
-      setSniperActive(!sniperActive);
-    }
-  });
-
-  // --- Randomized timings -------------------------------------------------
-  // Every wait is a fresh random whole number of ms inside its range, and
-  // never the same as the previous wait of that same kind.
-  //   first click after the button appears : 20-140 ms
-  //   Enter after each click               : 10-35 ms
-  //   each next click while the button stays: 100-140 ms
-  //   "Take lead request" after a win       : 200-600 ms
-  const TIMING = {
-    firstClick: [20, 140],
-    enter: [10, 35],
-    retryClick: [100, 140],
-    takeRequest: [200, 600],
-  };
-  const lastWait = {};
-  function randWait(kind) {
-    const [lo, hi] = TIMING[kind];
-    let v;
-    do { v = lo + Math.floor(Math.random() * (hi - lo + 1)); } while (hi > lo && v === lastWait[kind]);
-    lastWait[kind] = v;
-    return v;
-  }
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  function findLeadButton() {
-    for (const btn of document.querySelectorAll('button.--warning')) {
-      if (btn.textContent.includes('New leads')) return btn;
-    }
-    return null;
-  }
-
-  // One "strike" covers one appearance of the button: a first click after
-  // 20-140 ms, Enter 10-35 ms later, then while the button is still there
-  // another click every 100-140 ms (each followed by its own Enter). When
-  // the button goes away the strike ends, so its next appearance gets a
-  // fresh first-click wait.
-  async function strike() {
-    isStriking = true;
-    try {
-      await sleep(randWait('firstClick'));
-      while (sniperActive) {
-        const btn = findLeadButton();
-        if (!btn) break;
-        btn.click();
-        await sleep(randWait('enter'));
-        if (!sniperActive) break;
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-        await sleep(randWait('retryClick'));
-      }
-    } finally {
-      isStriking = false;
-    }
-  }
-
-  // Watches for the button every 10 ms (only the watching is fast; the
-  // clicks follow the random waits above).
-  setInterval(() => {
-    if (!sniperActive || isStriking) return;
-    if (findLeadButton()) strike();
-  }, 10);
-
-  // --- Pop-ups (toasts) -----------------------------------------------------
-  // Only while the sniper is on (with it off, every pop-up shows as usual):
-  //  - Every red pop-up is hidden completely, whatever it says.
-  //  - Two exceptions, each shown once at the top (the second one under the
-  //    first if both are up); while one is on screen, its repeats are hidden:
-  //      "Please add at least one PQ to your lead taken previously… Click to
-  //       go to lead #…" (still clickable to open that lead), and
-  //      "Your lead limit for today has been reached. You cannot take more
-  //       than 1 new lead per hour."
-  //  - Either of those two turns the sniper off by itself.
-  //  - The green "New lead #… was assigned to you" is never touched. Each
-  //    lead number is handled once: "Take lead request" is clicked once,
-  //    200-600 ms later. If that button isn't on the page yet, it keeps
-  //    looking for up to 5 seconds before giving up on that lead.
-  const LEAD_ASSIGNED_RE = /New lead #(\d+) was assigned to you/i;
-  const KEEP = [
-    { key: 'pq', re: /Please add at least one PQ to your lead taken previously/i },
-    { key: 'limit', re: /Your lead limit for today has been reached/i },
-  ];
-  const handledAssignedLeads = new Set();
-  const keptOnScreen = {}; // key -> the one pop-up of that kind being shown
-
-  function clickTakeLeadRequest(deadline) {
-    const btn = document.querySelector('button[category="lead_take_requests"]');
-    if (btn && !btn.disabled) { btn.click(); return; }
-    if (Date.now() < deadline) setTimeout(() => clickTakeLeadRequest(deadline), 100);
-  }
-
-  function hideToast(item) {
-    item.style.setProperty('display', 'none', 'important');
-  }
-  function pinToastTop(item) {
-    let top = 12;
-    Object.keys(keptOnScreen).forEach((k) => { const o = keptOnScreen[k]; if (o && o !== item && o.isConnected) top += o.getBoundingClientRect().height + 8; });
-    ['position:fixed', 'top:' + Math.round(top) + 'px', 'left:50%', 'right:auto', 'bottom:auto', 'transform:translateX(-50%)', 'z-index:2147483647', 'margin:0']
-      .forEach((d) => { const [k, v] = d.split(':'); item.style.setProperty(k, v, 'important'); });
-  }
-
-  function scanToasts() {
-    Object.keys(keptOnScreen).forEach((k) => { if (keptOnScreen[k] && !keptOnScreen[k].isConnected) keptOnScreen[k] = null; });
-    if (!sniperActive) return;
-    document.querySelectorAll('.v-toast__text').forEach((el) => {
-      const item = el.closest('.v-toast__item') || el.parentElement;
-      if (!item || item.dataset.iaToast) return;
-      const text = el.textContent;
-
-      const win = text.match(LEAD_ASSIGNED_RE);
-      if (win) {
-        item.dataset.iaToast = 'win';
-        if (handledAssignedLeads.has(win[1])) return;
-        handledAssignedLeads.add(win[1]);
-        setTimeout(() => clickTakeLeadRequest(Date.now() + 5000), randWait('takeRequest'));
-        return;
-      }
-
-      const keep = KEEP.find((x) => x.re.test(text));
-      if (keep) {
-        if (keptOnScreen[keep.key]) { item.dataset.iaToast = 'hidden'; hideToast(item); return; }
-        item.dataset.iaToast = keep.key;
-        pinToastTop(item);
-        keptOnScreen[keep.key] = item;
-        // Either of these means no lead can be taken right now: the sniper
-        // switches itself off (Pip back to his own colour); the message
-        // stays up.
-        setSniperActive(false);
-        return;
-      }
-
-      item.dataset.iaToast = 'hidden';
-      hideToast(item);
-    });
-  }
-
-  // Checked on every page change (hides pop-ups before they're drawn) and
-  // every 50 ms as a backup.
-  __jsRegisterScan(scanToasts);
-  __jsEnsureSharedObserver();
-  setInterval(scanToasts, 50);
-
-})();
-
 
 // ====================================================================
 // SECTION 6 · Keep the RingCentral widget signed in

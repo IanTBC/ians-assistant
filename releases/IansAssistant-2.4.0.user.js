@@ -8143,11 +8143,11 @@ function __jsEnsureSharedObserver() {
         <button type="button" class="ia-reminder__dismiss">&times;</button>
       </div>
       <div class="ia-bubble" title="Open Ian's Assistant">
-        <div class="ia-mini"><svg class="pip" viewBox="10 10 76 80" width="50" height="53" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g><g class="pip-f pip-f-snipe"><path class="pip-line" d="M36 46 L44 48"/><path class="pip-line" d="M60 46 L52 48"/><path class="pip-line" d="M42 59 L54 58"/></g></svg><span class="ia-dot ia-mini__dot"></span></div>
+        <div class="ia-mini"><svg class="pip" viewBox="10 10 76 80" width="50" height="53" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g></svg><span class="ia-dot ia-mini__dot"></span></div>
       </div>
       <div class="ia-full ia-panel">
         <div class="ia-head">
-          <svg class="pip" viewBox="10 10 76 80" width="30" height="32" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g><g class="pip-f pip-f-snipe"><path class="pip-line" d="M36 46 L44 48"/><path class="pip-line" d="M60 46 L52 48"/><path class="pip-line" d="M42 59 L54 58"/></g></svg>
+          <svg class="pip" viewBox="10 10 76 80" width="30" height="32" overflow="visible" aria-hidden="true"><path class="pip-body" d="M22 70 L22 38 Q22 26 34 26 L62 26 Q74 26 74 38 L74 62 Q74 74 62 74 L40 74 L30 84 L31 74 Q22 73 22 70 Z"/><path class="pip-hs-arc" d="M18 50 Q18 14 48 14 Q78 14 78 50"/><rect class="pip-hs" x="14" y="44" width="8" height="14" rx="3"/><rect class="pip-hs" x="74" y="44" width="8" height="14" rx="3"/><g class="pip-f pip-f-idle"><circle class="pip-eye" cx="40" cy="47" r="3.8"/><circle class="pip-eye" cx="56" cy="47" r="3.8"/><path class="pip-line" d="M41 57 Q48 63 55 57"/></g><g class="pip-f pip-f-call"><path class="pip-mic" d="M18 56 Q20 68 34 66"/><circle class="pip-hs" cx="35" cy="66" r="2.6"/><path class="pip-line" d="M37 47 Q40 44 43 47"/><path class="pip-line" d="M53 47 Q56 44 59 47"/><ellipse class="pip-eye" cx="48" cy="59" rx="5" ry="4"/><path class="pip-wave" d="M84 34 Q88 40 84 46 M88 30 Q95 40 88 50"/></g></svg>
           <div class="ia-head__txt">
             <div class="ia-head__title">Ian's Assistant</div>
             <div class="ia-hs ia-head__greet" data-k="S"><span class="ia-led"></span></div>
@@ -11151,7 +11151,7 @@ function __jsEnsureSharedObserver() {
     .ia-label-skip { fill: #1d6b8f; color: #1d6b8f; }
     .ia-label-2x { fill: #3f7419; }
     /* Rainbow: a deep violet bottom edge reads better under the rainbow. */
-    .ia-widget--super:not(.ia-widget--sniping) { --ia-pip-side: #5b3a8c; }
+    .ia-widget.ia-widget--super { --ia-pip-side: #5b3a8c; }
     .ia-label-stop { fill: #9b2010; filter: drop-shadow(0 .8px 0 rgba(255,255,255,.4)) drop-shadow(0 -.6px 0 rgba(0,0,0,.3)); }
 
     /* Double-dial switch: the small dot by 2X is a red lamp. Off = dark,
@@ -11189,7 +11189,7 @@ function __jsEnsureSharedObserver() {
       opacity: 0; transition: opacity .6s ease; pointer-events: none;
     }
     .ia-bubble > svg { position: relative; z-index: 1; }
-    .ia-widget--super:not(.ia-widget--sniping) .ia-bubble::after { opacity: 1; }
+    .ia-widget.ia-widget--super .ia-bubble::after { opacity: 1; }
     @keyframes ia-rainbow-flow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
     /* Keep button labels readable on the rainbow. The outlines always
        exist but are fully transparent until the rainbow is on, so they fade
@@ -11197,9 +11197,9 @@ function __jsEnsureSharedObserver() {
     .ia-btn-label { stroke: rgba(0,0,0,0); stroke-width: 2.4px; paint-order: stroke; stroke-linejoin: round; }
     .ia-cross rect { stroke: rgba(0,0,0,0); stroke-width: 1.2px; }
     .ia-btn-label, .ia-cross rect { transition: stroke .6s ease, fill .6s ease, transform .1s ease !important; }
-    .ia-widget--super:not(.ia-widget--sniping) .ia-btn-label { stroke: rgba(0,0,0,0); }
+    .ia-widget.ia-widget--super .ia-btn-label { stroke: rgba(0,0,0,0); }
     .ia-widget--super .ia-btn-doubledial .ia-btn-label { stroke: rgba(0,0,0,0); }
-    .ia-widget--super:not(.ia-widget--sniping) .ia-cross rect { stroke: rgba(0,0,0,0); }
+    .ia-widget.ia-widget--super .ia-cross rect { stroke: rgba(0,0,0,0); }
 
     /* Locked color button wiggle (Super Pip day). */
     .ia-locked-wiggle { transform-box: fill-box; transform-origin: center; animation: ia-wiggle .45s ease 1; }
@@ -11516,7 +11516,7 @@ function __jsEnsureSharedObserver() {
     .pip .pip-line { fill: none; stroke: var(--ia-eye); stroke-width: 2.8; stroke-linecap: round; }
     .pip .pip-wave { fill: none; stroke: var(--ia-ok); stroke-width: 2.4; stroke-linecap: round; animation: pip-wave 1.2s ease-in-out infinite; }
     @keyframes pip-wave { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-    .pip .pip-f-call, .pip .pip-f-snipe { display: none; }
+    .pip .pip-f-call { display: none; }
     .ia-widget--oncall .pip .pip-f-idle { display: none; }
     .ia-widget--oncall .pip .pip-f-call { display: inline; }
     .ia-widget--levelup .pip { animation: pip-bounce .7s cubic-bezier(.3,1.6,.5,1) 2; }
