@@ -36,7 +36,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box where you pick the class and the dates, with one airport on each side and ±1 day. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box where you pick the class and the dates, with one airport on each side and ±1 day; search the outbound, the return, both, or one round trip. Multi-city leads written in the remark work too. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -56,6 +56,14 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.11.0 — faster BO, multi-city leads, Basis round trip**
+- The BO feels lighter: the assistant does its checks less often and loads its helpers once the page has settled.
+- Adding options to a lead keeps working with the BO's new way of keeping you signed in.
+- **Multi-city leads:** when a lead's trip is only written in the remark (for example "SFO HKG 23.12 | HKG KUL 03.01"), the search buttons use it. A line under the buttons shows what was read and warns you if a date looks wrong. Edit the remark and it updates.
+- Kayak multi-city searches now open with the right dates.
+- **Basis** has a new **Round trip** button: one search with both legs.
+- Premium (P) and economy (E) leads now come out with the right class in the GDS text.
 
 **2.10.0 — new name**
 - The tool has a new name: **TBC Assistant**. Everything works as before, and your settings are kept.

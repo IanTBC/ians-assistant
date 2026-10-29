@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.10.0
+// @version      2.11.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -628,8 +628,8 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     ETKT_SUFFIX: '/E',
     SM_FLAG: 'N',
     DEFAULT_MEAL_CODE: 'M',
-    DEFAULT_BOOKING_BY_CABIN: { y: 'Y', w: 'W', s: 'S', j: 'J', b: 'D', f: 'F' },
-    CABIN_NAME: { y: 'ECONOMY', w: 'PREMIUM ECONOMY', s: 'PREMIUM ECONOMY', j: 'BUSINESS', b: 'BUSINESS', f: 'FIRST', e: 'ECONOMY', c: 'BUSINESS' },
+    DEFAULT_BOOKING_BY_CABIN: { y: 'Y', w: 'W', s: 'S', p: 'W', e: 'Y', j: 'J', b: 'D', f: 'F' },
+    CABIN_NAME: { y: 'ECONOMY', w: 'PREMIUM ECONOMY', s: 'PREMIUM ECONOMY', p: 'PREMIUM ECONOMY', j: 'BUSINESS', b: 'BUSINESS', f: 'FIRST', e: 'ECONOMY', c: 'BUSINESS' },
   };
 
   const AIRLINE_MAP = {
@@ -3639,19 +3639,59 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
 // no change in behavior. (PART 1 runs only on flight-search sites, never
 // alongside these, so it keeps its own separate observer rather than
 // pulling in this machinery where it'd never be shared with anything.)
+// Speed: the scans used to run on every animation frame the page changed
+// (up to ~60 a second while the BO loads or the terminal prints). Now they
+// run at most once every 250 ms, always with a final run after the last
+// change, so nothing is missed -- just picked up a fraction of a second
+// later. Scans that must react instantly can be registered as "fast" and
+// still run every frame.
+// The BO's stored login. It now lives in localStorage as a JSON object,
+// accessTokenData = { authorization: "Bearer <jwt>", userInfo: {...} }
+// (older BO builds kept a bare JWT under a key containing "token").
+// Returns a ready Authorization header value, or ''.
+function __jsStoredAuth() {
+  try {
+    const raw = localStorage.getItem('accessTokenData');
+    if (raw) {
+      let a = '';
+      try { const j = JSON.parse(raw); a = String((j && (j.authorization || j.access_token || j.token)) || ''); } catch (e) { a = raw; }
+      a = a.replace(/^"|"$/g, '').trim();
+      if (a) return /^bearer\s/i.test(a) ? a : 'Bearer ' + a;
+    }
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = (localStorage.getItem(k) || '').replace(/^"|"$/g, '');
+      if (/token/i.test(k) && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(v)) return 'Bearer ' + v;
+    }
+  } catch (e) { /* ignore */ }
+  return '';
+}
 const __jsScanCallbacks = [];
+const __jsFastScanCallbacks = [];
+const __JS_SCAN_GAP_MS = 250;
 let __jsScanScheduled = false;
+let __jsFastScheduled = false;
+let __jsScanLast = 0;
 let __jsSharedObserver = null;
 function __jsRegisterScan(fn) { __jsScanCallbacks.push(fn); }
+function __jsRegisterFastScan(fn) { __jsFastScanCallbacks.push(fn); }
+function __jsRunList(list) { for (const fn of list) { try { fn(); } catch (e) { /* one part's error shouldn't stop the others */ } } }
 function __jsEnsureSharedObserver() {
   if (__jsSharedObserver) return;
   __jsSharedObserver = new MutationObserver(() => {
+    if (__jsFastScanCallbacks.length && !__jsFastScheduled) {
+      __jsFastScheduled = true;
+      requestAnimationFrame(() => { __jsFastScheduled = false; __jsRunList(__jsFastScanCallbacks); });
+    }
     if (__jsScanScheduled) return;
     __jsScanScheduled = true;
-    requestAnimationFrame(() => {
+    const run = () => requestAnimationFrame(() => {
       __jsScanScheduled = false;
-      for (const fn of __jsScanCallbacks) { try { fn(); } catch (e) { /* one part's error shouldn't stop the others */ } }
+      __jsScanLast = Date.now();
+      __jsRunList(__jsScanCallbacks);
     });
+    const wait = __JS_SCAN_GAP_MS - (Date.now() - __jsScanLast);
+    if (wait > 0) setTimeout(run, wait); else run();
   });
   __jsSharedObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
@@ -4420,8 +4460,8 @@ function __jsEnsureSharedObserver() {
   // ------------------------------------------------------------------
   const CONFIG = {
     STATUS_CODE: "GK", ETKT_SUFFIX: "/E", SM_FLAG: "N", DEFAULT_MEAL_CODE: "M",
-    DEFAULT_BOOKING_BY_CABIN: { y: "Y", w: "W", s: "S", j: "J", b: "D", f: "F" },
-    CABIN_NAME: { y: "ECONOMY", w: "PREMIUM ECONOMY", s: "PREMIUM ECONOMY", j: "BUSINESS", b: "BUSINESS", f: "FIRST", e: "ECONOMY", c: "BUSINESS" },
+    DEFAULT_BOOKING_BY_CABIN: { y: "Y", w: "W", s: "S", p: "W", e: "Y", j: "J", b: "D", f: "F" },
+    CABIN_NAME: { y: "ECONOMY", w: "PREMIUM ECONOMY", s: "PREMIUM ECONOMY", p: "PREMIUM ECONOMY", j: "BUSINESS", b: "BUSINESS", f: "FIRST", e: "ECONOMY", c: "BUSINESS" },
   };
 
   // Premium economy class letter for carriers that don't use W.
@@ -5661,12 +5701,27 @@ function __jsEnsureSharedObserver() {
 
     // Warm from the start: the chosen BO tab loads the frame on your last
     // lead as soon as it opens, so it's long ready before you need it.
+    // Speed: it used to load the moment the tab opened, so every BO tab
+    // loaded the whole BO twice at once. Now it waits until the page has
+    // finished loading and settled, and only in a tab you're looking at.
+    // (Opening Pip's popover still warms it at once, and a job builds it
+    // on the spot if it isn't there yet.)
     (function warmOnLoad() {
-      const last = String(GM_getValue(LAST_LEAD_KEY, '') || '');
-      if (!/^\d{6}$/.test(last) || readHost()) return;
-      const who = readKey(FOCUS_KEY);
-      if (who && who !== tabToken) return;
-      ensureFrame(last);
+      const WARM_DELAY_MS = 15000;
+      const go = () => {
+        if (frame && frame.isConnected) return;
+        const last = String(GM_getValue(LAST_LEAD_KEY, '') || '');
+        if (!/^\d{6}$/.test(last) || readHost()) return;
+        const who = readKey(FOCUS_KEY);
+        if (who && who !== tabToken) return;
+        ensureFrame(last);
+      };
+      const later = () => setTimeout(() => {
+        if (!document.hidden) { go(); return; }
+        const onShow = () => { if (document.hidden) return; document.removeEventListener('visibilitychange', onShow); later(); };
+        document.addEventListener('visibilitychange', onShow);
+      }, WARM_DELAY_MS);
+      if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
     })();
 
     // Pip's popover opened somewhere: get the frame ready on the last lead.
@@ -5761,17 +5816,19 @@ function __jsEnsureSharedObserver() {
     try {
       const path = String(url).replace(/^https?:\/\/[^/]+/, '');
       const nums = path.match(/\d{3,}/g) || [];
+      // Speed: the cheap check (is this option on the page?) comes first;
+      // the response is only turned back into text when it is.
+      const n = nums.find((x) => document.getElementById('checkbox-switch-' + x));
+      if (!n) return;
       const text = JSON.stringify(json);
       if (!/miles_count|"net|net_price|sell_type/i.test(text)) return;
-      for (const n of nums) {
-        if (document.getElementById('checkbox-switch-' + n)) {
-          detailCache.set(n, json);
-          GM_setValue(DETAIL_URL_KEY, path.replace(n, '{id}'));
-          return;
-        }
-      }
+      detailCache.set(n, json);
+      GM_setValue(DETAIL_URL_KEY, path.replace(n, '{id}'));
     } catch (e) { /* ignore */ }
   }
+  // Speed: reading through the BO's API answers waits for a quiet moment
+  // (at most half a second), so it never competes with the page loading.
+  const jsIdle = (fn) => { try { if (typeof requestIdleCallback === 'function') { requestIdleCallback(() => { try { fn(); } catch (e) { /* ignore */ } }, { timeout: 500 }); return; } } catch (e) { /* fall through */ } setTimeout(() => { try { fn(); } catch (e) { /* ignore */ } }, 0); };
   const OPTION_COST_KEY = 'js-option-cost';
   function saveOptionCost(optionId, fill) {
     if (!optionId || !fill) return;
@@ -5841,7 +5898,7 @@ function __jsEnsureSharedObserver() {
         try {
           if (/PriceQuoteFormModel/.test(this.__jsUrl || '') && /^(put|post)$/i.test(this.__jsMethod || '')) learnPqShape(body);
           if (/\/api\//.test(this.__jsUrl || '')) {
-            this.addEventListener('load', () => {
+            this.addEventListener('load', () => jsIdle(() => {
               try {
                 const j = this.responseType === 'json' ? this.response : JSON.parse(this.responseText);
                 harvestRaw(j);
@@ -5852,7 +5909,7 @@ function __jsEnsureSharedObserver() {
                   if (n) saveAgentName(n);
                 }
               } catch (e) { /* not JSON */ }
-            });
+            }));
           }
         } catch (e) { /* ignore */ }
         return send.apply(this, arguments);
@@ -5873,7 +5930,7 @@ function __jsEnsureSharedObserver() {
             } catch (e) { /* ignore */ }
             const method = String((init && init.method) || (input && input.method) || 'GET');
             if (/PriceQuoteFormModel/.test(url) && /^(put|post)$/i.test(method) && init && init.body) learnPqShape(init.body);
-            p.then((r) => r.clone().json()).then((j) => { harvestRaw(j); if (/^get$/i.test(method)) learnDetailUrl(url, j); }).catch(() => {});
+            p.then((r) => r.clone().json()).then((j) => jsIdle(() => { harvestRaw(j); if (/^get$/i.test(method)) learnDetailUrl(url, j); })).catch(() => {});
           }
           return p;
         };
@@ -5905,6 +5962,7 @@ function __jsEnsureSharedObserver() {
   function findAgentName() {
     const tokens = [];
     Object.keys(apiHeaders).forEach((k) => { if (/authorization/i.test(k)) tokens.push(apiHeaders[k]); });
+    { const sa3 = __jsStoredAuth(); if (sa3) tokens.push(sa3); }
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const v = (localStorage.getItem(localStorage.key(i)) || '').replace(/^"|"$/g, '');
@@ -5928,6 +5986,8 @@ function __jsEnsureSharedObserver() {
     const headers = Object.assign({ Accept: 'application/json' }, apiHeaders);
     if (!Object.keys(apiHeaders).some((k) => /authorization/i.test(k))) {
       // No call seen yet: try a stored login token.
+      const sa0 = __jsStoredAuth();
+      if (sa0) headers.Authorization = sa0;
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
@@ -5985,6 +6045,8 @@ function __jsEnsureSharedObserver() {
   async function apiGet(path) {
     const headers = Object.assign({ Accept: 'application/json' }, apiHeaders);
     if (!Object.keys(headers).some((k) => /authorization/i.test(k))) {
+      const sa1 = __jsStoredAuth();
+      if (sa1) headers.Authorization = sa1;
       try {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
@@ -6344,6 +6406,7 @@ function __jsEnsureSharedObserver() {
 
   async function apiSend(method, path, body) {
     const headers = Object.assign({ Accept: 'application/json', 'Content-Type': 'application/json' }, apiHeaders);
+    if (!Object.keys(headers).some((k) => /authorization/i.test(k))) { const sa2 = __jsStoredAuth(); if (sa2) headers.Authorization = sa2; }
     const doFetch = pageFetch || window.fetch.bind(window);
     const r = await doFetch(path, { method, credentials: 'include', headers, body: JSON.stringify(body) });
     let j = null;
@@ -6737,6 +6800,69 @@ function __jsEnsureSharedObserver() {
       infants: (parseInt(pax.infantInLap, 10) || 0) + (parseInt(pax.infantInSeat, 10) || 0),
     };
   }
+  // Multi-city leads: the BO's box has no Matrix link and only the remark
+  // holds the trip, e.g. "SFO HKG 23.12 | HKG KUL 03.01 | KUL SFO 08.12".
+  // Dates are day.month; the year comes from the lead card's first date
+  // and rolls forward when a leg's month goes back. Passengers and cabin
+  // come from the lead card. A leg more than ~6 months after the one
+  // before it is flagged (likely a typo) rather than guessed.
+  function srchCardInfo(leadId) {
+    const tag = Array.from(document.querySelectorAll('span')).find((sp) => sp.textContent.trim() === '#' + leadId);
+    if (!tag) return null;
+    let root = tag;
+    for (let i = 0; i < 12 && root; i++) {
+      root = root.parentElement;
+      if (root && root.querySelectorAll('.text-base.leading-6.font-semibold').length >= 2) break;
+    }
+    if (!root) return null;
+    let date = null;
+    for (const sp of root.querySelectorAll('span.font-semibold')) {
+      const m = sp.textContent.trim().match(/^(\d{1,2})\s+([A-Za-z]{3})$/);
+      const y = sp.nextElementSibling && sp.nextElementSibling.textContent.trim();
+      const mi = m ? FXP_MONTHS.findIndex((x) => x.toLowerCase() === m[2].toLowerCase()) : -1;
+      if (m && mi >= 0 && /^\d{4}$/.test(y || '')) { date = { y: +y, m: mi + 1, d: +m[1] }; break; }
+    }
+    let cabin = null;
+    for (const sp of root.querySelectorAll('span.font-medium')) {
+      const nx = sp.nextElementSibling;
+      if (nx && /^class$/i.test(nx.textContent.trim())) { const c = sp.textContent.trim().toUpperCase(); cabin = { C: 'B', J: 'B', P: 'W' }[c] || (['Y', 'W', 'B', 'F'].includes(c) ? c : null); break; }
+    }
+    return { date, cabin };
+  }
+  function srchLeadFromRemark() {
+    const idm = location.pathname.match(/^\/leads\/(\d+)/);
+    const ta = document.querySelector('textarea.lead-remark-text');
+    if (!idm || !ta || !ta.value) return null;
+    const re = /\b([A-Za-z]{3})\s*(?:-|–|>|→|\s)\s*([A-Za-z]{3})\s+(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\b/;
+    const raw = [];
+    ta.value.split(/[|\n;]+/).forEach((part) => { const m = part.match(re); if (m) raw.push(m); });
+    if (!raw.length) return null;
+    const card = srchCardInfo(idm[1]) || {};
+    const pax = (readLeadCard(idm[1]) || {}).pax || { adults: 1, children: 0, infants: 0 };
+    const iso = (y, m, d) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const now = new Date();
+    const base = card.date ? new Date(Date.UTC(card.date.y, card.date.m - 1, card.date.d)) : new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    let year = base.getUTCFullYear();
+    let prev = null;
+    const warn = [];
+    const segs = [];
+    raw.forEach((m, i) => {
+      const d = +m[3], mo = +m[4];
+      if (mo < 1 || mo > 12 || d < 1 || d > 31) return;
+      let y = m[5] ? (m[5].length === 2 ? 2000 + +m[5] : +m[5]) : year;
+      let t = Date.UTC(y, mo - 1, d);
+      if (!m[5]) {
+        if (!prev && t < base.getTime() - 60 * 864e5) { y++; t = Date.UTC(y, mo - 1, d); }
+        if (prev && t < prev) { y++; t = Date.UTC(y, mo - 1, d); }
+      }
+      if (prev && t - prev > 183 * 864e5) warn.push('check leg ' + (i + 1) + ' date (' + m[3] + '.' + m[4] + ')');
+      prev = t;
+      year = y;
+      segs.push({ origin: m[1].toUpperCase(), destination: m[2].toUpperCase(), departureDate: iso(y, mo, d), returnDate: null });
+    });
+    if (!segs.length) return null;
+    return { segments: segs, cabin: card.cabin || 'B', adults: Math.max(1, pax.adults || 1), children: pax.children || 0, infants: pax.infants || 0, fromRemark: true, warn };
+  }
   // Sabre JR (Fast Search): JR.<from>/S-O<cabin><to><date>…, with
   // /S-ARUNK<city> where a leg starts somewhere other than the last one ended.
   function srchJR(lead, cab) {
@@ -6771,9 +6897,12 @@ function __jsEnsureSharedObserver() {
       path = '/flights/' + s[0].origin + '-' + s[0].destination + '/' + f(s[0].departureDate);
       if (s[0].returnDate) path += '/' + f(s[0].returnDate);
     } else {
-      path = '/flights/' + s.map((x) => x.origin + '-' + x.destination + '/' + f(x.departureDate)).join('/');
+      // Multi-city: Kayak has no flexible dates here, so exact dates only.
+      path = '/flights/' + s.map((x) => x.origin + '-' + x.destination + '/' + x.departureDate).join('/');
     }
-    path += '/' + cabin + '/' + lead.adults + 'adults';
+    path += '/' + cabin;
+    // One adult is Kayak's default (its own multi-city links leave it out).
+    if (s.length === 1 || lead.adults > 1 || lead.children || lead.infants) path += '/' + lead.adults + 'adults';
     const t = [];
     for (let i = 0; i < lead.infants; i++) t.push('1L');
     for (let i = 0; i < lead.children; i++) t.push('8');
@@ -7067,10 +7196,12 @@ function __jsEnsureSharedObserver() {
       // Both = two one-way searches (outbound and return), not a round trip.
       const urls = [];
       const out = dOut.value, ret = dRet ? dRet.value : null;
-      if ((mode === 'out' || mode === 'rt') && !out) { err.textContent = 'Pick the outbound date'; return; }
-      if ((mode === 'ret' || mode === 'rt') && !ret) { err.textContent = 'Pick the return date'; return; }
+      if ((mode === 'out' || mode === 'rt' || mode === 'trip') && !out) { err.textContent = 'Pick the outbound date'; return; }
+      if ((mode === 'ret' || mode === 'rt' || mode === 'trip') && !ret) { err.textContent = 'Pick the return date'; return; }
       if (mode === 'out' || mode === 'rt') urls.push(srchBasisMulti(lead, from, to, out, null, bCab, range));
       if (mode === 'ret' || mode === 'rt') urls.push(srchBasisMulti(lead, to, from, ret, null, bCab, range));
+      // Round trip = one Basis search with both legs (tripType "roundtrip").
+      if (mode === 'trip') urls.push(srchBasisMulti(lead, from, to, out, ret, bCab, range));
       // The box stays open, so the other leg can be searched next.
       // It closes with x, Esc, or a click anywhere outside it.
       urls.forEach((u) => srchOpenBg(u)); // new tabs in the background: you stay on the lead
@@ -7091,7 +7222,7 @@ function __jsEnsureSharedObserver() {
       acts.appendChild(b);
     };
     mkAct('Outbound', 'out', !sides.ret);
-    if (sides.ret) { mkAct('Return', 'ret', false); mkAct('Both \u2197', 'rt', true); }
+    if (sides.ret) { mkAct('Return', 'ret', false); mkAct('Both \u2197', 'rt', false); mkAct('Round trip \u2197', 'trip', true); }
     el.append(h, row, cabRow, info, acts, err);
     el.addEventListener('mousedown', (e) => e.stopPropagation());
     document.body.appendChild(el);
@@ -7200,6 +7331,13 @@ function __jsEnsureSharedObserver() {
   }
   function srchSaveOpenAll(list) { try { GM_setValue('js-fxp-openall', JSON.stringify(list)); } catch (e) { /* ignore */ } }
 
+  // Editing the remark of a multi-city lead rebuilds its search panel.
+  let srchRemarkTimer = null;
+  document.addEventListener('input', (e) => {
+    if (!e.target || !e.target.matches || !e.target.matches('textarea.lead-remark-text')) return;
+    clearTimeout(srchRemarkTimer);
+    srchRemarkTimer = setTimeout(() => { try { wireSearchPanels(); } catch (x) { /* ignore */ } }, 400);
+  }, true);
   function wireSearchPanels() {
     if (window.top !== window) return;
     document.querySelectorAll('.kayak-offers').forEach((box) => {
@@ -7208,7 +7346,7 @@ function __jsEnsureSharedObserver() {
       if (!body || !foot) return;
       // Re-read the lead each time the BO re-renders the box (its Matrix
       // link carries the route, dates and passengers).
-      const fresh = srchLeadFromBox(box);
+      const fresh = srchLeadFromBox(box) || srchLeadFromRemark();
       if (fresh) {
         // The BO switched this box to other data (another lead, new dates):
         // rebuild the panel for it, with that lead's own cabin.
@@ -7277,6 +7415,14 @@ function __jsEnsureSharedObserver() {
       // Return / Round trip buttons cover the single searches too).
       mk('Basis ▾', 'fb', (b) => srchMultiBox(b, L(), cab(), flex()));
       mk('Kayak ↗', 'k', () => srchOpen(srchKayak(L(), flex(), cab())));
+      if (lead.fromRemark) {
+        const note = document.createElement('div');
+        note.className = 'ia-fxp-note' + (lead.warn.length ? ' is-warn' : '');
+        note.textContent = (lead.warn.length ? '\u26a0 ' + lead.warn.join(' \u00b7 ') + ' \u2014 ' : '') + 'Multi-city from the remark: '
+          + lead.segments.map((x) => x.origin + '\u2192' + x.destination + ' ' + srchFmt(x.departureDate)).join(' \u00b7 ');
+        note.title = 'Read from the lead\u2019s remark. Edit the remark and this updates.';
+        panel.appendChild(note);
+      }
       body.appendChild(panel);
 
       const fwrap = document.createElement('div');
@@ -7475,6 +7621,8 @@ function __jsEnsureSharedObserver() {
     .ia-fxp-re.spin { animation: jsFxpSpin .6s ease; }
     @keyframes jsFxpSpin { to { transform: rotate(360deg); } }
     .ia-fxp-panel { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 28px; gap: 6px; padding: 6px; }
+    .ia-fxp-note { grid-column: 1 / -1; display: flex; align-items: center; padding: 0 8px; border-radius: 6px; background: rgba(59,130,246,.12); color: #bfdbfe; font: 600 11px system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ia-fxp-note.is-warn { background: rgba(245,158,11,.16); color: #fde68a; }
     .ia-fxp-b { border-radius: 6px; border: 1px solid #445071; background: rgba(15,20,35,.35); color: #e5e7eb; font: 800 11.5px/1 system-ui, sans-serif; cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s; }
     .ia-fxp-b:hover { background: rgba(255,255,255,.07); }
     .ia-fxp-b:active { transform: translateY(1px); }
@@ -7644,6 +7792,8 @@ function __jsEnsureSharedObserver() {
       border: 1px solid var(--ias-edge) !important; border-radius: 18px !important; box-shadow: var(--ias-shadow), inset 0 1px 0 var(--ias-edge) !important; }
     .kayak-offers.ia-fxp > .kayak-offers-footer { border-top: 1px solid var(--ias-line) !important; }
     .ia-fxp-panel { gap: 6px; padding: 9px; }
+    .ia-fxp-note { border-radius: 999px; background: color-mix(in srgb, var(--ias-acc) 14%, transparent); color: var(--ias-title); font-weight: 700; }
+    .ia-fxp-note.is-warn { background: color-mix(in srgb, #f59e0b 22%, transparent); color: var(--ias-title); }
     .ia-fxp-b, .ia-fxp-b.ia-fxp-g, .ia-fxp-b.ia-fxp-e, .ia-fxp-b.ia-fxp-m, .ia-fxp-b.ia-fxp-py, .ia-fxp-b.ia-fxp-fb, .ia-fxp-b.ia-fxp-k {
       border-radius: 999px; border: 1px solid transparent; background: var(--ias-chip); box-shadow: var(--ias-chipshadow); color: var(--ias-title); font-weight: 800; }
     .ia-fxp-b::before { width: 7px; height: 7px; }
@@ -8319,7 +8469,12 @@ function __jsEnsureSharedObserver() {
   function ensureRowIndicator(row) {
     const idCell = row.querySelector('td.group.table__td--link');
     if (!idCell) return null;
-    if (getComputedStyle(idCell).position === 'static') idCell.style.position = 'relative';
+    // Speed: the layout check (getComputedStyle) runs once per cell, not on
+    // every scan.
+    if (idCell.style.position !== 'relative' && !idCell.dataset.jsPos) {
+      if (getComputedStyle(idCell).position === 'static') idCell.style.position = 'relative';
+      else idCell.dataset.jsPos = '1';
+    }
     let dot = idCell.querySelector(':scope > .dialer-called-dot');
     if (!dot) {
       dot = document.createElement('span');
@@ -8336,15 +8491,22 @@ function __jsEnsureSharedObserver() {
   }
 
   function updateAllRowIndicators() {
-    getLeadRows().forEach((row) => {
+    const rows = getLeadRows();
+    if (!rows.length) return;
+    // Speed: each saved list is read once for the whole table (it used to
+    // be re-read and re-parsed for every row, on every scan).
+    const called = getSet(CALLED_STORAGE_PREFIX), called2 = getSet(CALLED2_STORAGE_PREFIX);
+    const skipped = getSet(SKIPPED_STORAGE_PREFIX), skipped2 = getSet(SKIPPED2_STORAGE_PREFIX);
+    const skips = iaSkips();
+    rows.forEach((row) => {
       const dot = ensureRowIndicator(row);
       if (!dot) return;
       const leadId = getLeadId(row);
-      const twice = isCalledTwice(leadId);
+      const twice = called2.has(leadId);
       dot.classList.toggle('is-called2', twice);
-      dot.classList.toggle('is-called', !twice && isCalled(leadId));
-      dot.classList.toggle('is-skipped', !twice && !isCalled(leadId) && (isSkipped(leadId) || getSet(SKIPPED2_STORAGE_PREFIX).has(leadId)));
-      const sk = iaSkipOf(leadId);
+      dot.classList.toggle('is-called', !twice && called.has(leadId));
+      dot.classList.toggle('is-skipped', !twice && !called.has(leadId) && (skipped.has(leadId) || skipped2.has(leadId)));
+      const sk = skips[String(leadId)] || {};
       dot.classList.toggle('is-nocall', !!sk.call);
       const tip = 'Right-click: skip calling this lead' + (sk.call ? '\n\u2022 Calling skipped' : '');
       if (dot.title !== tip) dot.title = tip;
