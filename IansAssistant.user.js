@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.11.0
+// @version      2.12.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -3649,6 +3649,8 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
 // accessTokenData = { authorization: "Bearer <jwt>", userInfo: {...} }
 // (older BO builds kept a bare JWT under a key containing "token").
 // Returns a ready Authorization header value, or ''.
+// BO API headers seen by SECTION 2 (from the BO's own requests), also used by SECTION 4.
+const __jsApi = { headers: {} };
 function __jsStoredAuth() {
   try {
     const raw = localStorage.getItem('accessTokenData');
@@ -5840,7 +5842,7 @@ function __jsEnsureSharedObserver() {
     Object.keys(all).forEach((k) => { if (all[k].at < cutoff) delete all[k]; });
     try { GM_setValue(OPTION_COST_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
   }
-  const apiHeaders = {};
+  const apiHeaders = __jsApi.headers;
   let pageFetch = null;
 
   function saveOptionRaw(optionId, raw) {
@@ -12470,7 +12472,607 @@ function __jsEnsureSharedObserver() {
 
   // Shares PART 2/3/4's single observer instead of keeping its own —
   // see the comment where __jsEnsureSharedObserver is defined.
-  __jsRegisterScan(() => { ensureBmo(); updateAllRowIndicators(); checkOwner(); addCallIcons(); });
+  // ==========================================================================
+  // Send quotes (leads list). For each lead on the page the tool reads its
+  // quotes from the BO, keeps only the green-badge (profitable) ones, writes
+  // the BO's own "Send options" email and a RingCentral text, and then
+  // SHOWS EACH MESSAGE AND WAITS: nothing goes out until the agent presses
+  // Send (Skip and Stop are always there). When the BO says "Too many
+  // attempts … retry in N seconds", the run waits the full time it asks for
+  // and carries on; if the BO keeps refusing two leads in a row, it stops.
+  // A yellow tick in the PQs column marks leads whose quotes went out today
+  // (click it to tick / untick); ticked leads are skipped.
+  // ==========================================================================
+  const SQ_SENT_KEY = 'ia-quotes-sent';      // { e|t: { leadId: [quote ids] } }
+  const SQ_DAY_KEY = 'ia-quotes-done-day';   // today's ticks (day rolls at 2pm GMT)
+  const SQ_REVEAL_GAP_MS = 10000;            // the BO's own pace for opening contacts
+  const sqSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const SQ_AIRLINES = {
+    AA: 'American Airlines', DL: 'Delta', UA: 'United', AC: 'Air Canada', BA: 'British Airways', LH: 'Lufthansa', AF: 'Air France', KL: 'KLM',
+    EK: 'Emirates', QR: 'Qatar Airways', EY: 'Etihad', TK: 'Turkish Airlines', SQ: 'Singapore Airlines', CX: 'Cathay Pacific', NH: 'ANA', JL: 'Japan Airlines',
+    QF: 'Qantas', VS: 'Virgin Atlantic', IB: 'Iberia', LX: 'Swiss', OS: 'Austrian', SN: 'Brussels Airlines', TP: 'TAP Air Portugal', AY: 'Finnair',
+    SK: 'SAS', AZ: 'ITA Airways', EI: 'Aer Lingus', KE: 'Korean Air', OZ: 'Asiana', BR: 'EVA Air', CI: 'China Airlines', CA: 'Air China', MU: 'China Eastern',
+    CZ: 'China Southern', AI: 'Air India', TG: 'Thai Airways', MS: 'EgyptAir', ET: 'Ethiopian', SA: 'South African', KQ: 'Kenya Airways', RJ: 'Royal Jordanian',
+    SV: 'Saudia', GF: 'Gulf Air', WY: 'Oman Air', KU: 'Kuwait Airways', LA: 'LATAM', AV: 'Avianca', CM: 'Copa Airlines', AM: 'Aeromexico', AR: 'Aerolineas Argentinas',
+    G3: 'Gol', JJ: 'LATAM Brasil', B6: 'JetBlue', AS: 'Alaska Airlines', HA: 'Hawaiian Airlines', WS: 'WestJet', NZ: 'Air New Zealand', PR: 'Philippine Airlines',
+    MH: 'Malaysia Airlines', GA: 'Garuda Indonesia', VN: 'Vietnam Airlines', PK: 'PIA', UL: 'SriLankan', LO: 'LOT Polish', OU: 'Croatia Airlines', JU: 'Air Serbia',
+    RO: 'TAROM', FI: 'Icelandair', WN: 'Southwest', F9: 'Frontier', NK: 'Spirit', AT: 'Royal Air Maroc', TU: 'Tunisair', AH: 'Air Algerie', BG: 'Biman', S7: 'S7 Airlines',
+  };
+
+  // ---- the leads list -------------------------------------------------------
+  const sqRowFor = (id) => getLeadRows().find((r) => getLeadId(r) === id) || null;
+  function sqHeaderIndex(row, re) {
+    const table = row.closest('table');
+    if (!table) return -1;
+    let col = 0;
+    for (const th of table.querySelectorAll('thead tr:first-child th')) {
+      const label = th.querySelector('.list-table-v2__sort') || th;
+      if (re.test(label.textContent.trim())) return col;
+      col += th.colSpan || 1;
+    }
+    return -1;
+  }
+  function sqCellAt(row, idx) {
+    if (idx < 0) return null;
+    let col = 0;
+    for (const td of row.children) {
+      const span = td.colSpan || 1;
+      if (idx >= col && idx < col + span) return td;
+      col += span;
+    }
+    return null;
+  }
+  const sqIsEmail = (t) => /^[^\s@]+@[^\s@]+$/.test(String(t || '').trim());
+  // The lead's email as the row shows it, only if it's already shown in full.
+  function sqShownEmail(row) {
+    const td = sqCellAt(row, sqHeaderIndex(row, /^email$/i));
+    for (const cell of (td ? [td] : Array.from(row.children))) {
+      for (const el of cell.querySelectorAll('div.truncate')) {
+        const t = el.textContent.trim();
+        if (sqIsEmail(t)) return t.includes('*') ? '' : t;
+      }
+    }
+    return '';
+  }
+  // The row's agent: <td><div class="truncate max-w-[120px]"><span>Name</span></div></td>
+  function sqAgentOf(row) {
+    for (const sp of row.querySelectorAll('td > div.truncate > span')) {
+      const box = sp.parentElement;
+      if (!/max-w-\[120px\]/.test(box.className) || box.classList.contains('cursor-pointer')) continue;
+      const t = sp.textContent.replace(/\s+/g, ' ').trim();
+      if (/^[\p{L}][\p{L} .'-]+$/u.test(t)) return t;
+    }
+    return '';
+  }
+  function sqInfo(row) {
+    const i = getLeadInfo(row);
+    return { leadId: i.leadId, clientName: i.clientName, origin: i.origin, dest: i.dest, agent: sqAgentOf(row) };
+  }
+  function sqFill(text, info) {
+    let first = String(info.clientName || '').trim().split(/\s+/)[0] || '';
+    if (/^(client|lead|-)$/i.test(first)) first = '';
+    let agent = String(info.agent || '').trim().split(/\s+/)[0];
+    if (!agent) agent = String(smsAgentName() || '').trim().split(/\s+/)[0];
+    if (!agent) { try { agent = String(GM_getValue(AGENT_NAME_KEY, '') || '').trim(); } catch (e) { agent = ''; } }
+    if (!agent) text = String(text).replace(/\{agent\} from /gi, '');
+    return String(text)
+      .replace(/\{agent\}/gi, agent)
+      .replace(/\{destination\}/gi, ((typeof SMS_CITY !== 'undefined' && SMS_CITY) || {})[info.dest] || info.dest || 'your destination')
+      .replace(/\{client\}/gi, first || 'there')
+      .replace(/[ \t]{2,}/g, ' ');
+  }
+
+  // ---- what went out (memory + the yellow tick) ----------------------------
+  function sqSentMap() { try { const o = JSON.parse(GM_getValue(SQ_SENT_KEY, '{}')); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
+  const sqSent = (kind, leadId) => new Set((((sqSentMap()[kind] || {})[leadId]) || []).map(String));
+  function sqRemember(kind, leadId, pks) {
+    const o = sqSentMap();
+    o[kind] = o[kind] || {};
+    const s = new Set((o[kind][leadId] || []).map(String));
+    pks.forEach((p) => s.add(String(p)));
+    o[kind][leadId] = Array.from(s);
+    try { GM_setValue(SQ_SENT_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ }
+  }
+  // e / t = sent today by email / text, m = ticked by hand, u = unticked by hand today.
+  function sqDayLog() {
+    try {
+      const o = JSON.parse(GM_getValue(SQ_DAY_KEY, '{}'));
+      if (o && o.day === todayKey() && o.e && o.t) { o.m = o.m || {}; o.u = o.u || {}; return o; }
+    } catch (e) { /* fall through */ }
+    return { day: todayKey(), e: {}, t: {}, m: {}, u: {} };
+  }
+  const sqSaveDay = (o) => { try { GM_setValue(SQ_DAY_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ } };
+  function sqTicked(leadId) {
+    const o = sqDayLog(), id = String(leadId);
+    if (o.u[id]) return false;
+    return !!(o.e[id] || o.t[id] || o.m[id]);
+  }
+  function sqMark(kind, leadId) { const o = sqDayLog(); o[kind][String(leadId)] = Date.now(); delete o.u[String(leadId)]; sqSaveDay(o); sqPaintTicks(); }
+  function sqToggle(leadId) {
+    const o = sqDayLog(), id = String(leadId);
+    if (sqTicked(id)) { delete o.e[id]; delete o.t[id]; delete o.m[id]; o.u[id] = Date.now(); } else { delete o.u[id]; o.m[id] = Date.now(); }
+    sqSaveDay(o);
+    sqPaintTicks();
+  }
+  // Yellow tick in the cell right after "PQs" (the sent-PQs count).
+  function sqPaintTicks() {
+    const o = sqDayLog();
+    getLeadRows().forEach((row) => {
+      const id = String(getLeadId(row) || '');
+      const pi = sqHeaderIndex(row, /^PQs/i);
+      const td = pi < 0 ? null : sqCellAt(row, pi + 1);
+      const host = td && (td.querySelector('.flex.items-center') || td);
+      if (!host) return;
+      let ck = host.querySelector('.ia-sq-tick');
+      if (!ck) {
+        ck = document.createElement('span');
+        ck.className = 'ia-sq-tick';
+        ck.setAttribute('role', 'button');
+        ck.textContent = '✓';
+        ck.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); const r = ck.closest('tr'); if (r) sqToggle(getLeadId(r)); });
+        ['mousedown', 'mouseup', 'dblclick'].forEach((n) => ck.addEventListener(n, (ev) => ev.stopPropagation()));
+        host.appendChild(ck);
+      }
+      const on = sqTicked(id);
+      ck.classList.toggle('is-on', on);
+      const tip = on
+        ? (o.m[id] ? 'Ticked by hand' : 'Quotes sent today: email ' + (o.e[id] ? '✓' : '—') + ', text ' + (o.t[id] ? '✓' : '—')) + ' — Send quotes skips this lead. Click to untick.'
+        : 'Quotes not sent today. Click to tick it and skip this lead.';
+      if (ck.title !== tip) ck.title = tip;
+    });
+  }
+
+  // ---- the BO's API -----------------------------------------------------------
+  function sqHeaders() {
+    const h = Object.assign({}, __jsApi.headers);
+    if (!Object.keys(h).some((k) => /authorization/i.test(k))) { const sa = __jsStoredAuth(); if (sa) h.Authorization = sa; }
+    return Object.keys(h).some((k) => /authorization/i.test(k)) ? h : null;
+  }
+  async function sqApi(path, body) {
+    const h = sqHeaders();
+    if (!h) throw new Error('BO session not ready yet — wait a few seconds and try again');
+    const headers = Object.assign({ Accept: 'application/json' }, h);
+    const opts = { credentials: 'include', headers };
+    if (body !== undefined) { headers['content-type'] = 'application/json'; opts.method = 'POST'; opts.body = JSON.stringify(body); }
+    const res = await pageWin.fetch(path, opts);
+    let j = null;
+    try { j = await res.json(); } catch (e) { /* no body */ }
+    if (!res.ok || (j && j.success === false)) throw new Error((j && j.message) || ('BO said HTTP ' + res.status));
+    return j;
+  }
+  const sqFirst = (j) => { const r = j && (j.result || j.data); return Array.isArray(r) ? r : []; };
+  const sqDollars = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+  const SQ_MON = { JAN: 'Jan', FEB: 'Feb', MAR: 'Mar', APR: 'Apr', MAY: 'May', JUN: 'Jun', JUL: 'Jul', AUG: 'Aug', SEP: 'Sep', OCT: 'Oct', NOV: 'Nov', DEC: 'Dec' };
+  const sqDay = (d) => (SQ_MON[d.slice(2)] || d.slice(2)) + ' ' + parseInt(d.slice(0, 2), 10);
+  // Profit the way the lead page's green / red badge shows it:
+  // sell - net - (sell x card-fee %), summed over passengers.
+  function sqMoney(d) {
+    const cnt = { adult: d.adult_count, child: d.child_count, infant: d.infant_count };
+    let sell = 0, net = 0, known = true, perAdult = null;
+    (d.preTickets || []).forEach((pt) => {
+      if (/award/i.test(pt.sell_type || '')) known = false;
+      (pt.prices || []).forEach((p) => {
+        const type = String(p.passenger_type || '').toLowerCase();
+        const n = cnt[type] != null ? Number(cnt[type]) || 0 : 1;
+        if (p.net_price == null || p.sell_amount == null) known = false;
+        sell += (Number(p.sell_amount) || 0) * n;
+        net += (Number(p.net_price) || 0) * n;
+        if (type === 'adult' && perAdult == null) perAdult = Number(p.sell_amount) || 0;
+      });
+    });
+    const fee = sell * (Number(d.check_payment_ps) || 0) / 100;
+    return { sell, net, perAdult, known, profit: Math.round((sell - net - fee) * 100) / 100 };
+  }
+  // "Copa Airlines: JFK → GRU Feb 18, return GRU → JFK Feb 22 — $3,191 per adult"
+  function sqLine(d, m) {
+    const segs = (d.segments || []).slice().sort((a, b) => (a.number || 0) - (b.number || 0)).map((sg) => {
+      const x = String(sg.line_raw || '').toUpperCase().match(/\b([A-Z0-9]{2})\s*\*?\s*(\d{1,4})\s+[A-Z]\s+(\d{2}[A-Z]{3})\s+([A-Z]{3})\s*([A-Z]{3})\b/);
+      return x ? { carrier: x[1], date: x[3], from: x[4], to: x[5], ret: !!Number(sg.is_return) } : null;
+    }).filter(Boolean);
+    if (!segs.length) return 'Flight option — ' + sqDollars(m.perAdult != null ? m.perAdult : m.sell);
+    const out = segs.filter((s) => !s.ret), back = segs.filter((s) => s.ret);
+    const leg = (a) => a[0].from + ' → ' + a[a.length - 1].to + ' ' + sqDay(a[0].date);
+    const trip = (out.length ? leg(out) : leg(segs)) + (back.length ? ', return ' + leg(back) : '');
+    const air = SQ_AIRLINES[segs[0].carrier] || segs[0].carrier;
+    const travelers = (Number(d.adult_count) || 0) + (Number(d.child_count) || 0) + (Number(d.infant_count) || 0);
+    const price = (m.perAdult != null && Number(d.adult_count) === travelers)
+      ? sqDollars(m.perAdult) + ' per adult' + (travelers > 1 ? ' (' + sqDollars(m.sell) + ' total)' : '')
+      : sqDollars(m.sell) + ' total';
+    return air + ': ' + trip + ' — ' + price;
+  }
+  // The lead's quotes, fresh from the BO: [{ pk, line, profit, ok, why, sent, link }].
+  async function sqLoad(leadId) {
+    const lead = sqFirst(await sqApi('/api/database/v2/Lead/find?pks=' + leadId))[0];
+    if (!lead) throw new Error('lead ' + leadId + ' not found in the BO');
+    const lst = sqFirst(await sqApi('/api/database/v2/LeadPriceQuoteList/find?pks=' + leadId))[0];
+    const ids = ((lst && lst.list) || []).map(String);
+    if (!ids.length) return { lead, quotes: [] };
+    const meta = {};
+    sqFirst(await sqApi('/api/database/v2/PriceQuote/find?pks=' + ids.join(','))).forEach((x) => { meta[String(x.id)] = x; });
+    // Each quote's "View deal" link comes from the offer it was last sent in.
+    const links = {};
+    const offers = Array.from(new Set(Object.keys(meta).map((k) => meta[k].offer_pk).filter(Boolean).map(String))).sort((a, b) => Number(a) - Number(b));
+    if (offers.length) {
+      try {
+        sqFirst(await sqApi('/api/database/v2/LeadOffer/find?pks=' + offers.join(','))).sort((a, b) => Number(a.id) - Number(b.id)).forEach((o) => {
+          (o.links || []).forEach((u) => { const mm = String(u).match(/\/A(\d+)$/); if (mm) links[mm[1]] = u; });
+        });
+      } catch (e) { /* links are optional */ }
+    }
+    const quotes = [];
+    for (const id of ids) {
+      const mt = meta[id];
+      if (!mt || mt.is_hidden) continue;
+      const j = await sqApi('/api/database/v1/priceQuotes/PriceQuoteFormModel/' + id);
+      const d = j && (j.result || j.data || j);
+      if (!d || !Array.isArray(d.preTickets)) continue;
+      const m = sqMoney(d);
+      let why = '';
+      if (!m.known) why = 'profit unknown (award / no net price)';
+      else if (m.profit <= 0) why = (m.profit < 0 ? 'negative' : 'zero') + ' profit';
+      quotes.push({ pk: id, line: sqLine(d, m), profit: m.profit, ok: !why, why, sent: !!mt.is_sent, link: links[id] || '' });
+    }
+    return { lead, quotes };
+  }
+  function sqText(info, quotes) {
+    const intro = sqFill('Hi {client}, {agent} from Travel Business Class here. ' + (quotes.length === 1 ? 'Here is the best option I found' : 'Here are the best options I found') + ' for your flight to {destination}:', info);
+    const body = quotes.map((x, i) => (quotes.length > 1 ? (i + 1) + '. ' : '') + x.line + (x.link ? '\n' + x.link : '')).join('\n\n');
+    return intro + '\n\n' + body + '\n\nWhen is a good time to go over them? I can hold the fare for you.';
+  }
+  // Only ever called after the agent pressed Send.
+  async function sqSendEmail(lead, pks) {
+    if (!lead.client_email_pk) return { ok: false, error: 'the lead has no email in the BO' };
+    try {
+      await sqApi('/api/database/v2/LeadOffer/action/sendOffer?waitsForResponse=true', {
+        personal: false, lead_pk: String(lead.id), email_pk: String(lead.client_email_pk), project_pk: String(lead.project_pk || '1'),
+        price_quote_pks: pks.map(String), passengers_info: null, recommended_pq_pk: null, hotel_included_pq_pks: [],
+        order_by_pq: 'price_based', discount: [], badgeTypes: pks.map((p) => ({ pq_pk: String(p), badgeTypes: [] })),
+      });
+      return { ok: true };
+    } catch (e) { return { ok: false, error: 'the BO refused the email (' + (e && e.message ? e.message : e) + ')' }; }
+  }
+  // Only ever called after the agent pressed Send.
+  async function sqSendText(number, text) {
+    await smsRcOpen(number, text);
+    const r = await smsRc('send', { phone: number, text }, 45000);
+    if (r.ok || r.error === 'unconfirmed') return { ok: true, warn: !r.ok };
+    return { ok: false, error: r.message || r.error || 'not sent (is RingCentral signed in?)' };
+  }
+
+  // ---- the BO's "Too many attempts … retry in N seconds" ----------------------
+  function sqLimitSecs() {
+    let secs = 0;
+    document.querySelectorAll('.v-toast__text').forEach((el) => {
+      const item = el.closest('.v-toast__item') || el;
+      if (item.dataset.iaLimitSeen) return;
+      const t = el.textContent;
+      if (!/too many attempts/i.test(t)) return;
+      item.dataset.iaLimitSeen = '1';
+      const m = t.match(/(\d+)\s*s(?:ec|econd)?/i);
+      secs = Math.max(secs, m ? Math.min(+m[1], 300) : 40);
+    });
+    return secs;
+  }
+
+  // ---- the window -------------------------------------------------------------
+  const sqRun = { on: false, stop: false };
+  let sqLastReveal = 0;
+  function sqWin() {
+    document.querySelectorAll('.ia-sq').forEach((n) => n.remove());
+    const pal = iaPalette();
+    const ov = document.createElement('div');
+    ov.className = 'ia-sq';
+    ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.acc + ';--q-onacc:' + pal.onacc + ';--q-shadow:' + pal.shadow + ';--q-ok:' + (pal.ok || '#22c55e') + ';--q-bad:' + (pal.bad || '#ef4444');
+    const card = document.createElement('div');
+    card.className = 'ia-sq__card';
+    ov.appendChild(card);
+    document.body.appendChild(ov);
+    return { ov, card, close: () => ov.remove() };
+  }
+  const sqEsc = (s) => smsEsc(s);
+  function sqHead(icon, small, title, tag) {
+    return '<div class="ia-sq__head"><div class="ia-sq__ic">' + icon + '</div><div><small>' + sqEsc(small) + '</small><b>' + sqEsc(title) + '</b></div>' + (tag ? '<span class="ia-sq__tag">' + sqEsc(tag) + '</span>' : '') + '</div>';
+  }
+  // Shows one message and waits for the agent: resolves 'send' | 'skip' | 'stop'
+  // (for a text, also the edited text).
+  function sqAsk(w, o) {
+    return new Promise((resolve) => {
+      const qs = o.quotes.map((x) => '<div class="ia-sq__q' + (x.ok ? '' : ' is-red') + '"><span class="ia-sq__box' + (x.ok ? '' : ' is-off') + '">' + (x.ok ? '✓' : '') + '</span><span>' + sqEsc(x.line) + '</span><span class="ia-sq__p">' + (x.ok ? '+' + sqDollars(x.profit) : (x.profit < 0 ? '−' + sqDollars(-x.profit) : sqDollars(x.profit || 0)) + ' · not sent') + '</span></div>').join('');
+      w.card.innerHTML = sqHead(o.kind === 'e' ? '✉' : '\u{1F4AC}', 'Lead ' + o.n + ' of ' + o.tot + ' · #' + o.id, o.name, o.kind === 'e' ? 'Email · BO Send options' : 'Text · RingCentral')
+        + '<div class="ia-sq__to"><span>To</span>' + sqEsc(o.to) + '</div>'
+        + (o.kind === 'e' ? qs : '<textarea class="ia-sq__msg" spellcheck="true"></textarea><div class="ia-sq__hint">You can edit the text before sending.</div>')
+        + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button><button type="button" class="ia-sq__b">Skip</button><button type="button" class="ia-sq__b is-go">' + (o.kind === 'e' ? 'Send email' : 'Send text') + '</button></div>';
+      const ta = w.card.querySelector('.ia-sq__msg');
+      if (ta) { ta.value = o.text; }
+      const [stop, skip, go] = w.card.querySelectorAll('.ia-sq__b');
+      const done = (v) => { document.removeEventListener('keydown', onKey, true); resolve({ act: v, text: ta ? ta.value : '' }); };
+      const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done('stop'); } };
+      stop.addEventListener('click', () => done('stop'));
+      skip.addEventListener('click', () => done('skip'));
+      go.addEventListener('click', () => { if (ta && !ta.value.trim()) return; go.disabled = true; done('send'); });
+      document.addEventListener('keydown', onKey, true);
+      setTimeout(() => go.focus(), 0);
+    });
+  }
+  function sqBusy(w, o, line) {
+    w.card.innerHTML = sqHead('✈', 'Lead ' + o.n + ' of ' + o.tot + ' · #' + o.id, o.name) + '<div class="ia-sq__wait">' + sqEsc(line) + '</div>'
+      + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button></div>';
+    w.card.querySelector('.is-stop').addEventListener('click', () => { sqRun.stop = true; });
+  }
+  // The BO asked us to wait: a countdown, then carry on (Stop works throughout).
+  async function sqCountdown(w, o, secs, why) {
+    const total = secs;
+    w.card.innerHTML = sqHead('⏳', 'Lead ' + o.n + ' of ' + o.tot + ' · #' + o.id, why || 'The BO asked us to wait')
+      + '<div class="ia-sq__big"></div><div class="ia-sq__bar"><i></i></div>'
+      + '<div class="ia-sq__hint">The tool waits the full time the BO asks for, then opens this lead’s contact again and shows you the message.</div>'
+      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-stop">Stop</button></div>';
+    w.card.querySelector('.is-stop').addEventListener('click', () => { sqRun.stop = true; });
+    const big = w.card.querySelector('.ia-sq__big'), bar = w.card.querySelector('.ia-sq__bar i');
+    for (; secs > 0 && !sqRun.stop; secs--) {
+      big.textContent = 'Trying again in ' + secs + ' s';
+      bar.style.width = Math.round(100 * (total - secs) / total) + '%';
+      await sqSleep(1000);
+    }
+    return !sqRun.stop;
+  }
+  // The client's number: already shown, or opened with the BO's own reveal
+  // (never faster than the BO's pace; waits out its "too many attempts").
+  async function sqNumber(w, o, row) {
+    for (let tries = 0; tries < 3 && !sqRun.stop; tries++) {
+      const box = row && findPhoneCell(row);
+      if (!box) return null;
+      const shown = revealedNumber(box.textContent);
+      if (shown) return shown;
+      sqBusy(w, o, 'Opening the client\u2019s number\u2026');
+      const gap = SQ_REVEAL_GAP_MS - (Date.now() - sqLastReveal);
+      if (gap > 0 && !(await sqCountdown(w, o, Math.ceil(gap / 1000), 'Opening the next contact'))) return null;
+      sqLastReveal = Date.now();
+      box.click(); // the BO's own reveal
+      const n = await waitForNumber(box, 2500);
+      if (n) return n;
+      await sqSleep(600);
+      const secs = sqLimitSecs();
+      if (!secs) return null;
+      if (!(await sqCountdown(w, o, secs))) return null;
+      row = sqRowFor(o.id) || row;
+    }
+    return null;
+  }
+
+  function sqStart() {
+    if (sqRun.on) return;
+    const rows = getLeadRows();
+    const w = sqWin();
+    if (!rows.length) {
+      w.card.innerHTML = sqHead('✈', 'Send quotes', 'Open your leads list first') + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">OK</button></div>';
+      w.card.querySelector('.is-go').addEventListener('click', w.close);
+      return;
+    }
+    const items = rows.map((row) => ({ id: String(getLeadId(row)), info: sqInfo(row), night: isQuietTime(rowLocalTime(row)), hasP: !!findPhoneCell(row) }));
+    const ticked = items.filter((x) => sqTicked(x.id)).length;
+    const night = items.filter((x) => !sqTicked(x.id) && x.night).length;
+    const todo = items.filter((x) => !sqTicked(x.id));
+    w.card.innerHTML = sqHead('✈', 'Send quotes', 'Leads on this page')
+      + '<div class="ia-sq__sum"><div><b>' + todo.length + '</b> leads to go through</div>'
+      + (ticked ? '<div>Already sent today (yellow tick): <b>' + ticked + '</b> — skipped</div>' : '')
+      + (night ? '<div>Night time for the client: <b>' + night + '</b> — email only, no text</div>' : '') + '</div>'
+      + '<label class="ia-sq__chk"><input type="checkbox" class="ia-sq-e" checked> Email the quotes (the BO’s own “Send options” email)</label>'
+      + '<label class="ia-sq__chk"><input type="checkbox" class="ia-sq-t" checked> Text the quotes (RingCentral)</label>'
+      + '<div class="ia-sq__note">Each lead’s quotes are read live from the BO. Only green-badge quotes are offered; red ($0 or less), hidden and award quotes are never included. <b>You’ll see and confirm every message before it goes.</b></div>'
+      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b">Cancel</button><button type="button" class="ia-sq__b is-go">Start</button></div>';
+    const [cancel, go] = w.card.querySelectorAll('.ia-sq__b');
+    cancel.addEventListener('click', w.close);
+    go.addEventListener('click', () => {
+      const doE = w.card.querySelector('.ia-sq-e').checked, doT = w.card.querySelector('.ia-sq-t').checked;
+      if (!doE && !doT) return;
+      sqGo(w, todo, doE, doT);
+    });
+  }
+
+  async function sqGo(w, todo, doE, doT) {
+    sqRun.on = true; sqRun.stop = false;
+    const st = { e: 0, t: 0, skip: 0, none: 0, fail: [], refusals: 0, blocked: false };
+    const tot = todo.length;
+    let n = 0;
+    const prog = () => 'Sent so far: ' + st.e + ' email' + (st.e === 1 ? '' : 's') + ', ' + st.t + ' text' + (st.t === 1 ? '' : 's') + (st.skip ? ' · ' + st.skip + ' skipped' : '');
+    try {
+      for (const item of todo) {
+        if (sqRun.stop) break;
+        n++;
+        const name = item.info.clientName || ('Lead ' + item.id);
+        const o = { n, tot, id: item.id, name, prog: prog() };
+        if (sqTicked(item.id)) continue;
+        sqBusy(w, o, 'Reading this lead’s quotes from the BO…');
+        let data;
+        try { data = await sqLoad(item.id); } catch (err) { st.fail.push(name + ' (' + (err && err.message ? err.message : err) + ')'); continue; }
+        if (sqRun.stop) break;
+        const pend = (kind) => { const done = sqSent(kind, item.id); return data.quotes.filter((x) => x.ok && !done.has(x.pk) && !(kind === 'e' && x.sent)); };
+        if (!data.quotes.some((x) => x.ok)) { st.none++; continue; }
+        // Email first (it creates the View deal links), then the text.
+        if (doE) {
+          const list = pend('e');
+          if (!list.length) sqMark('e', item.id);
+          else {
+            const shown = sqShownEmail(sqRowFor(item.id) || document.body);
+            const show = data.quotes.filter((x) => !x.ok || list.includes(x));
+            const a = await sqAsk(w, Object.assign({}, o, { prog: prog(), kind: 'e', to: shown || 'the client’s email on this lead', quotes: show }));
+            if (a.act === 'stop') { sqRun.stop = true; break; }
+            if (a.act === 'skip') st.skip++;
+            else {
+              sqBusy(w, o, 'Sending the email…');
+              const r = await sqSendEmail(data.lead, list.map((x) => x.pk));
+              if (r.ok) { sqRemember('e', item.id, list.map((x) => x.pk)); sqMark('e', item.id); st.e++; } else st.fail.push(name + ' (email: ' + r.error + ')');
+              await sqSleep(1500);
+              if (r.ok && doT) { try { data = await sqLoad(item.id); } catch (e2) { /* keep the old copy */ } }
+            }
+          }
+        }
+        if (doT && !sqRun.stop) {
+          const list = pend('t');
+          if (!list.length) sqMark('t', item.id);
+          else if (item.night) { /* night time for the client: no text */ }
+          else if (!item.hasP) st.fail.push(name + ' (no phone number on the list)');
+          else {
+            const num = await sqNumber(w, o, sqRowFor(item.id));
+            if (sqRun.stop) break;
+            if (!num) {
+              st.fail.push(name + ' (the BO didn’t show the number)');
+              // The BO kept refusing: after two leads in a row, stop for now.
+              if (++st.refusals >= 2) { st.blocked = true; break; }
+            } else {
+              st.refusals = 0;
+              const text = sqText(item.info, list);
+              const a = await sqAsk(w, Object.assign({}, o, { prog: prog(), kind: 't', to: num, quotes: list, text }));
+              if (a.act === 'stop') { sqRun.stop = true; break; }
+              if (a.act === 'skip') st.skip++;
+              else {
+                sqBusy(w, o, 'Sending the text…');
+                const r = await sqSendText(num, a.text);
+                if (r.ok) { sqRemember('t', item.id, list.map((x) => x.pk)); sqMark('t', item.id); st.t++; } else st.fail.push(name + ' (text: ' + r.error + ')');
+                await sqSleep(1500);
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      sqRun.on = false;
+    }
+    const fails = st.fail.length ? '<div>Failed: <b>' + st.fail.length + '</b> — ' + st.fail.slice(0, 4).map(sqEsc).join('; ') + (st.fail.length > 4 ? '; …' : '') + '</div>' : '';
+    w.card.innerHTML = sqHead('✓', 'Send quotes', sqRun.stop ? 'Stopped' : st.blocked ? 'The BO is still blocking' : 'Done')
+      + '<div class="ia-sq__sum"><div>Emails sent: <b>' + st.e + '</b> · Texts sent: <b>' + st.t + '</b></div>'
+      + '<div>Skipped by you: <b>' + st.skip + '</b> · No green quotes: <b>' + st.none + '</b></div>' + fails + '</div>'
+      + (st.blocked ? '<div class="ia-sq__note">The BO kept refusing to open contacts for two leads in a row, so the run stopped here. Try again later: everything sent is remembered.</div>' : '<div class="ia-sq__note">Everything sent is remembered, so the next run carries on where this one stopped.</div>')
+      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">Close</button></div>';
+    w.card.querySelector('.is-go').addEventListener('click', w.close);
+    sqPaintTicks();
+  }
+
+  // The "✈ Send quotes" chip, before "Showing … of … entries" on a leads list.
+  function sqChip() {
+    if (window.top !== window) return;
+    const onList = !/^\/leads\/\d+/.test(location.pathname) && getLeadRows().length > 0;
+    let chip = document.querySelector('.ia-sq-chip');
+    const label = onList && Array.from(document.querySelectorAll('span, div, p')).find((el) => el.children.length === 0 && /^Showing\s+\d+\s*(?:-|to)\s*\d+\s+of\s+\d+/i.test(el.textContent.trim()));
+    if (!label) { if (chip) chip.remove(); return; }
+    if (!chip) {
+      chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'ia-sq-chip';
+      chip.textContent = '✈ Send quotes';
+      chip.title = 'Send each lead its green quotes — you confirm every message';
+      chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); sqStart(); });
+    }
+    const pal = iaPalette();
+    chip.style.setProperty('--q-acc', pal.acc);
+    chip.style.setProperty('--q-onacc', pal.onacc);
+    if (chip.nextElementSibling !== label) label.insertAdjacentElement('beforebegin', chip);
+  }
+  function sqScan() { try { sqChip(); if (getLeadRows().length) sqPaintTicks(); } catch (e) { /* ignore */ } }
+
+  GM_addStyle(`
+    .ia-sq-chip { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; border: 0; border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
+      font: 800 12px Inter, 'Segoe UI', system-ui, sans-serif; color: var(--q-onacc, #fff); background: linear-gradient(135deg, color-mix(in srgb, var(--q-acc, #7c7cf8) 78%, #fff), var(--q-acc, #7c7cf8)); box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+    .ia-sq-chip:hover { filter: brightness(1.06); }
+    .ia-sq-tick { flex: none; cursor: pointer; margin-left: 4px; font: 800 12px/1 system-ui, sans-serif; color: #facc15; opacity: 0; transition: opacity .15s; user-select: none; }
+    .ia-sq-tick.is-on { opacity: 1; text-shadow: 0 0 1px rgba(120,80,0,.6); }
+    tr:hover .ia-sq-tick:not(.is-on) { opacity: .35; }
+    .ia-sq { position: fixed; inset: 0; z-index: 2147483600; background: rgba(6,10,24,.38); display: flex; align-items: center; justify-content: center; }
+    .ia-sq__card { width: 440px; max-width: calc(100vw - 32px); max-height: calc(100vh - 40px); overflow: auto; box-sizing: border-box; border-radius: 20px; padding: 14px; background: var(--q-sky), var(--q-glass); border: 1px solid var(--q-edge);
+      -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); box-shadow: var(--q-shadow), inset 0 1px 0 var(--q-edge); color: var(--q-title); font: 600 13px Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-sq__head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .ia-sq__ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--q-acc); color: var(--q-onacc); font-size: 15px; flex: none; }
+    .ia-sq__head small { display: block; color: var(--q-sec); font-weight: 700; font-size: 11px; }
+    .ia-sq__head b { font-size: 14px; font-weight: 800; }
+    .ia-sq__tag { margin-left: auto; font: 800 10.5px Inter, 'Segoe UI', system-ui, sans-serif; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--q-acc) 18%, transparent); white-space: nowrap; }
+    .ia-sq__to { background: var(--q-inner); border-radius: 12px; padding: 7px 10px; margin-bottom: 8px; font-size: 12px; }
+    .ia-sq__to span { color: var(--q-sec); font-weight: 700; margin-right: 6px; }
+    .ia-sq__q { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; background: var(--q-inner); margin-bottom: 5px; font-size: 12px; }
+    .ia-sq__q.is-red { opacity: .6; }
+    .ia-sq__p { font-weight: 800; color: var(--q-ok); white-space: nowrap; }
+    .ia-sq__q.is-red .ia-sq__p { color: var(--q-bad); }
+    .ia-sq__box { width: 15px; height: 15px; border-radius: 5px; background: var(--q-acc); color: var(--q-onacc); display: grid; place-items: center; font-size: 10px; }
+    .ia-sq__box.is-off { background: transparent; border: 1.5px solid var(--q-sec); box-sizing: border-box; }
+    .ia-sq__msg { display: block; width: 100%; box-sizing: border-box; min-height: 170px; resize: vertical; border: 1px solid transparent; border-radius: 12px; padding: 9px 10px; background: var(--q-chip); color: var(--q-title); font: 500 12.5px/1.45 Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-sq__msg:focus { outline: none; border-color: var(--q-acc); }
+    .ia-sq__hint { font-size: 11px; color: var(--q-sec); margin-top: 5px; font-weight: 600; }
+    .ia-sq__wait { padding: 10px 2px; color: var(--q-sec); }
+    .ia-sq__big { font: 800 22px Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-sq__bar { height: 6px; border-radius: 999px; background: var(--q-chip); overflow: hidden; margin: 10px 0 6px; }
+    .ia-sq__bar i { display: block; height: 100%; width: 0; background: #f59e0b; border-radius: 999px; transition: width .9s linear; }
+    .ia-sq__sum div { margin: 3px 0; }
+    .ia-sq__chk { display: flex; gap: 8px; align-items: center; margin: 7px 0; font-size: 12.5px; cursor: pointer; }
+    .ia-sq__chk input { accent-color: var(--q-acc); width: 15px; height: 15px; margin: 0; }
+    .ia-sq__note { font: 500 11.5px/1.45 Inter, 'Segoe UI', system-ui, sans-serif; color: var(--q-sec); background: var(--q-inner); border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
+    .ia-sq__note b { color: var(--q-title); }
+    .ia-sq__btns { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-top: 12px; }
+    .ia-sq__prog { margin-right: auto; font-size: 11.5px; color: var(--q-sec); }
+    .ia-sq__b { white-space: nowrap; border: 1px solid transparent; border-radius: 999px; padding: 7px 14px; cursor: pointer; font: 800 12px Inter, 'Segoe UI', system-ui, sans-serif; background: var(--q-chip); color: var(--q-title); box-shadow: var(--q-chipsh); }
+    .ia-sq__b:hover { border-color: var(--q-acc); }
+    .ia-sq__b.is-go { background: linear-gradient(180deg, color-mix(in srgb, var(--q-acc) 78%, white), var(--q-acc)); color: var(--q-onacc); }
+    .ia-sq__b.is-stop { color: var(--q-bad); }
+    .ia-sq__b:disabled { opacity: .6; cursor: default; }
+  `);
+
+  // ==========================================================================
+  // What's new: a button on the panel (next to Double-dial) that shows only
+  // the newest update's changes. A small dot shows until the agent opens it
+  // once after an update.
+  // ==========================================================================
+  const IA_NEWS = {
+    version: '2.12.0',
+    items: [
+      '✈ Send quotes, on your leads list: the tool reads each lead’s quotes, keeps the profitable (green) ones and writes the email and the text. You see every message and press Send, Skip or Stop. Nothing goes out without you.',
+      'A yellow tick next to the PQs count shows leads whose quotes went out today. Click it to tick or untick a lead; ticked leads are skipped.',
+      'When the BO says “too many attempts”, the window counts down the time the BO asks for and then carries on by itself.',
+      'This What’s new button: it always shows what the latest update changed.',
+    ],
+  };
+  const IA_NEWS_SEEN_KEY = 'ia-news-seen';
+  function iaNewsUnseen() { try { return GM_getValue(IA_NEWS_SEEN_KEY, '') !== IA_NEWS.version; } catch (e) { return false; } }
+  function iaPaintNewsBtn() {
+    const b = iaWidget && iaWidget.querySelector('.ia-news-btn');
+    if (b) b.classList.toggle('is-new', iaNewsUnseen());
+  }
+  function iaShowNews() {
+    try { GM_setValue(IA_NEWS_SEEN_KEY, IA_NEWS.version); } catch (e) { /* ignore */ }
+    iaPaintNewsBtn();
+    const w = sqWin();
+    w.card.classList.add('ia-news');
+    w.card.innerHTML = sqHead('✦', 'What’s new', 'In version ' + IA_NEWS.version)
+      + '<ul class="ia-news__list">' + IA_NEWS.items.map((t) => '<li>' + sqEsc(t) + '</li>').join('') + '</ul>'
+      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">Got it</button></div>';
+    w.card.querySelector('.is-go').addEventListener('click', w.close);
+    w.ov.addEventListener('click', (e) => { if (e.target === w.ov) w.close(); });
+    const onKey = (e) => { if (e.key === 'Escape') { document.removeEventListener('keydown', onKey, true); w.close(); } };
+    document.addEventListener('keydown', onKey, true);
+  }
+  function iaWireNewsBtn() {
+    if (!iaWidget) return;
+    const tog = iaWidget.querySelector('.ia-toggles');
+    if (!tog || tog.querySelector('.ia-news-btn')) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ia-news-btn';
+    b.title = 'What the latest update changed';
+    b.innerHTML = '<span class="ia-news-btn__dot"></span>What’s new';
+    b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); iaShowNews(); });
+    b.addEventListener('mousedown', (e) => e.stopPropagation());
+    tog.appendChild(b);
+    iaPaintNewsBtn();
+  }
+  GM_addStyle(`
+    .ia-news-btn { justify-self: end; align-self: center; display: inline-flex; align-items: center; gap: 5px; border: 1px solid transparent; border-radius: 999px; padding: 3px 9px; cursor: pointer;
+      font: 800 11px Inter, 'Segoe UI', system-ui, sans-serif; color: var(--ia-sec); background: var(--ia-chip, rgba(127,127,127,.12)); white-space: nowrap; }
+    .ia-news-btn:hover { border-color: var(--acc); color: var(--ia-title); }
+    .ia-news-btn__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); display: none; }
+    .ia-news-btn.is-new .ia-news-btn__dot { display: inline-block; }
+    .ia-news-btn.is-new { color: var(--ia-title); }
+    .ia-news__list { margin: 4px 0 0; padding-left: 18px; font: 600 12.5px/1.5 Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-news__list li { margin: 5px 0; }
+  `);
+
+  __jsRegisterScan(() => { ensureBmo(); updateAllRowIndicators(); checkOwner(); addCallIcons(); iaWireNewsBtn(); sqScan(); });
   __jsEnsureSharedObserver();
   ensureBmo();
 })();
