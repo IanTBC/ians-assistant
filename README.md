@@ -51,12 +51,18 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Night-time protection** — the dialer skips clients where it's 10 pm–8 am their time; calling one yourself asks first. A call that passes 3½ minutes stops auto-dialing.
 - **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page, filled in for the lead (click any text to copy). **Tools** next to it opens VIP Itinerary, GK Converter and How to make a PNR.
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
+- Click a lead's status letter on the leads list to make it **Potential**, **Follow up** or **Closed** without opening the lead.
 - **Send quotes** (leads list) prepares each lead's profitable quotes as an email and a text; you confirm every message before it goes. A yellow tick in the PQs column marks leads already sent today.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates. Sent follow-ups turn green and show when they went out.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.13.0 — change status from the leads list**
+- Change a lead's status straight from the leads list: click its round letter (N / P / F / C) and pick **Potential**, **Follow up** or **Closed**. No need to open the lead.
+- **Closed** opens the same "Closing reason request?" window as inside the lead: reason, duplicate lead, remark, urgency and files (drop or paste them).
+- A small green note confirms each change.
 
 **2.12.0 — send quotes, What's new button**
 - **Send quotes** on your leads list: the tool reads each lead's quotes from the BO, keeps the profitable (green) ones and writes the email and the text for you. Before anything goes out you see the client, where it's going and the full message, and press **Send**, **Skip** or **Stop**. Nothing is sent without you.

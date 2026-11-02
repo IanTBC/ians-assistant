@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.12.0
+// @version      2.13.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -13020,12 +13020,11 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.12.0',
+    version: '2.13.0',
     items: [
-      '✈ Send quotes, on your leads list: the tool reads each lead’s quotes, keeps the profitable (green) ones and writes the email and the text. You see every message and press Send, Skip or Stop. Nothing goes out without you.',
-      'A yellow tick next to the PQs count shows leads whose quotes went out today. Click it to tick or untick a lead; ticked leads are skipped.',
-      'When the BO says “too many attempts”, the window counts down the time the BO asks for and then carries on by itself.',
-      'This What’s new button: it always shows what the latest update changed.',
+      'Change a lead\u2019s status straight from the leads list: click its round letter (N / P / F / C) and pick Potential, Follow up or Closed. No need to open the lead.',
+      'Closed opens the same \u201cClosing reason request?\u201d window as inside the lead: reason, duplicate lead, remark, urgency and files (drop or paste them).',
+      'A small green note confirms each change.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
@@ -14043,6 +14042,675 @@ const __iaTerm = { run: null, busy: false };
     }
   };
 
+})();
+
+// ====================================================================
+// SECTION 12 · Leads list: change a lead's status from its letter badge
+// ====================================================================
+// Click a lead's round status letter (P / F / C) on the leads list or the
+// search results: a menu like the one inside the lead opens under it.
+//  - Potential / Follow up: the same request the lead page sends
+//    (PATCH AgentLeadModel {event:"setLeadStatus", data:{status_id}}).
+//  - Closed: the same "Closing reason request" the lead page shows —
+//    reason, duplicate lead (for "new request in the same client card",
+//    searched exactly like the BO's own box), remark and urgency — sent as
+//    the BO's own closeLead request, with files dropped or pasted in.
+// Uses the BO's own login headers (picked up from its own requests).
+(function () {
+  'use strict';
+  if (!location.hostname.includes('travelbusinessclass.com')) return;
+  if (window.top !== window) return;
+  const W = (typeof unsafeWindow !== 'undefined' && unsafeWindow) || window;
+
+  const STATUSES = [
+    { id: 2, letter: 'P', name: 'Potential', cls: 'bg-vista-blue-300' },
+    { id: 3, letter: 'F', name: 'Follow up', cls: 'bg-vodka-400' },
+    { id: 0, letter: 'C', name: 'Closed', cls: 'bg-red-500', close: true },
+  ];
+  // The reasons the BO's Closed window offers, with the codes it sends.
+  const REASONS = [
+    { code: 'not_interested', title: 'Closing lead due to pax not interested/booked' },
+    { code: 'no_reply', title: 'Closing lead due to no reply after proper followup' },
+    { code: 'new_request', title: 'Closing older leads due to pax left a new request in the same client card', dup: true },
+    { code: 'booked_economy', title: 'Booked economy class' },
+    { code: 'fake_lead', title: 'Fake lead' },
+    { code: 'unsubscribed', title: 'Unsubscribed by Client' },
+  ];
+  const URGENCY = [
+    { value: '10_low', title: 'Low' },
+    { value: '20_medium', title: 'Medium' },
+    { value: '30_high', title: 'High' },
+    { value: '40_critical', title: 'Critical' },
+  ];
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  /* ---------- BO requests ---------- */
+  function boHeaders(json) {
+    const h = Object.assign({ Accept: 'application/json' }, (typeof __jsApi !== 'undefined' && __jsApi.headers) || {});
+    if (!Object.keys(h).some((k) => /authorization/i.test(k))) { const sa = __jsStoredAuth(); if (sa) h.Authorization = sa; }
+    if (!Object.keys(h).some((k) => /authorization/i.test(k))) {
+      try {
+        for (let i = 0; i < W.localStorage.length; i++) {
+          const k = W.localStorage.key(i);
+          const v = (W.localStorage.getItem(k) || '').replace(/^"|"$/g, '');
+          if (/token/i.test(k) && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(v)) { h.Authorization = 'Bearer ' + v; break; }
+        }
+      } catch (e) { /* ignore */ }
+    }
+    if (!Object.keys(h).some((k) => /authorization/i.test(k))) return null;
+    Object.keys(h).forEach((k) => { if (/^x-activeat$/i.test(k)) delete h[k]; });
+    h['x-activeat'] = String(Math.floor(Date.now() / 1000));
+    if (!Object.keys(h).some((k) => /^x-workspace$/i.test(k))) h['x-workspace'] = '1';
+    if (!Object.keys(h).some((k) => /^x-workspace-project$/i.test(k))) h['x-workspace-project'] = '1';
+    if (json) h['content-type'] = 'application/json';
+    return h;
+  }
+  async function bo(method, url, body) {
+    const h = boHeaders(!!body);
+    if (!h) throw new Error('BO session not ready yet — wait a few seconds and try again.');
+    const res = await W.fetch(url, { method, credentials: 'include', headers: h, body: body ? JSON.stringify(body) : undefined });
+    let j = null;
+    try { j = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok || !j || j.success === false) {
+      const msg = (j && (j.message || (j.errors && Object.values(j.errors).flat().join(' ')))) || ('HTTP ' + res.status);
+      throw new Error(String(msg));
+    }
+    return j;
+  }
+  const setStatus = (leadId, statusId) => bo('PATCH', '/api/database/v1/leads/AgentLeadModel/' + leadId, { event: 'setLeadStatus', data: { status_id: statusId } });
+  const closeLead = (leadId, reason, dupId, remark, urgency, filePks) => bo('POST', '/api/database/v2/Lead/action/closeLead?waitsForResponse=false', {
+    lead_pk: String(leadId),
+    closing_reason: reason,
+    closing_reason_remark: null,
+    duplicate_lead_pk: dupId ? String(dupId) : null,
+    issue_data: { remark: remark || '', urgency: urgency || '20_medium', expires_at: null, file_pks: (filePks || []).map(String) },
+  });
+  // The BO's duplicate-lead search: mergeable leads (not this one) matching
+  // the typed text, newest first; then their route and client name.
+  async function searchDuplicates(leadId, text) {
+    const q = 'where[0][ne][0]=id&where[0][ne][1]=' + encodeURIComponent(leadId)
+      + '&where[1][eq][0]=can_merge&where[1][eq][1]=true'
+      + '&where[2][lo][0]=keywords&where[2][lo][1]=' + encodeURIComponent(text)
+      + '&orderBy[0][0]=id&orderBy[0][1]=desc';
+    const s = await bo('GET', '/api/database/v2/Lead/search?' + q.replace(/\[/g, '%5B').replace(/\]/g, '%5D'));
+    const pks = (s.result || []).map(String).slice(0, 20);
+    if (!pks.length) return [];
+    const f = await bo('GET', '/api/database/v2/Lead/find?pks=' + pks.join(','));
+    const leads = f.result || [];
+    const cpks = Array.from(new Set(leads.map((l) => l.client_pk).filter(Boolean)));
+    const names = {};
+    if (cpks.length) {
+      try {
+        const c = await bo('GET', '/api/database/v2/ClientPreview/find?pks=' + cpks.join(','));
+        (c.result || []).forEach((x) => { names[String(x.id)] = { first: (x.first_name || '').trim(), last: (x.last_name || '').trim() }; });
+      } catch (e) { /* names are a nice-to-have */ }
+    }
+    const byId = {};
+    leads.forEach((l) => { byId[String(l.id)] = l; });
+    return pks.map((pk) => byId[pk]).filter(Boolean).map((l) => {
+      const n = names[String(l.client_pk)] || { first: '', last: '' };
+      const full = [n.first, n.last].filter(Boolean).join(' ');
+      return {
+        id: String(l.id),
+        title: '#' + l.id + (full ? ' | ' + full : ''),
+        sub: (l.from_iata_code || '') + ' -> ' + (l.to_iata_code || ''),
+        // The card under the picked lead, as the BO shows it.
+        client: [n.last, n.first].filter(Boolean).join(' '),
+        from: l.from_iata_code || '', to: l.to_iata_code || '',
+        fromDate: dayMon(l.departure_date, l.from_iata_timezone),
+        toDate: dayMon(l.return_date || l.departure_date, l.to_iata_timezone),
+      };
+    });
+  }
+
+  /* ---------- finding the badge ---------- */
+  const leadIdOf = (row) => {
+    const a = row && row.querySelector('a[href*="/leads/"]');
+    const m = a && (a.getAttribute('href') || '').match(/\/leads\/(\d+)/);
+    return m ? m[1] : null;
+  };
+  // The status letter in a leads-list row: a small round one-letter badge.
+  function badgeFrom(target) {
+    const el = target && target.closest && target.closest('div.rounded-full');
+    if (!el || !el.classList.contains('w-4') || !el.classList.contains('h-4')) return null;
+    if (!/^[NPFC]$/.test((el.textContent || '').trim())) return null; // New, Potential, Follow up, Closed
+    if (!el.closest('.v-popper--has-tooltip')) return null;
+    const row = el.closest('tr');
+    if (!row || !leadIdOf(row)) return null;
+    return { el, row, leadId: leadIdOf(row) };
+  }
+  function paintBadge(el, st) {
+    Array.from(el.classList).forEach((c) => { if (/^bg-/.test(c)) el.classList.remove(c); });
+    el.classList.add(st.cls);
+    el.textContent = st.letter;
+  }
+
+  // A small green note that confirms a change, then fades.
+  function lsmToast(text) {
+    document.querySelectorAll('.ia-lsm-toast').forEach((n) => n.remove());
+    const t = document.createElement('div');
+    t.className = 'ia-lsm-toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; }, 2200);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  /* ---------- the status menu (the BO's own, at its own size) ---------- */
+  let menu = null;
+  let ctx = null; // { el, row, leadId }
+  function closeMenu() {
+    if (menu) menu.remove();
+    menu = null;
+    if (!modal) ctx = null;
+  }
+  function place() {
+    if (!menu || !ctx || !ctx.el.isConnected) return;
+    const r = ctx.el.getBoundingClientRect();
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    const left = Math.min(Math.max(8, r.left - 8), vw - w - 8);
+    let top = r.bottom + 6;
+    if (top + h > vh - 8) top = Math.max(8, r.top - h - 6);
+    menu.style.left = Math.round(left) + 'px';
+    menu.style.top = Math.round(top) + 'px';
+  }
+  function open(b) {
+    closeMenu();
+    ctx = b;
+    menu = document.createElement('div');
+    menu.className = 'ia-lsm dropdown-menu__content box dark:bg-dark-1 p-2 w-32 mt-0';
+    document.body.appendChild(menu);
+    showStatuses();
+  }
+  function showStatuses(err) {
+    menu.innerHTML = STATUSES.map((s, i) => '<a class="dropdown-menu__item ia-lsm-item" data-i="' + i + '">'
+      + '<span class="' + s.cls + ' flex-none flex items-center justify-center w-4 h-4 rounded-full mr-2 text-2xs text-white font-semibold">' + s.letter + '</span> ' + esc(s.name) + '</a>').join('')
+      + (err ? '<div class="ia-lsm-err">' + esc(err) + '</div>' : '');
+    menu.querySelectorAll('.ia-lsm-item').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); pick(STATUSES[+a.dataset.i]); }));
+    place();
+  }
+  async function pick(st) {
+    const c = ctx;
+    if (st.close) { closeMenu(); ctx = c; openClose(c); return; }
+    menu.querySelectorAll('.ia-lsm-item').forEach((a) => a.classList.add('is-off'));
+    try {
+      await setStatus(c.leadId, st.id);
+      paintBadge(c.el, st);
+      c.row.classList.remove('ia-lsm-closed');
+      closeMenu();
+      lsmToast('✓ Lead ' + c.leadId + ' → ' + st.name);
+    } catch (e) {
+      if (menu && ctx === c) showStatuses('Not changed: ' + e.message);
+    }
+  }
+
+  /* ---------- files: the BO's own uploader, step for step ---------- */
+  // startUpload {chunkCount, fileType, fileName} -> uploadID; every 500 KB
+  // piece at once as uploadChunk {uploadID, number, data: <data URL>} (each
+  // retried up to 3 more times); completeUpload {uploadID} -> the file's id.
+  const FILE_API = '/api/database/v1/files/FileListModel/0';
+  const CHUNK = 1024 * 500;
+  const MAX_FILE = 32 * 1024 * 1024;
+  const readChunk = (blob) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error || new Error('Could not read the file'));
+    r.readAsDataURL(blob);
+  });
+  async function uploadFile(file, onPct, isDropped) {
+    const chunkCount = Math.ceil(file.size / CHUNK);
+    let done = 0;
+    const tick = () => { done++; onPct(Math.round(done / (chunkCount + 2) * 100)); };
+    const s = await bo('PATCH', FILE_API, { event: 'startUpload', data: { chunkCount, fileType: file.type, fileName: file.name } });
+    const uploadID = s.result && s.result.uploadID;
+    if (!uploadID) throw new Error('The BO did not start the upload.');
+    tick();
+    const one = async (n, tries) => {
+      if (isDropped()) throw new Error('removed');
+      const data = await readChunk(file.slice(n * CHUNK, n * CHUNK + CHUNK));
+      try { await bo('PATCH', FILE_API, { event: 'uploadChunk', data: { uploadID, number: n, data } }); }
+      catch (e) { if (tries > 3 || isDropped()) throw e; return one(n, tries + 1); }
+      tick();
+    };
+    await Promise.all(Array.from({ length: chunkCount }, (_, n) => one(n, 1)));
+    const c = await bo('PATCH', FILE_API, { event: 'completeUpload', data: { uploadID } });
+    if (!c.result || c.result.id == null) throw new Error('The BO did not finish the upload.');
+    tick();
+    return c.result;
+  }
+  // The BO's file icon (its "IMG" one, copied), recoloured per file type.
+  function fileIcon(ext) {
+    const e = String(ext || '').toLowerCase();
+    const [label, color] = /^(png|jpe?g|gif|webp|bmp|heic|svg)$/.test(e) ? ['IMG', '#FBC500']
+      : e === 'pdf' ? ['PDF', '#ef4444'] : /^(mp3|wav|m4a|ogg|aac|amr)$/.test(e) ? ['AUD', '#8b5cf6']
+        : /^(mp4|mov|avi|webm)$/.test(e) ? ['VID', '#ec4899'] : /^(docx?|txt|rtf)$/.test(e) ? ['DOC', '#3b82f6']
+          : /^(xlsx?|csv)$/.test(e) ? ['XLS', '#16a34a'] : /^(eml|msg)$/.test(e) ? ['EML', '#0ea5e9'] : ['FILE', '#64748b'];
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 28 28"><path fill="#738195" fill-opacity=".2" d="M8 28h18a2 2 0 0 0 2-2V8l-8-8H8a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2Z"/><path fill="#738195" fill-opacity=".2" d="M28 8v6l-6-6h6Z"/><path fill="#738195" fill-opacity=".5" d="M22 8h6l-8-8v6a2 2 0 0 0 2 2Z"/>'
+      + '<rect width="20" height="11" x="4" y="13" fill="' + color + '" rx="2"/><text x="14" y="21.3" font-size="' + (label.length > 3 ? 5.6 : 7) + '" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">' + label + '</text></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  // Dates on the duplicate lead's card, as the BO shows them: "26 Nov", or
+  // "04 Jan 27" when it's not this year; in the airport's own time zone.
+  function dayMon(unix, tz) {
+    if (!unix) return '';
+    const fmt = (zone) => {
+      const parts = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: '2-digit', timeZone: zone }).formatToParts(new Date(unix * 1000));
+      const g = (t) => (parts.find((p) => p.type === t) || {}).value || '';
+      const thisYear = String(new Date().getFullYear()).slice(-2);
+      return g('day') + ' ' + g('month') + (g('year') !== thisYear ? ' ' + g('year') : '');
+    };
+    try { return fmt(tz || 'UTC'); } catch (e) { return fmt('UTC'); }
+  }
+
+  /* ---------- the "Closing reason request?" window (the BO's own HTML) ---------- */
+  const ICO = {
+    chev: '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>',
+    urg: {
+      '10_low': '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down text-primary icon --large"><polyline points="6 9 12 15 18 9"></polyline></svg>',
+      '20_medium': '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-minus text-primary icon --large"><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
+      '30_high': '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-up text-warning icon --large"><polyline points="18 15 12 9 6 15"></polyline></svg>',
+      '40_critical': '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up text-danger icon --large"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>',
+    },
+    info: '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-info text-info-500 icon --xl flex-none"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+    warn: '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-alert-triangle text-warning icon --large flex-none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+    close: '<svg height="10" viewBox="0 0 10 10" width="10" class="app-modal__close__corner app-modal__close__corner--first"><path d="M10 10V0s0 3-3 7c-4 3-7 3-7 3h10Z" fill="currentColor"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 4-8 8M4 4l8 8"></path></svg><svg height="10" viewBox="0 0 10 10" width="10" class="app-modal__close__corner app-modal__close__corner--second"><path d="M10 10V0s0 3-3 7c-4 3-7 3-7 3h10Z" fill="currentColor"></path></svg>',
+    upload: '<svg class="upload-area__icon" width="64" height="75" viewBox="0 0 64 75" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M47 1H26a5 5 0 0 0-5 5v42a5 5 0 0 0 5 5h31a5 5 0 0 0 5-5V17L47 1Z" stroke="#2F5AD8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M47 1v16h15M42 43V27M34 35h15" stroke="#2F5AD8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path opacity=".6" d="M16 12a5 5 0 0 0-5 5v42a5 5 0 0 0 5 5h31a5 5 0 0 0 5-5" stroke="#2F5AD8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path opacity=".3" d="M6 22a5 5 0 0 0-5 5v42a5 5 0 0 0 5 5h31a5 5 0 0 0 5-5" stroke="#2F5AD8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
+    trash: '<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash w-3.5 h-3.5 !stroke-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+  };
+  const optHtml = (items) => '<div class="input-select__options --undefined" role="listbox"><div class="input-select__options__container">'
+    + items.map((o, i) => '<div role="option" data-i="' + i + '"><div class="input-select__option' + (o.selected ? ' input-select__option--selected' : '') + (o.empty ? ' input-select__option--empty' : '') + '">'
+      + (o.image ? '<div class="input-select__option__image flex items-center justify-center">' + o.image + '</div>' : '')
+      + '<div class="input-select__option__text"><div class="input-select__option__text__title">' + esc(o.title) + '</div>'
+      + (o.sub ? '<div class="input-select__option__text__subtitle">' + esc(o.sub) + '</div>' : '') + '</div></div></div>').join('')
+    + '</div></div>';
+
+  let modal = null;   // the window (outer wrapper)
+  let form = null;    // its state
+  let files = [];     // { key, name, ext, status: 'up'|'ok'|'err', pct, pk, err, dropped }
+  let fileSeq = 0;
+  // Backup styles are switched on per part only when the BO hasn't styled
+  // that part (its stylesheet for it not loaded yet). A part counts as
+  // styled when it looks different from a plain element of the same kind.
+  let fbChecked = {};
+  const FB_PARTS = { modal: '.app-modal__container', select: '.input-select', field: '.input-field__input', upload: '.upload-area__label', list: '.upload-list__file', card: '.ia-lsm-card', notice: '.ia-lsm-info', util: 'form.grid', label: '.form-label' };
+  function boStyled(el) {
+    const probe = document.createElement(el.tagName);
+    el.parentNode.insertBefore(probe, el);
+    const a = getComputedStyle(el), b = getComputedStyle(probe);
+    const diff = ['display', 'position', 'borderTopStyle', 'borderTopWidth', 'backgroundColor', 'paddingTop', 'paddingLeft', 'borderTopLeftRadius', 'minHeight', 'fontSize', 'fontWeight', 'gridTemplateColumns', 'marginBottom'].some((k) => a[k] !== b[k]);
+    probe.remove();
+    return diff;
+  }
+  function checkStyles() {
+    if (!modal) return;
+    Object.keys(FB_PARTS).forEach((part) => {
+      if (fbChecked[part]) return;
+      const el = modal.querySelector(FB_PARTS[part]);
+      if (!el) return; // not on screen yet: checked once it is
+      fbChecked[part] = true;
+      if (!boStyled(el)) modal.classList.add('ia-lsm-fb-' + part);
+    });
+  }
+  function closeModal() {
+    files.forEach((f) => { f.dropped = true; }); // stop any upload still running
+    files = [];
+    if (modal) modal.remove();
+    modal = null; form = null; ctx = null;
+  }
+  function openClose(c) {
+    closeModal();
+    ctx = c;
+    form = { leadId: c.leadId, reason: '', dup: null, remark: '', urgency: '20_medium', open: null, dupText: '', dupList: [], dupMsg: '', err: '', busy: false };
+    modal = document.createElement('div');
+    modal.className = 'ia-lsm-wrap';
+    modal.innerHTML = '<div id="app-modal--CloseLeadReasonRequestModal" class="app-modal app-modal--top ia-lsm-modal">'
+      + '<div class="app-modal__container app-modal__container--default !max-w-[500px]" workspaceproject="1">'
+      + '<div class="app-modal__header app-modal__header--with-close-button"><div class="app-modal__header__content"><div class="app-modal__header__title"><span>Closing reason request?</span></div></div>'
+      + '<div class="app-modal__close ia-lsm-close">' + ICO.close + '</div></div>'
+      + '<div class="app-modal__body"><div class="p-4 border-t border-gray-200 dark:border-dark-5 ia-lsm-body"></div></div>'
+      + '<div class="app-modal__footer"><div class="flex justify-between"><button class="button ia-lsm-cancel" type="button"> Cancel </button><button class="button --primary ia-lsm-go" type="button"> Close the lead </button></div></div>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+    // If the BO's own window styles aren't loaded yet, the wrapper does the
+    // backdrop and centring; when they are, it stays out of the way.
+    const am = modal.querySelector('.app-modal');
+    if (getComputedStyle(am).position !== 'fixed') modal.classList.add('ia-lsm-wrap--own');
+    fbChecked = {};
+    modal.querySelector('.ia-lsm-close').addEventListener('click', closeModal);
+    modal.querySelector('.ia-lsm-cancel').addEventListener('click', closeModal);
+    modal.querySelector('.ia-lsm-go').addEventListener('click', submitClose);
+    // Only a press on the backdrop itself closes it (not one inside the
+    // window that redraws the part it landed on).
+    modal.addEventListener('mousedown', (e) => { if (e.target === modal || e.target.classList.contains('app-modal')) closeModal(); });
+    wireDrops();
+    drawBody();
+  }
+  const uploading = () => files.some((f) => !f.dropped && f.status === 'up');
+  const canClose = () => { const r = REASONS.find((x) => x.code === form.reason); return !!r && (!r.dup || !!form.dup) && !uploading() && !form.busy; };
+  function drawButtons() {
+    if (!modal) return;
+    const go = modal.querySelector('.ia-lsm-go');
+    go.disabled = !canClose();
+    go.textContent = form.busy ? ' Closing… ' : uploading() ? ' Uploading… ' : ' Close the lead ';
+  }
+  function drawBody() {
+    if (!modal) return;
+    const body = modal.querySelector('.ia-lsm-body');
+    const keepFocus = document.activeElement && body.contains(document.activeElement) ? document.activeElement.dataset.k : null;
+    const R = REASONS.find((r) => r.code === form.reason);
+    const d = form.dup;
+    const reasonOpen = form.open === 'reason', urgOpen = form.open === 'urg', dupOpen = form.open === 'dup';
+    let top = '<div class=""><label class="form-label items-center gap-1">Closing reason</label>'
+      + '<div class="dropdown input-select input-select--search' + (reasonOpen ? ' dropdown--opened' : '') + '" data-sel="reason">'
+      + '<input type="text" class="input-select__input" data-k="reason" autocomplete="off"' + (R ? '' : ' placeholder="Please select a closing reason"') + ' value="">'
+      + (R ? '<div class="input-select__placeholder">' + esc(R.title) + '</div>' : '')
+      + '<div class="input-select__arrow">' + ICO.chev + '</div>'
+      + '<div class="dropdown__content w-full" tabindex="-1"' + (reasonOpen ? ' style="position:absolute;inset:0 auto auto 0;margin:0;transform:translate(0,31px)"' : '') + '>'
+      + (reasonOpen ? optHtml([{ title: 'Please select a closing reason', empty: true, selected: !R }].concat(REASONS.map((r) => ({ title: r.title, selected: r === R })))) : '')
+      + '</div></div></div>';
+    if (R && R.dup) {
+      top += '<div class=""><label class="form-label items-center gap-1">Select duplicate lead</label>'
+        + '<div class="dropdown input-select input-select--search' + (dupOpen ? ' dropdown--opened' : '') + '" data-sel="dup">'
+        + '<input type="text" class="input-select__input" data-k="dup" autocomplete="off" value="' + esc(form.dupText) + '">'
+        + (d && !form.dupText ? '<div class="input-select__placeholder">' + esc(d.title) + '</div>' : '')
+        + '<div class="input-select__arrow">' + ICO.chev + '</div>'
+        + '<div class="dropdown__content w-full" tabindex="-1"' + (dupOpen ? ' style="position:absolute;inset:0 auto auto 0;margin:0;transform:translate(0,31px)"' : '') + '>'
+        + (dupOpen ? (form.dupList.length
+          ? optHtml([{ title: '--------', empty: true, selected: !d }].concat(form.dupList.map((o) => ({ title: o.title, sub: o.sub, selected: !!(d && d.id === o.id) }))))
+          : '<div class="input-select__options --undefined" role="listbox"><div class="input-select__options__container"></div><div class="input-select__options__no-results"> ' + esc(form.dupMsg || 'Start typing ...') + ' </div></div>') : '')
+        + '</div></div></div>';
+      if (d) {
+        top += '<div data-v-47b8d642="" class="mb-2 box border border-theme-4 py-3 px-0.5 rounded-md shadow-none leading-snug ia-lsm-card"><div data-v-47b8d642="" class="grid gap-y-2.5 grid-cols-2">'
+          + '<div data-v-47b8d642="" class="_item"><div data-v-47b8d642="" class="_title"> Lead ID </div><div data-v-47b8d642="" class="_value"><a data-v-47b8d642="" href="/leads/' + esc(d.id) + '" class="text-primary" target="_blank"> #' + esc(d.id) + '</a></div></div>'
+          + '<div data-v-47b8d642="" class="_item"><div data-v-47b8d642="" class="_title"> Client </div><div data-v-47b8d642="" class="_value">' + esc(d.client) + '</div></div>'
+          + '<div data-v-47b8d642="" class="_item"><div data-v-47b8d642="" class="_title"> From </div><div data-v-47b8d642="" class="_value">' + esc(d.from) + ' <span data-v-47b8d642="" class="text-theme-2 font-medium whitespace-nowrap">' + esc(d.fromDate) + '</span></div></div>'
+          + '<div data-v-47b8d642="" class="_item"><div data-v-47b8d642="" class="_title"> To </div><div data-v-47b8d642="" class="_value">' + esc(d.to) + ' <span data-v-47b8d642="" class="text-theme-2 font-medium whitespace-nowrap">' + esc(d.toDate) + '</span></div></div>'
+          + '</div></div>';
+      }
+    }
+    const U = URGENCY.find((u) => u.value === form.urgency) || URGENCY[1];
+    body.innerHTML = '<div class="flex flex-col gap-4">' + top + '</div><hr class="my-4">'
+      + '<form class="grid grid-cols-2 gap-4" onsubmit="return false">'
+      + '<div class="col-span-2 border rounded flex items-center gap-3 px-3 py-2 bg-info-50 border-info-200 text-info-800 text-xs ia-lsm-info">' + ICO.info + '<div> Please, provide all the necessary information that would help approve your request in the shortest time. </div></div>'
+      + '<div class="col-span-2"><label class="form-label items-center gap-1">Remark</label><div class="input-field input-textarea --normal"><textarea class="input-field__input" data-k="remark" placeholder="Information that would help approve your request" rows="3" autocomplete="Off">' + esc(form.remark) + '</textarea></div></div>'
+      + '<div class=""><label class="form-label items-center gap-1">Urgency</label>'
+      + '<div class="dropdown input-select' + (urgOpen ? ' dropdown--opened' : '') + '" data-sel="urg"><div class="input-select__value" tabindex="0" data-k="urg">'
+      + '<div class="input-select__image flex items-center justify-center">' + ICO.urg[U.value] + '</div><div class="input-select__value__text"><div class="input-select__value__text__title">' + U.title + '</div></div>'
+      + '<div class="input-select__arrow">' + ICO.chev + '</div></div>'
+      + '<div class="dropdown__content w-full" tabindex="-1"' + (urgOpen ? ' style="position:absolute;inset:0 auto auto 0;margin:0;transform:translate(0,31px)"' : '') + '>'
+      + (urgOpen ? optHtml(URGENCY.map((u) => ({ title: u.title, image: ICO.urg[u.value], selected: u === U }))) : '')
+      + '</div></div></div>'
+      + '<div class="col-span-2"><div class="upload-area upload-area--compact ia-lsm-drop"><label class="upload-area__label"><div class="upload-area__value"></div><div class="upload-area__info"><div><div class="upload-area__title">Drag or paste files here</div><div class="upload-area__max-size"> (max. 32 Mb) </div></div>' + ICO.upload + '</div><input type="file" class="upload-area__input" multiple=""></label></div>'
+      + '<div class="text-2xs text-secondary-400 text-center mt-1.5"> Please attach any call recordings, email screens, SMS, and any other relevant files </div></div>'
+      + '<div class="upload-list col-span-2 ia-lsm-files"></div>'
+      + '<div class="col-span-2 border rounded flex items-center gap-3 px-3 py-2 bg-warning-50 text-warning-900 border-warning text-xs ia-lsm-warn">' + ICO.warn + '<div> Requests with limited and noncompliant information will be declined. </div></div>'
+      + (form.err ? '<div class="col-span-2 border rounded flex items-center gap-3 px-3 py-2 text-xs ia-lsm-errbox">' + esc(form.err) + '</div>' : '')
+      + '</form>';
+    wireBody(body);
+    drawFiles();
+    drawButtons();
+    checkStyles();
+    if (keepFocus) { const el = body.querySelector('[data-k="' + keepFocus + '"]'); if (el) { el.focus(); if (el.setSelectionRange && el.value) el.setSelectionRange(el.value.length, el.value.length); } }
+  }
+  function wireBody(body) {
+    const sel = (name) => body.querySelector('[data-sel="' + name + '"]');
+    const toggle = (name) => { form.open = form.open === name ? null : name; drawBody(); };
+    body.querySelectorAll('[data-sel]').forEach((box) => {
+      box.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.dropdown__content')) return;
+        if (box.dataset.sel === 'dup' && form.open === 'dup' && e.target.closest('input')) return;
+        e.preventDefault();
+        toggle(box.dataset.sel);
+        const inp = body.querySelector('[data-k="' + box.dataset.sel + '"]');
+        if (inp && form.open === box.dataset.sel) inp.focus();
+      });
+    });
+    // Closing reason: also filters as you type, like the BO's search box.
+    const rIn = body.querySelector('[data-k="reason"]');
+    rIn.addEventListener('input', () => {
+      const t = rIn.value.toLowerCase();
+      const box = sel('reason').querySelector('.dropdown__content');
+      form.open = 'reason';
+      sel('reason').classList.add('dropdown--opened');
+      box.setAttribute('style', 'position:absolute;inset:0 auto auto 0;margin:0;transform:translate(0,31px)');
+      const list = REASONS.filter((r) => r.title.toLowerCase().includes(t));
+      box.innerHTML = optHtml(list.map((r) => ({ title: r.title, selected: r.code === form.reason })));
+      box.querySelectorAll('[role=option]').forEach((o) => o.addEventListener('mousedown', (e) => { e.preventDefault(); chooseReason(list[+o.dataset.i].code); }));
+    });
+    if (form.open === 'reason') {
+      sel('reason').querySelectorAll('[role=option]').forEach((o) => o.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const i = +o.dataset.i;
+        chooseReason(i === 0 ? '' : REASONS[i - 1].code);
+      }));
+    }
+    if (form.open === 'urg') {
+      sel('urg').querySelectorAll('[role=option]').forEach((o) => o.addEventListener('mousedown', (e) => { e.preventDefault(); form.urgency = URGENCY[+o.dataset.i].value; form.open = null; drawBody(); }));
+    }
+    const dIn = body.querySelector('[data-k="dup"]');
+    if (dIn) {
+      let timer = null;
+      dIn.addEventListener('input', () => {
+        form.dupText = dIn.value;
+        form.open = 'dup';
+        clearTimeout(timer);
+        const text = dIn.value.trim();
+        if (!text) { form.dupList = []; form.dupMsg = ''; drawBody(); return; }
+        const my = (form.dupSeq = (form.dupSeq || 0) + 1);
+        timer = setTimeout(async () => {
+          form.dupMsg = 'Searching ...';
+          if (!form.dupList.length) drawBody();
+          let list = [];
+          try { list = await searchDuplicates(form.leadId, text); } catch (e) { if (form && form.dupSeq === my) { form.dupList = []; form.dupMsg = e.message; drawBody(); } return; }
+          if (!form || form.dupSeq !== my) return;
+          form.dupList = list;
+          form.dupMsg = list.length ? '' : 'No results';
+          drawBody();
+        }, 250);
+      });
+      if (form.open === 'dup') {
+        sel('dup').querySelectorAll('[role=option]').forEach((o) => o.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const i = +o.dataset.i;
+          form.dup = i === 0 ? null : form.dupList[i - 1];
+          form.dupText = '';
+          form.open = null;
+          drawBody();
+        }));
+      }
+    }
+    const ta = body.querySelector('[data-k="remark"]');
+    ta.addEventListener('input', () => { form.remark = ta.value; });
+    body.querySelectorAll('input, textarea, [tabindex]').forEach((x) => x.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); }));
+    const picker = body.querySelector('.upload-area__input');
+    picker.addEventListener('change', () => { addFiles(picker.files); picker.value = ''; });
+  }
+  function chooseReason(code) {
+    form.reason = code;
+    if (!(REASONS.find((r) => r.code === code) || {}).dup) { form.dup = null; form.dupText = ''; form.dupList = []; }
+    form.open = null;
+    drawBody();
+  }
+  // File rows, as the BO draws them (name and extension apart, status, bin).
+  function drawFiles() {
+    const box = modal && modal.querySelector('.ia-lsm-files');
+    if (!box) return;
+    const list = files.filter((f) => !f.dropped);
+    box.style.display = list.length ? '' : 'none';
+    box.innerHTML = list.map((f) => {
+      const base = f.name.replace(/\.[^.]+$/, '');
+      const ext = /\.[^.]+$/.test(f.name) ? f.name.match(/\.[^.]+$/)[0] : '';
+      const data = f.status === 'ok' ? '<span class="text-green-500">Uploaded</span>'
+        : f.status === 'err' ? '<span class="text-danger ia-lsm-ferr">Failed — ' + esc(f.err) + '</span>'
+          : '<span class="text-primary">Uploading… ' + f.pct + '%</span><div class="ia-lsm-fbar"><i style="width:' + f.pct + '%"></i></div>';
+      return '<div class="upload-list__file" data-k="' + f.key + '"><div class="upload-list__file__icon"><img src="' + fileIcon(f.ext) + '" class="upload-list__file__icon__image" alt=""></div>'
+        + '<div class="upload-list__file__info"><div class="upload-list__file__title pr-9"><div class="upload-list__file__name" title="' + esc(f.name) + '">' + esc(base) + '</div><div class="upload-list__file__type"> ' + esc(ext) + '</div></div>'
+        + '<div class="upload-list__file__data">' + data + '</div></div>'
+        + '<div class="upload-list__file__action"><button class="p-1 hover:scale-125 transition-transform ia-lsm-bin" type="button">' + ICO.trash + '</button></div></div>';
+    }).join('');
+    box.querySelectorAll('.ia-lsm-bin').forEach((b) => b.addEventListener('click', (e) => {
+      e.preventDefault();
+      const f = files.find((x) => String(x.key) === b.closest('.upload-list__file').dataset.k);
+      if (f) f.dropped = true; // removing sends nothing, as in the BO
+      drawFiles(); drawButtons();
+    }));
+    checkStyles();
+  }
+  function addFiles(list) {
+    if (!modal) return;
+    Array.from(list || []).forEach((file) => {
+      const f = { key: ++fileSeq, name: file.name || 'pasted-file', ext: ((file.name || '').match(/\.([^.]+)$/) || [])[1] || (file.type || '').split('/')[1] || '', status: 'up', pct: 0, pk: null, err: '', dropped: false };
+      files.push(f);
+      if (file.size > MAX_FILE) { f.status = 'err'; f.err = 'over 32 Mb'; return; }
+      uploadFile(file, (p) => { f.pct = p; if (!f.dropped) drawFiles(); }, () => f.dropped)
+        .then((r) => { f.status = 'ok'; f.pk = String(r.id); })
+        .catch((e) => { f.status = 'err'; f.err = String((e && e.message) || e).slice(0, 80); })
+        .finally(() => { drawFiles(); drawButtons(); });
+    });
+    drawFiles(); drawButtons();
+  }
+  // Dropping anywhere on the window works (wired once per window).
+  function wireDrops() {
+    const box = modal.querySelector('.app-modal__container');
+    const over = (on) => { const d = modal && modal.querySelector('.ia-lsm-drop'); if (d) d.classList.toggle('ia-lsm-over', on); };
+    ['dragenter', 'dragover'].forEach((t) => box.addEventListener(t, (e) => { e.preventDefault(); over(true); }));
+    box.addEventListener('dragleave', (e) => { if (!box.contains(e.relatedTarget)) over(false); });
+    box.addEventListener('drop', (e) => { e.preventDefault(); over(false); if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+  }
+  // Pasting files while the window is open adds them (text pastes normally).
+  document.addEventListener('paste', (e) => {
+    if (!modal) return;
+    const list = e.clipboardData && e.clipboardData.files;
+    if (!list || !list.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    addFiles(list);
+  }, true);
+  async function submitClose() {
+    if (!form || !canClose()) return;
+    const c = ctx;
+    const pks = files.filter((f) => !f.dropped && f.status === 'ok' && f.pk).map((f) => f.pk);
+    form.busy = true; form.err = ''; drawButtons();
+    try {
+      await closeLead(form.leadId, form.reason, form.dup && form.dup.id, form.remark, form.urgency, pks);
+      paintBadge(c.el, STATUSES[2]);
+      c.row.classList.add('ia-lsm-closed');
+      closeModal();
+      lsmToast('✓ Closing request sent for lead ' + c.leadId);
+    } catch (er) {
+      if (form) { form.busy = false; form.err = 'Not closed: ' + er.message; drawBody(); }
+    }
+  }
+
+  // One listener for the whole page (rows are redrawn often by the BO).
+  document.addEventListener('click', (e) => {
+    if (modal && (modal.contains(e.target) || !e.target.isConnected)) {
+      // a click inside the window closes its open list unless it was on that list
+      if (form && form.open && !e.target.closest('[data-sel="' + form.open + '"]')) { form.open = null; drawBody(); }
+      return;
+    }
+    if (menu && menu.contains(e.target)) return;
+    const b = badgeFrom(e.target);
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      if (menu && ctx && ctx.el === b.el) { closeMenu(); return; }
+      open(b);
+      return;
+    }
+    if (menu) closeMenu();
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (modal) { e.stopPropagation(); if (form && form.open) { form.open = null; drawBody(); } else closeModal(); return; }
+    if (menu) { e.stopPropagation(); closeMenu(); }
+  }, true);
+  window.addEventListener('scroll', () => place(), true);
+  window.addEventListener('resize', () => place());
+
+  // The menu at the BO's own size; everything else in the window uses the
+  // BO's own classes. The :where() rules below have zero weight: they only
+  // show when the BO's own styles for that part haven't loaded yet.
+  GM_addStyle(`
+    .ia-lsm { position: fixed !important; z-index: 2147483000; box-sizing: border-box !important; width: 8rem !important; min-width: 0 !important; max-width: 8rem !important; right: auto !important; bottom: auto !important; height: auto !important; transform: none !important; margin: 0 !important; box-shadow: 0 10px 25px rgba(0,0,0,.3); }
+    .ia-lsm .dropdown-menu__item { display: flex; align-items: center; cursor: pointer; white-space: nowrap; }
+    .ia-lsm .dropdown-menu__item.is-off { opacity: .5; pointer-events: none; }
+    .ia-lsm-err { margin-top: 6px; padding: 5px 6px; border-radius: 6px; background: rgba(239,68,68,.15); color: #f87171; font-size: 11px; white-space: normal; }
+    .ia-lsm-wrap { position: relative; z-index: 2147482000; }
+    .ia-lsm-wrap--own { position: fixed; inset: 0; background: rgba(15,23,42,.55); overflow-y: auto; }
+    .ia-lsm-wrap .dropdown__content:empty { display: none; }
+    .ia-lsm-wrap .ia-lsm-over { border-color: #2F5AD8 !important; background: rgba(47,90,216,.08); }
+    .ia-lsm-fbar { height: 3px; border-radius: 9px; background: rgba(148,163,184,.25); margin-top: 3px; overflow: hidden; width: 160px; }
+    .ia-lsm-fbar i { display: block; height: 100%; background: #2F5AD8; transition: width .2s; }
+    .ia-lsm-errbox { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.5); color: #f87171; }
+    tr.ia-lsm-closed > td { opacity: .55; }
+    tr .v-popper--has-tooltip div.rounded-full.w-4.h-4 { cursor: pointer; position: relative; }
+    tr .v-popper--has-tooltip div.rounded-full.w-4.h-4:hover { outline: 2px dashed #93c5fd; outline-offset: 2px; }
+    .ia-lsm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483600; background: #16a34a; color: #fff; border-radius: 8px; padding: 8px 14px;
+      font: 600 12.5px Inter, 'Segoe UI', system-ui, sans-serif; box-shadow: 0 6px 16px rgba(0,0,0,.25); transition: opacity .35s ease; pointer-events: none; }
+    /* ---- fallbacks (zero weight) ---- */
+    :where(.ia-lsm) { background: #fff; color: #111827; border-radius: 8px; padding: 6px; border: 1px solid #e5e7eb; font: 600 12.5px Inter, 'Segoe UI', system-ui, sans-serif; }
+    :where(.ia-lsm) .dropdown-menu__item { gap: 0; padding: 6px 8px; border-radius: 6px; }
+    :where(.ia-lsm) .dropdown-menu__item:hover { background: rgba(15,23,42,.06); }
+    :where(.ia-lsm) .rounded-full { border-radius: 50%; }
+    :where(.ia-lsm) .w-4 { width: 16px; } :where(.ia-lsm) .h-4 { height: 16px; }
+    :where(.ia-lsm) .flex { display: flex; } :where(.ia-lsm) .items-center { align-items: center; } :where(.ia-lsm) .justify-center { justify-content: center; }
+    :where(.ia-lsm) .mr-2 { margin-right: 8px; } :where(.ia-lsm) .text-white { color: #fff; } :where(.ia-lsm) .text-2xs { font-size: 10px; } :where(.ia-lsm) .font-semibold { font-weight: 700; }
+    :where(.ia-lsm) .bg-vista-blue-300 { background: #60a5fa; } :where(.ia-lsm) .bg-vodka-400 { background: #a78bfa; } :where(.ia-lsm) .bg-red-500 { background: #ef4444; }
+    :where(.ia-lsm-wrap--own) .app-modal { display: flex; justify-content: center; align-items: flex-start; min-height: 100%; padding: 60px 16px; box-sizing: border-box; }
+    :where(.ia-lsm-fb-modal) .app-modal__container { position: relative; width: 100%; max-width: 500px; background: #28304b; color: #e2e8f0; border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,.45); font-size: 14px; }
+    :where(.ia-lsm-fb-modal) .app-modal__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
+    :where(.ia-lsm-fb-modal) .app-modal__header__title { font-size: 17px; font-weight: 600; }
+    :where(.ia-lsm-fb-modal) .app-modal__close { cursor: pointer; display: flex; align-items: center; }
+    :where(.ia-lsm-fb-modal) .app-modal__close__corner { display: none; }
+    :where(.ia-lsm-fb-modal) .app-modal__footer { padding: 14px 20px 18px; }
+    :where(.ia-lsm-fb-label) .form-label { display: block; margin-bottom: 8px; font-weight: 500; }
+    :where(.ia-lsm-fb-select) .input-select { position: relative; display: flex; align-items: center; min-height: 34px; border: 1px solid rgba(148,163,184,.25); border-radius: 6px; background: #1f2638; cursor: pointer; }
+    :where(.ia-lsm-fb-select) .input-select__input { flex: 1; min-width: 0; height: 32px; padding: 0 30px 0 12px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 13px; outline: none; cursor: pointer; }
+    :where(.ia-lsm-fb-select) .input-select__placeholder { position: absolute; left: 12px; right: 30px; top: 50%; transform: translateY(-50%); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+    :where(.ia-lsm-fb-select) .input-select__arrow { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; opacity: .7; pointer-events: none; }
+    :where(.ia-lsm-fb-select) .input-select__value { display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 30px 0 12px; font-size: 13px; outline: none; }
+    :where(.ia-lsm-fb-select) .dropdown__content { z-index: 20; width: 100%; }
+    :where(.ia-lsm-fb-select) .input-select__options { background: #2f3854; border-radius: 6px; padding: 4px; box-shadow: 0 10px 25px rgba(0,0,0,.35); max-height: 260px; overflow-y: auto; }
+    :where(.ia-lsm-fb-select) .input-select__option { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 5px; font-size: 13px; cursor: pointer; }
+    :where(.ia-lsm-fb-select) .input-select__option:hover { background: rgba(255,255,255,.06); }
+    :where(.ia-lsm-fb-select) .input-select__option--selected { color: #3b82f6; background: rgba(255,255,255,.08); }
+    :where(.ia-lsm-fb-select) .input-select__option__text__subtitle { font-size: 11.5px; opacity: .6; }
+    :where(.ia-lsm-fb-select) .input-select__options__no-results { padding: 8px 10px; font-size: 12.5px; opacity: .7; }
+    :where(.ia-lsm-fb-field) .input-field__input { width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1px solid rgba(148,163,184,.25); border-radius: 6px; background: #1f2638; color: inherit; font: inherit; font-size: 13px; resize: vertical; outline: none; }
+    :where(.ia-lsm-fb-upload) .upload-area__label { display: block; border: 1.5px dashed rgba(148,163,184,.4); border-radius: 8px; padding: 14px; cursor: pointer; }
+    :where(.ia-lsm-fb-upload) .upload-area__info { display: flex; align-items: center; justify-content: center; flex-direction: row-reverse; gap: 14px; }
+    :where(.ia-lsm-fb-upload) .upload-area__title { font-size: 17px; font-weight: 600; opacity: .8; }
+    :where(.ia-lsm-fb-upload) .upload-area__max-size { font-size: 11px; opacity: .6; }
+    :where(.ia-lsm-fb-upload) .upload-area__icon { width: 40px; height: 47px; }
+    :where(.ia-lsm-fb-upload) .upload-area__input { display: none; }
+    :where(.ia-lsm-fb-list) .upload-list__file { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+    :where(.ia-lsm-fb-list) .upload-list__file__icon__image { width: 28px; height: 28px; display: block; }
+    :where(.ia-lsm-fb-list) .upload-list__file__info { flex: 1; min-width: 0; }
+    :where(.ia-lsm-fb-list) .upload-list__file__title { display: flex; font-weight: 600; font-size: 13px; }
+    :where(.ia-lsm-fb-list) .upload-list__file__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    :where(.ia-lsm-fb-list) .upload-list__file__data { font-size: 11.5px; }
+    :where(.ia-lsm-fb-list) .upload-list__file__action button { border: 0; background: transparent; color: inherit; cursor: pointer; }
+    :where(.ia-lsm-fb-modal) .button { border: 1px solid rgba(148,163,184,.3); border-radius: 6px; padding: 7px 16px; background: #fff; color: #111827; font: 500 13px system-ui, sans-serif; cursor: pointer; }
+    :where(.ia-lsm-fb-modal) .button.--primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    :where(.ia-lsm-fb-modal) .button:disabled { opacity: .55; cursor: not-allowed; }
+    :where(.ia-lsm-fb-notice) .ia-lsm-info { background: #ecfeff; border-color: #a5f3fc; color: #155e75; }
+    :where(.ia-lsm-fb-notice) .ia-lsm-warn { background: #fefce8; border-color: #f59e0b; color: #78350f; }
+    :where(.ia-lsm-fb-card) .ia-lsm-card { border: 1px solid rgba(148,163,184,.3); border-radius: 6px; padding: 12px 2px; }
+    :where(.ia-lsm-fb-card) .ia-lsm-card ._item { padding: 0 12px; }
+    :where(.ia-lsm-fb-card) .ia-lsm-card ._title { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; opacity: .6; }
+    :where(.ia-lsm-fb-card) .ia-lsm-card ._value { font-size: 12.5px; font-weight: 600; }
+    :where(.ia-lsm-fb-modal) hr { border: 0; border-top: 1px solid rgba(148,163,184,.2); margin: 16px 0; }
+    :where(.ia-lsm-fb-util) .grid { display: grid; }
+    :where(.ia-lsm-fb-util) .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    :where(.ia-lsm-fb-util) .col-span-2 { grid-column: span 2 / span 2; }
+    :where(.ia-lsm-fb-util) .gap-4 { gap: 1rem; }
+    :where(.ia-lsm-fb-util) .flex { display: flex; }
+    :where(.ia-lsm-fb-util) .flex-col { flex-direction: column; }
+    :where(.ia-lsm-fb-util) .p-4 { padding: 1rem; }
+  `);
 })();
 
 // ====================================================================
