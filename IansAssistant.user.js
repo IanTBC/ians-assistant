@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.14.0
+// @version      2.15.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -54,24 +54,43 @@
 
 
 // ====================================================================
-// SHARED LOOK — mode (dark / light / navy) + accent colour, used by every
+// SHARED LOOK — mode (nova / nova night / dark / light / navy) + accent colour, used by every
 // part of the script (panel, flight-site pop-up, banners). The panel's
 // CSS below mirrors these same values.
 // ====================================================================
 var IA_MODES = {"dark": {"bg": "#14161f", "card": "rgba(255,255,255,.06)", "cardbd": "transparent", "field": "#1d2030", "line": "#262a3a", "line2": "#303548", "text": "#e3e5f0", "title": "#ffffff", "muted": "#9a9fb8", "sec": "#c9cbe0", "head": "#e3e5f0", "eye": "#0e0f13", "onacc": "#0e0f13", "ok": "#4ade80", "bad": "#ff7b7b", "stop": "#e5484d", "foot": "#6b7089", "shadow": "0 22px 50px rgba(0,0,0,.55)", "glass": "rgba(24,26,40,.80)", "edge": "rgba(255,255,255,.10)", "inner": "rgba(255,255,255,.06)", "chip": "rgba(255,255,255,.08)", "chipshadow": "none", "sky": "radial-gradient(circle at 18% 0%, rgba(124,124,248,.22) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(56,189,248,.10) 0, transparent 50%)"}, "light": {"bg": "#f7faff", "card": "rgba(255,255,255,.80)", "cardbd": "transparent", "field": "#ffffff", "line": "#dfe6f3", "line2": "#d3dcee", "text": "#0d1b3e", "title": "#0d1b3e", "muted": "#5a6888", "sec": "#2c3a5c", "head": "#0d1b3e", "eye": "#ffffff", "onacc": "#ffffff", "ok": "#16a34a", "bad": "#dc3e42", "stop": "#e0342b", "foot": "#8a96b2", "shadow": "0 20px 44px rgba(31,92,255,.20)", "glass": "rgba(240,246,255,.82)", "edge": "rgba(255,255,255,.95)", "inner": "rgba(255,255,255,.80)", "chip": "rgba(255,255,255,.92)", "chipshadow": "0 2px 6px rgba(13,27,62,.07)", "sky": "radial-gradient(circle at 12% 0%, rgba(255,255,255,.9) 0, transparent 45%), linear-gradient(160deg, rgba(158,197,255,.55), rgba(230,240,255,.35))"}, "navy": {"bg": "#0f2142", "card": "rgba(160,190,255,.08)", "cardbd": "transparent", "field": "#142a50", "line": "#1f3560", "line2": "#284273", "text": "#e6edf7", "title": "#ffffff", "muted": "#9db2d3", "sec": "#c4d2e6", "head": "#e6edf7", "eye": "#071226", "onacc": "#071226", "ok": "#4ade80", "bad": "#ff8a8a", "stop": "#e5484d", "foot": "#6a80a6", "shadow": "0 22px 50px rgba(2,8,20,.6)", "glass": "rgba(18,38,72,.82)", "edge": "rgba(160,190,255,.16)", "inner": "rgba(160,190,255,.08)", "chip": "rgba(160,190,255,.11)", "chipshadow": "none", "sky": "radial-gradient(circle at 18% 0%, rgba(124,156,255,.24) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(45,212,191,.10) 0, transparent 50%)"}};
 var IA_ACCENTS = {"midnight": ["#7c7cf8", "#1f5cff", "#7c9cff"], "teal": ["#2dd4bf", "#0f766e", "#5eead4"], "pink": ["#f472b6", "#db2777", "#f9a8d4"], "black": ["#e4e4e7", "#27272a", "#e6edf7"], "gold": ["#f5b544", "#b45309", "#fcd34d"], "rainbow": ["#a78bfa", "#7c3aed", "#c4b5fd"]};
+// Nova and Nova Night (2.15.0): the website's look. They bring their own
+// orange (acc) for Pip and highlights, and ink pill buttons (pri / onpri).
+// In Dark, Light and Navy, pri is simply the accent colour.
+IA_MODES.nova = {"bg": "#EEF1F7", "card": "rgba(255,255,255,.92)", "cardbd": "transparent", "field": "#FFFFFF", "line": "rgba(18,22,40,.10)", "line2": "rgba(18,22,40,.16)", "text": "#121628", "title": "#121628", "muted": "#565E77", "sec": "#2E3550", "head": "#121628", "eye": "#121628", "onacc": "#121628", "ok": "#0F9C83", "bad": "#C2283A", "stop": "#C2283A", "foot": "#8A90A6", "shadow": "0 1px 2px rgba(18,22,40,.05), 0 18px 40px -18px rgba(18,22,40,.30)", "glass": "rgba(255,255,255,.74)", "edge": "rgba(18,22,40,.10)", "inner": "#FFFFFF", "chip": "#FFFFFF", "chipshadow": "0 1px 2px rgba(18,22,40,.06), 0 6px 14px -8px rgba(18,22,40,.22)", "sky": "radial-gradient(circle at 100% 0%, rgba(255,120,80,.24) 0, transparent 55%), radial-gradient(circle at 0% 100%, rgba(80,130,255,.18) 0, transparent 55%)", "acc": "#FF5B2E", "pri": "#121628", "onpri": "#F5F7FC"};
+IA_MODES.novanight = {"bg": "#0A0D19", "card": "rgba(255,255,255,.04)", "cardbd": "transparent", "field": "#1B2036", "line": "rgba(238,240,250,.10)", "line2": "rgba(238,240,250,.16)", "text": "#EEF0FA", "title": "#FFFFFF", "muted": "#9CA3BF", "sec": "#C9CDE0", "head": "#EEF0FA", "eye": "#0A0D19", "onacc": "#0A0D19", "ok": "#3FE0C5", "bad": "#FF6B7D", "stop": "#E5484D", "foot": "#6B7189", "shadow": "0 1px 2px rgba(0,0,0,.4), 0 18px 40px -18px rgba(0,0,0,.75)", "glass": "rgba(14,18,33,.93)", "edge": "rgba(238,240,250,.10)", "inner": "#131729", "chip": "#1B2036", "chipshadow": "none", "sky": "radial-gradient(circle at 100% 0%, rgba(255,110,70,.20) 0, transparent 55%), radial-gradient(circle at 0% 100%, rgba(70,110,255,.20) 0, transparent 55%)", "acc": "#FF7048", "pri": "#EEF0FA", "onpri": "#0A0D19"};
+var IA_LOOKS = [['nova', 'Nova'], ['novanight', 'Nova Night'], ['dark', 'Dark'], ['light', 'Light'], ['navy', 'Navy']];
+function iaIsNova(m) { return m === 'nova' || m === 'novanight'; }
+function iaIsLight(m) { return m === 'light' || m === 'nova'; }
+// Everyone starts on Nova once when 2.15.0 arrives; after that the agent's
+// own pick stays.
+try {
+  if (!GM_getValue('ia-nova-start', false)) { GM_setValue('ia-mode', 'nova'); GM_setValue('ia-nova-start', true); }
+} catch (e) { /* ignore */ }
 function iaMode() {
-  let m = 'dark';
-  try { m = GM_getValue('ia-mode', 'dark'); } catch (e) { /* ignore */ }
-  return IA_MODES[m] ? m : 'dark';
+  let m = 'nova';
+  try { m = GM_getValue('ia-mode', 'nova'); } catch (e) { /* ignore */ }
+  return IA_MODES[m] ? m : 'nova';
 }
 function iaPalette() {
   const mode = iaMode();
   let t = 'midnight';
   try { t = GM_getValue('bmo-theme', 'midnight'); } catch (e) { /* ignore */ }
-  const acc = (IA_ACCENTS[t] || IA_ACCENTS.midnight)[['dark', 'light', 'navy'].indexOf(mode)];
-  return Object.assign({ mode, acc }, IA_MODES[mode]);
+  const acc = (IA_ACCENTS[t] || IA_ACCENTS.midnight)[Math.max(0, ['dark', 'light', 'navy'].indexOf(mode))];
+  return Object.assign({ mode, acc, pri: acc, onpri: IA_MODES[mode].onacc }, IA_MODES[mode]);
 }
+// Nova fonts (Unbounded titles, Manrope text, JetBrains Mono labels). If a
+// site blocks them, the system fonts are used instead.
+try { GM_addStyle("@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');"); } catch (e) { /* ignore */ }
+var IA_NOVA_FONT = "Manrope, 'Segoe UI', system-ui, -apple-system, sans-serif";
+var IA_NOVA_DISPLAY = "Unbounded, 'Segoe UI', system-ui, sans-serif";
+var IA_NOVA_MONO = "'JetBrains Mono', ui-monospace, Consolas, monospace";
 // Small Pip (body + eyes) built with DOM calls, so it works on sites that
 // block innerHTML (Google's Trusted Types).
 function iaPipNode(size, p) {
@@ -120,15 +139,15 @@ function iaPipNode(size, p) {
     const p = iaPalette();
     const box = document.createElement('div');
     box.id = 'ia-update-banner';
-    box.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:2147483647;display:flex;align-items:center;gap:10px;background:" + p.sky + "," + p.glass + ";-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);color:" + p.text + ";border:1px solid " + p.edge + ";border-radius:16px;padding:9px 11px;font:700 12.5px Inter,'Segoe UI',system-ui,sans-serif;box-shadow:" + p.shadow + ";";
+    box.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:2147483647;display:flex;align-items:center;gap:10px;background:" + p.sky + "," + p.glass + ";-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);color:" + p.text + ";border:1px solid " + p.edge + ";border-radius:16px;padding:9px 11px;font:700 12.5px Inter,'Segoe UI',system-ui,sans-serif;box-shadow:" + p.shadow + ";" + (iaIsNova(p.mode) ? 'border-radius:999px;padding:7px 8px 7px 16px;font-family:' + IA_NOVA_FONT + ';' : '');
     const txt = document.createElement('span');
     txt.textContent = "TBC Assistant " + version + ' is available';
     const go = document.createElement('button');
     go.textContent = 'Update';
-    go.style.cssText = 'border:0;border-radius:10px;padding:7px 13px;background:' + p.acc + ';color:' + p.onacc + ';font:800 12px Inter,\'Segoe UI\',system-ui,sans-serif;cursor:pointer;';
+    go.style.cssText = 'border:0;border-radius:' + (iaIsNova(p.mode) ? '999px' : '10px') + ';padding:7px 13px;background:' + p.pri + ';color:' + p.onpri + ';font:800 12px Inter,\'Segoe UI\',system-ui,sans-serif;cursor:pointer;';
     const later = document.createElement('button');
     later.textContent = 'Later';
-    later.style.cssText = 'border:0;border-radius:10px;padding:7px 11px;background:' + p.chip + ';color:' + p.title + ';font:800 12px Inter,\'Segoe UI\',system-ui,sans-serif;cursor:pointer;';
+    later.style.cssText = 'border:0;border-radius:' + (iaIsNova(p.mode) ? '999px' : '10px') + ';padding:7px 11px;background:' + p.chip + ';color:' + p.title + ';font:800 12px Inter,\'Segoe UI\',system-ui,sans-serif;cursor:pointer;';
     go.addEventListener('click', () => {
       try { GM_openInTab(UPDATE_URL + '?v=' + encodeURIComponent(version), { active: true }); } catch (e) { window.open(UPDATE_URL, '_blank'); }
       box.remove();
@@ -3103,7 +3122,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     .copy { margin-top: 8px; text-align: right; font-size: 10px; color: ${th.foot}; user-select: none; }
     .screen { background: transparent; padding: 0; position: relative; }
     .gds { display: block; width: 100%; height: 34px; border: 0; border-radius: 8px; cursor: pointer;
-      background: ${th.acc}; color: ${th.onacc}; font: 600 13px/1 inherit; letter-spacing: .04em; transition: filter .15s, background .2s; }
+      background: ${th.pri}; color: ${th.onpri}; font: 600 13px/1 inherit; letter-spacing: .04em; transition: filter .15s, background .2s; }
     .gds:hover { filter: brightness(1.08); }
     .gds.ok { background: #16a34a; color: #fff; } .gds.err { background: ${th.stop}; color: #fff; }
     .lead { margin-top: 8px; width: 100%; box-sizing: border-box; height: 34px; border-radius: 8px; border: 1px solid ${th.line2}; outline: none;
@@ -3129,20 +3148,20 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     .price { margin-top: 8px; font-size: 11.5px; color: ${th.sec}; text-align: center; min-height: 14px; }
     select.pick { margin-top: 6px; width: 100%; font: 11.5px inherit; border-radius: 6px; border: 1px solid ${th.line2}; background: ${th.field}; color: ${th.text}; padding: 4px; }
     .warn { margin-top: 7px; padding: 4px 6px; border-radius: 6px; border: 1px solid ${th.stop}; color: ${th.bad}; font-weight: 600; font-size: 11px; text-align: center; }
-    .flag { margin-top: 6px; padding: 4px 6px; border-radius: 6px; border: 1px solid #f59e0b; color: ${th.mode === 'light' ? '#b45309' : '#fcd34d'}; font-weight: 600; font-size: 11px; text-align: center; }
+    .flag { margin-top: 6px; padding: 4px 6px; border-radius: 6px; border: 1px solid #f59e0b; color: ${iaIsLight(th.mode) ? '#b45309' : '#fcd34d'}; font-weight: 600; font-size: 11px; text-align: center; }
     .status { margin-top: 6px; font-size: 11.5px; text-align: center; color: ${th.muted}; min-height: 14px; }
     .status.ok { color: ${th.ok}; font-weight: 600; } .status.err { color: ${th.bad}; font-weight: 600; }
     .confirm { margin-top: 8px; padding: 9px; border-radius: 8px; background: ${th.field}; border: 1px solid ${th.line2}; font-size: 12px; color: ${th.text}; text-align: center; }
     .confirm b { font-weight: 700; color: ${th.title}; }
     .row { display: flex; gap: 6px; margin-top: 8px; }
     .row button { flex: 1; height: 28px; border-radius: 6px; font: 600 12px inherit; cursor: pointer; }
-    .yes { background: ${th.acc}; color: ${th.onacc}; border: 0; } .no { background: transparent; color: ${th.text}; border: 1px solid ${th.line2}; }
+    .yes { background: ${th.pri}; color: ${th.onpri}; border: 0; } .no { background: transparent; color: ${th.text}; border: 1px solid ${th.line2}; }
     .dots::after { content: ''; animation: dots 1.2s steps(4) infinite; }
     @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
     /* Sky Glass */
     .body { background: ${th.sky}, ${th.glass}; -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5); border: 1px solid ${th.edge}; border-radius: 18px; padding: 11px 11px 9px; box-shadow: ${th.shadow}, inset 0 1px 0 ${th.edge}; }
     .title { font-weight: 800; font-size: 13px; }
-    .gds { height: 36px; border-radius: 12px; font-weight: 800; background: linear-gradient(135deg, color-mix(in srgb, ${th.acc} 78%, #fff), ${th.acc}); box-shadow: 0 8px 18px color-mix(in srgb, ${th.acc} 32%, transparent); }
+    .gds { height: 36px; border-radius: 12px; font-weight: 800; background: linear-gradient(135deg, color-mix(in srgb, ${th.pri} 78%, #fff), ${th.pri}); box-shadow: 0 8px 18px color-mix(in srgb, ${th.pri} 32%, transparent); }
     .lead { border-radius: 12px; border: 1px solid transparent; background: ${th.chip}; box-shadow: ${th.chipshadow}; font-weight: 700; }
     .sellrow { border-radius: 12px; border: 1px solid transparent; background: ${th.chip}; box-shadow: ${th.chipshadow}; }
     .sell-l { font-weight: 800; }
@@ -3155,7 +3174,26 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     .confirm { border-radius: 12px; border-color: transparent; background: ${th.inner}; }
     .row button { height: 30px; border-radius: 10px; font-weight: 800; }
     .no { border: 0; background: ${th.chip}; color: ${th.title}; }
-  `;
+  ` + (iaIsNova(th.mode) ? `
+    /* Nova */
+    .wrap { font-family: ${IA_NOVA_FONT}; }
+    .body { border: 1px solid ${th.line}; border-radius: 24px; padding: 12px 12px 10px; box-shadow: ${th.shadow}; }
+    .title { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; font-size: 12px; letter-spacing: -.01em; }
+    .gds { height: 40px; border-radius: 999px; background: ${th.pri}; color: ${th.onpri}; box-shadow: 0 10px 22px -12px color-mix(in srgb, ${th.text} 70%, transparent);
+      transition: transform .3s cubic-bezier(.34,1.4,.64,1); }
+    .gds:hover { filter: none; transform: translateY(-1px); } .gds:active { transform: scale(.96); }
+    .gds.ok { background: ${th.ok}; color: ${th.onpri}; }
+    .lead { height: 38px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px ${th.line}; font-family: ${IA_NOVA_MONO}; font-weight: 500; }
+    .lead:focus { border-color: ${th.acc}; }
+    .sellrow { border-radius: 999px; box-shadow: inset 0 0 0 1.5px ${th.line}; }
+    .sell, .sell-d { font-family: ${IA_NOVA_MONO}; font-weight: 500; }
+    .sell-l, .copy { font-family: ${IA_NOVA_MONO}; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; }
+    select.pick { border-radius: 14px; }
+    .confirm { border-radius: 16px; }
+    .row button { height: 34px; border-radius: 999px; transition: transform .3s cubic-bezier(.34,1.4,.64,1); }
+    .row button:active { transform: scale(.95); }
+    .no { box-shadow: inset 0 0 0 1.5px ${th.line}; }
+  ` : '');
 
   function openBmoPopover(trigger, origBtn) {
     if (openPopover && openPopover.trigger === trigger) { closePopover(); return; }
@@ -7718,10 +7756,10 @@ function __jsEnsureSharedObserver() {
     if (typeof iaPalette !== 'function') return;
     const p = iaPalette();
     const r = document.documentElement.style;
-    const light = p.mode === 'light';
+    const light = iaIsLight(p.mode);
     const set = {
       bg: p.bg, field: p.field, line: p.line, line2: p.line2, text: p.text, title: p.title, muted: p.muted, sec: p.sec,
-      acc: p.acc, onacc: p.onacc, shadow: p.shadow, scheme: light ? 'light' : 'dark',
+      acc: p.pri, onacc: p.onpri, shadow: p.shadow, scheme: light ? 'light' : 'dark',
       glass: p.glass, edge: p.edge, inner: p.inner, chip: p.chip, chipshadow: p.chipshadow, sky: p.sky, bad: p.bad,
       'g': light ? '#2563eb' : '#60a5fa', 'e': light ? '#16a34a' : '#4ade80', 'm': light ? '#7c3aed' : '#c4b5fd',
       'py': light ? '#ca8a04' : '#facc15', 'fb': light ? '#3f3f46' : '#e8e8ed', 'k': light ? '#ea580c' : '#fb923c',
@@ -8319,7 +8357,7 @@ function __jsEnsureSharedObserver() {
       const ov = document.createElement('div');
       ov.className = 'ia-quiet';
       const pal = iaPalette();
-      ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.acc + ';--q-onacc:' + pal.onacc + ';--q-shadow:' + pal.shadow;
+      ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.pri + ';--q-onacc:' + pal.onpri + ';--q-shadow:' + pal.shadow;
       const card = document.createElement('div');
       card.className = 'ia-quiet__card';
       const scr = document.createElement('div');
@@ -8585,7 +8623,7 @@ function __jsEnsureSharedObserver() {
           </div>
           <span class="ia-dot" title="Status"></span>
           <span class="ia-btn ia-iconbtn ia-cb-btn" title="Callbacks"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M5 4 2.5 6.5M19 4l2.5 2.5"/></svg><span class="ia-cb-badge" hidden></span></span>
-          <span class="ia-btn ia-iconbtn ia-mode-btn" title="Switch mode: dark, light, navy"><svg class="ia-ico ia-ico-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/></svg><svg class="ia-ico ia-ico-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg><svg class="ia-ico ia-ico-navy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5c3-3 6 3 9 0s6 3 9 0M3 15.5c3-3 6 3 9 0s6 3 9 0"/></svg></span>
+          <span class="ia-btn ia-iconbtn ia-mode-btn" title="Change look"><svg class="ia-ico ia-ico-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.2A8.5 8.5 0 1 1 10.8 3.5a6.6 6.6 0 0 0 9.7 9.7z"/></svg><svg class="ia-ico ia-ico-light" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg><svg class="ia-ico ia-ico-navy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5c3-3 6 3 9 0s6 3 9 0M3 15.5c3-3 6 3 9 0s6 3 9 0"/></svg></span>
           <span class="ia-btn ia-btn-theme ia-iconbtn" title="Change accent color"><span class="ia-swatch"></span></span>
           <span class="ia-iconbtn ia-min" title="Minimize">\u2013</span>
         </div>
@@ -9292,17 +9330,71 @@ function __jsEnsureSharedObserver() {
     applyDoubleDialState();
   }
 
-  // --- Mode: dark / light / navy ------------------------------------------
-  var IA_MODE_LIST = ['dark', 'light', 'navy'];
+  // --- Look: Nova / Nova Night / Dark / Light / Navy ------------------------
   function applyMode() {
     if (!iaWidget) return;
     const m = iaMode();
-    ['dark', 'light', 'navy'].forEach((x) => iaWidget.classList.toggle('ia-mode-' + x, x === m));
+    Object.keys(IA_MODES).forEach((x) => iaWidget.classList.toggle('ia-mode-' + x, x === m));
+    iaWidget.classList.toggle('ia-nova', iaIsNova(m));
+    const menu = iaWidget.querySelector('.ia-looks');
+    if (menu) menu.querySelectorAll('.ia-look').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.look === m)));
   }
-  function cycleMode() {
-    const next = IA_MODE_LIST[(IA_MODE_LIST.indexOf(iaMode()) + 1) % IA_MODE_LIST.length];
-    try { GM_setValue('ia-mode', next); } catch (e) { /* best-effort */ }
+  function setLook(m) {
+    try { GM_setValue('ia-mode', m); } catch (e) { /* best-effort */ }
     applyMode();
+    try { if (typeof iaPaintSearchColours === 'function') iaPaintSearchColours(); } catch (e) { /* ignore */ }
+    try { if (typeof paintCallVars === 'function') paintCallVars(); } catch (e) { /* ignore */ }
+  }
+  function closeLooks() {
+    const menu = iaWidget && iaWidget.querySelector('.ia-looks');
+    if (menu) menu.remove();
+    document.removeEventListener('mousedown', looksOutside, true);
+  }
+  function looksOutside(e) {
+    const menu = iaWidget && iaWidget.querySelector('.ia-looks');
+    if (!menu || menu.contains(e.target) || e.target.closest('.ia-mode-btn')) return;
+    closeLooks();
+  }
+  // The moon button opens a small menu with every look.
+  function cycleMode() {
+    if (!iaWidget) return;
+    if (iaWidget.querySelector('.ia-looks')) { closeLooks(); return; }
+    const panel = iaWidget.querySelector('.ia-panel');
+    if (!panel) return;
+    const menu = document.createElement('div');
+    menu.className = 'ia-looks';
+    menu.setAttribute('role', 'menu');
+    const hd = document.createElement('div');
+    hd.className = 'ia-looks__hd';
+    hd.textContent = 'Look';
+    menu.appendChild(hd);
+    IA_LOOKS.forEach(([key, label]) => {
+      const pal = IA_MODES[key];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ia-look';
+      b.dataset.look = key;
+      b.setAttribute('role', 'menuitemradio');
+      const dots = document.createElement('span');
+      dots.className = 'ia-look__dots';
+      const accent = pal.acc || (IA_ACCENTS.midnight[['dark', 'light', 'navy'].indexOf(key)] || '#7c7cf8');
+      [pal.bg, pal.title, accent].forEach((c) => { const i = document.createElement('i'); i.style.background = c; dots.appendChild(i); });
+      const t = document.createElement('span');
+      t.textContent = label;
+      b.appendChild(dots); b.appendChild(t);
+      if (key === 'nova') { const sm = document.createElement('small'); sm.textContent = 'Main'; b.appendChild(sm); }
+      b.addEventListener('click', (e) => { e.stopPropagation(); setLook(key); closeLooks(); });
+      b.addEventListener('mousedown', (e) => e.stopPropagation());
+      menu.appendChild(b);
+    });
+    menu.addEventListener('mousedown', (e) => e.stopPropagation());
+    menu.addEventListener('click', (e) => e.stopPropagation());
+    menu.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeLooks(); } });
+    panel.appendChild(menu);
+    applyMode();
+    const cur = menu.querySelector('[aria-checked="true"]');
+    if (cur) try { cur.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    document.addEventListener('mousedown', looksOutside, true);
   }
   // Pip's face while Pip's own call is live.
   function setOnCall(on) {
@@ -9566,7 +9658,7 @@ function __jsEnsureSharedObserver() {
     let p;
     try { p = iaPalette(); } catch (e) { return; }
     const st = document.documentElement.style;
-    const v = { acc: p.acc, onacc: p.onacc, text: p.text, title: p.title, muted: p.muted, ok: p.ok, bad: p.bad,
+    const v = { acc: p.pri, onacc: p.onpri, text: p.text, title: p.title, muted: p.muted, ok: p.ok, bad: p.bad,
       glass: p.glass, edge: p.edge, inner: p.inner, chip: p.chip, chipshadow: p.chipshadow, shadow: p.shadow, sky: p.sky };
     Object.keys(v).forEach((k) => { if (st.getPropertyValue('--ia-cl-' + k) !== v[k]) st.setProperty('--ia-cl-' + k, v[k]); });
   }
@@ -11329,8 +11421,9 @@ function __jsEnsureSharedObserver() {
     // Same colours as the panel (mode + accent).
     const src = ensureBmo();
     const cs = getComputedStyle(src);
-    ['--ia-bg', '--ia-field', '--ia-line', '--ia-line2', '--ia-text', '--ia-title', '--ia-muted', '--ia-sec', '--ia-onacc', '--ia-bad', '--ia-shadow', '--acc', '--ia-glass', '--ia-edge', '--ia-inner', '--ia-chip', '--ia-chipshadow', '--ia-sky']
+    ['--ia-bg', '--ia-field', '--ia-line', '--ia-line2', '--ia-text', '--ia-title', '--ia-muted', '--ia-sec', '--ia-onacc', '--ia-bad', '--ia-shadow', '--acc', '--ia-glass', '--ia-edge', '--ia-inner', '--ia-chip', '--ia-chipshadow', '--ia-sky', '--ia-pri', '--ia-onpri']
       .forEach((v) => { const val = cs.getPropertyValue(v); if (val) el.style.setProperty(v, val.trim()); });
+    if (iaIsNova(iaMode())) el.classList.add('ia-nova');
     el.addEventListener('mousedown', (e) => e.stopPropagation());
     el.addEventListener('click', (e) => e.stopPropagation());
     el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') cbClosePop(); });
@@ -12470,6 +12563,76 @@ function __jsEnsureSharedObserver() {
     .ia-cb-chip { border-radius: 999px; }
   `);
 
+  // ------------------------------------------------------------------
+  // Nova (2.15.0): the website's look for the panel and its pop-ups.
+  // Only applies in Nova and Nova Night (the widget gets .ia-nova).
+  // Animations use transform and opacity only.
+  // ------------------------------------------------------------------
+  GM_addStyle(`
+    .ia-widget.ia-mode-nova { --acc: #FF5B2E; } .ia-widget.ia-mode-novanight { --acc: #FF7048; }
+    .ia-mode-nova .ia-ico-dark, .ia-mode-novanight .ia-ico-dark { display: block; }
+    .ia-widget.ia-nova { font-family: ${IA_NOVA_FONT}; --ia-spring: cubic-bezier(.34,1.4,.64,1); }
+    .ia-widget.ia-nova .ia-panel { background: var(--ia-sky), var(--ia-glass); border: 1px solid var(--ia-line); border-radius: 26px; box-shadow: var(--ia-shadow); padding: 12px; }
+    .ia-widget.ia-nova .ia-bubble { background: var(--ia-sky), var(--ia-glass); border: 1px solid var(--ia-line); border-radius: 26px; box-shadow: var(--ia-shadow); }
+    .ia-widget.ia-nova .ia-head__title { font-family: ${IA_NOVA_DISPLAY}; font-weight: 700; font-size: 12.5px; letter-spacing: -.02em; }
+    .ia-widget.ia-nova .ia-head__greet { font-weight: 600; }
+    .ia-widget.ia-nova .ia-iconbtn, .ia-widget.ia-nova .ia-mode-btn, .ia-widget.ia-nova .ia-cb-btn { border-radius: 50% !important; background: var(--ia-chip); box-shadow: var(--ia-chipshadow);
+      transition: transform .25s var(--ia-spring), border-color .15s; }
+    .ia-widget.ia-nova .ia-iconbtn:active { transform: scale(.88); }
+    .ia-widget.ia-nova .ia-btn-theme { display: none !important; }
+    .ia-widget.ia-nova .ia-cb-badge { background: var(--acc); color: #121628; font-family: ${IA_NOVA_MONO}; font-weight: 500; }
+    .ia-widget.ia-nova .ia-card { background: var(--ia-inner); border-radius: 18px; box-shadow: none; }
+    .ia-widget.ia-nova .ia-panel .ia-screen-info__label { font-family: ${IA_NOVA_MONO}; font-weight: 500; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ia-ok); }
+    .ia-widget.ia-nova .ia-panel .ia-screen-info__client { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; font-size: 15px; letter-spacing: -.03em; }
+    .ia-widget.ia-nova .ia-idle__t { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; letter-spacing: -.02em; }
+    .ia-widget.ia-nova .ia-panel .ia-screen-info .ia-cb-card { border-radius: 50%; background: var(--ia-chip); box-shadow: var(--ia-chipshadow); }
+    .ia-widget.ia-nova .ia-panel .ia-screen-info .ia-cb-card.is-set { background: var(--ia-pri); color: var(--ia-onpri); }
+    .ia-widget.ia-nova .ia-stats > span { border-radius: 12px; background: var(--ia-inner); box-shadow: none; font-family: ${IA_NOVA_MONO}; font-weight: 500; font-size: 8.5px; letter-spacing: .04em; text-transform: uppercase; }
+    .ia-widget.ia-nova .ia-stats b { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; font-size: 13.5px; letter-spacing: -.03em; }
+    .ia-widget.ia-nova .ia-call { border-radius: 999px !important; background: var(--ia-pri); color: var(--ia-onpri); filter: none;
+      box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--ia-text) 70%, transparent); transition: transform .3s var(--ia-spring), opacity .2s; }
+    .ia-widget.ia-nova .ia-call:hover { filter: none; transform: translateY(-1px); }
+    .ia-widget.ia-nova .ia-call:active, .ia-widget.ia-nova .ia-sec:active, .ia-widget.ia-nova .ia-stop:active { transform: scale(.95); }
+    .ia-widget.ia-nova .ia-sec, .ia-widget.ia-nova .ia-stop { border-radius: 999px !important; background: var(--ia-chip); box-shadow: inset 0 0 0 1.5px var(--ia-line); transition: transform .3s var(--ia-spring), border-color .15s; }
+    .ia-widget.ia-nova .ia-sec:hover { border-color: var(--ia-line2) !important; }
+    .ia-widget.ia-nova.ia-widget--running .ia-stop { background: var(--ia-stop); color: #fff; box-shadow: none; }
+    .ia-widget.ia-nova .ia-switch { background: var(--ia-line2); box-shadow: none; }
+    .ia-widget.ia-nova.ia-widget--dd-on .ia-toggle--dd .ia-switch { background: var(--ia-pri); }
+    .ia-widget.ia-nova.ia-widget--dd-on .ia-toggle--dd .ia-switch span { background: var(--acc); }
+    .ia-widget.ia-nova .ia-news-btn { font-family: ${IA_NOVA_FONT}; background: var(--ia-chip); box-shadow: var(--ia-chipshadow); }
+    .ia-widget.ia-nova .ia-foot { font-family: ${IA_NOVA_MONO}; font-weight: 500; letter-spacing: .04em; }
+    .ia-widget.ia-nova .ia-reminder, .ia-widget.ia-nova .ia-levelup__text { border: 1px solid var(--ia-line); border-radius: 18px; font-family: ${IA_NOVA_FONT}; }
+    .ia-widget.ia-nova .ia-cbdue { font-family: ${IA_NOVA_FONT}; border: 1px solid var(--ia-line); border-radius: 22px; box-shadow: var(--ia-shadow); }
+    .ia-widget.ia-nova .ia-cbdue__k { font-family: ${IA_NOVA_MONO}; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; color: var(--acc); }
+    .ia-widget.ia-nova .ia-cbdue__who { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; letter-spacing: -.03em; }
+    .ia-widget.ia-nova .ia-cbdue__a { border-radius: 999px; font-family: ${IA_NOVA_FONT}; box-shadow: inset 0 0 0 1.5px var(--ia-line); transition: transform .3s var(--ia-spring); }
+    .ia-widget.ia-nova .ia-cbdue__a:active { transform: scale(.95); }
+    .ia-widget.ia-nova .ia-cbdue__a.is-main { background: var(--ia-pri); color: var(--ia-onpri); box-shadow: none; }
+    .ia-cbpop.ia-nova { font-family: ${IA_NOVA_FONT}; border: 1px solid var(--ia-line); border-radius: 22px; }
+    .ia-cbpop.ia-nova .ia-cbpop-q, .ia-cbpop.ia-nova .ia-cbpop-rm { border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--ia-line); }
+    .ia-cbpop.ia-nova .ia-cbpop-q.on { background: var(--ia-pri); color: var(--ia-onpri); box-shadow: none; }
+    .ia-cbpop.ia-nova .ia-cbpop-pick input, .ia-cbpop.ia-nova .ia-cbpop-note { border-radius: 14px; box-shadow: inset 0 0 0 1.5px var(--ia-line); }
+    .ia-cbpop.ia-nova .ia-cbpop-go { border-radius: 999px; background: var(--ia-pri); color: var(--ia-onpri); box-shadow: none; }
+    .ia-cbpop.ia-nova .ia-cbpop-tm { font-family: ${IA_NOVA_MONO}; font-weight: 500; }
+
+    /* Look menu (every look) */
+    .ia-looks { position: absolute; top: 46px; right: 10px; z-index: 6; width: 196px; box-sizing: border-box; padding: 8px; display: grid; gap: 2px;
+      background: var(--ia-sky), var(--ia-glass); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5);
+      border: 1px solid var(--ia-line); border-radius: 18px; box-shadow: var(--ia-shadow); animation: ia-looks-in .28s cubic-bezier(.34,1.4,.64,1) both; transform-origin: top right; }
+    @keyframes ia-looks-in { from { opacity: 0; transform: translateY(-6px) scale(.96); } }
+    .ia-looks__hd { padding: 2px 8px 4px; font: 500 9.5px/1.4 ${IA_NOVA_MONO}; letter-spacing: .12em; text-transform: uppercase; color: var(--ia-muted); }
+    .ia-look { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 9px; border: 0; border-radius: 12px; background: transparent; color: var(--ia-title);
+      font-family: inherit; font-weight: 700; font-size: 12.5px; line-height: 1.2; text-align: left; cursor: pointer; transition: transform .25s cubic-bezier(.34,1.4,.64,1); }
+    .ia-look:hover { background: var(--ia-chip); }
+    .ia-look:active { transform: scale(.97); }
+    .ia-look[aria-checked="true"] { background: var(--ia-pri, var(--acc)); color: var(--ia-onpri, var(--ia-onacc)); }
+    .ia-look small { margin-left: auto; font: 500 9px ${IA_NOVA_MONO}; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+    .ia-look__dots { display: inline-flex; flex: none; }
+    .ia-look__dots i { width: 13px; height: 13px; border-radius: 50%; margin-left: -4px; box-shadow: 0 0 0 1.5px var(--ia-chip), 0 0 0 2px rgba(127,127,127,.25); }
+    .ia-look__dots i:first-child { margin-left: 0; }
+    @media (prefers-reduced-motion: reduce) { .ia-looks { animation: none; } }
+  `);
+
   // Shares PART 2/3/4's single observer instead of keeping its own —
   // see the comment where __jsEnsureSharedObserver is defined.
   // ==========================================================================
@@ -12716,7 +12879,7 @@ function __jsEnsureSharedObserver() {
     const pal = iaPalette();
     const ov = document.createElement('div');
     ov.className = 'ia-sq';
-    ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.acc + ';--q-onacc:' + pal.onacc + ';--q-shadow:' + pal.shadow + ';--q-ok:' + (pal.ok || '#22c55e') + ';--q-bad:' + (pal.bad || '#ef4444');
+    ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.pri + ';--q-onacc:' + pal.onpri + ';--q-shadow:' + pal.shadow + ';--q-ok:' + (pal.ok || '#22c55e') + ';--q-bad:' + (pal.bad || '#ef4444');
     const card = document.createElement('div');
     card.className = 'ia-sq__card';
     ov.appendChild(card);
@@ -12832,8 +12995,8 @@ function __jsEnsureSharedObserver() {
       chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); sqStart(); });
     }
     const pal = iaPalette();
-    chip.style.setProperty('--q-acc', pal.acc);
-    chip.style.setProperty('--q-onacc', pal.onacc);
+    chip.style.setProperty('--q-acc', pal.pri);
+    chip.style.setProperty('--q-onacc', pal.onpri);
     if (chip.nextElementSibling !== label) label.insertAdjacentElement('beforebegin', chip);
   }
   function sqScan() { try { sqChip(); if (getLeadRows().length) sqPaintTicks(); } catch (e) { /* ignore */ } }
@@ -12883,10 +13046,11 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.14.0',
+    version: '2.15.0',
     items: [
-      'Send quotes now sends emails only: the text-message step has been taken out. You still see and confirm every email before it goes.',
-      'The yellow tick next to the PQs count now means the lead\u2019s quotes were emailed today.',
+      'A new look called Nova: soft colours, round pill buttons and new fonts, the same design as the TBC Assistant website. Everyone starts on Nova after this update.',
+      'Nova Night is the same design in dark colours.',
+      'The moon button now opens a small menu with every look: Nova, Nova Night, Dark, Light and Navy. Pick any of them; your choice is saved.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
@@ -13441,10 +13605,10 @@ function __jsEnsureSharedObserver() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePop(); });
   function paintVars(el) {
     const p = iaPalette();
-    const v = { bg: p.bg, field: p.field, line: p.line, line2: p.line2, text: p.text, title: p.title, muted: p.muted, sec: p.sec, acc: p.acc, onacc: p.onacc,
+    const v = { bg: p.bg, field: p.field, line: p.line, line2: p.line2, text: p.text, title: p.title, muted: p.muted, sec: p.sec, acc: p.pri, onacc: p.onpri,
       bad: p.bad, ok: p.ok, shadow: p.shadow, glass: p.glass || p.bg, edge: p.edge || p.line, inner: p.inner || p.field, chip: p.chip || p.field, chipshadow: p.chipshadow || 'none', sky: p.sky || 'none' };
     Object.keys(v).forEach((k) => el.style.setProperty('--iot-' + k, v[k]));
-    el.style.colorScheme = p.mode === 'light' ? 'light' : 'dark';
+    el.style.colorScheme = iaIsLight(p.mode) ? 'light' : 'dark';
   }
   function openPop(anchor, kind, build) {
     const again = pop && pop.anchor === anchor && pop.kind === kind;

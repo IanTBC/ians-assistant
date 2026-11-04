@@ -55,9 +55,14 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Send quotes** (leads list) prepares each lead's profitable quotes as the BO's own email; you confirm every email before it goes. A yellow tick in the PQs column marks leads already emailed today.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates. Sent follow-ups turn green and show when they went out.
 
-**Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
+**Look** — the moon button on the panel opens a menu with five looks: **Nova** (the main look), **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.15.0 — Nova look**
+- A new look called **Nova**: soft colours, round pill buttons and new fonts, the same design as the TBC Assistant website. Everyone starts on Nova after this update.
+- **Nova Night** is the same design in dark colours.
+- The moon button now opens a small menu with every look: **Nova, Nova Night, Dark, Light and Navy**. Pick any of them; your choice is saved.
 
 **2.14.0 — Send quotes: emails only**
 - **Send quotes** now sends emails only: the text-message step has been taken out. You still see and confirm every email before it goes.
