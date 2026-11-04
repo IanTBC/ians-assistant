@@ -2,7 +2,7 @@
 
 A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites, CRM shortcuts, a power dialer and RingCentral texting.
 
-**Full guide with pictures:** https://iantbc.github.io/ians-assistant/
+**Website:** https://iantbc.github.io/ians-assistant/
 
 [![Install TBC Assistant](https://img.shields.io/badge/Install-TBC%20Assistant-7c7cf8?style=for-the-badge)](https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js)
 
