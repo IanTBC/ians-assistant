@@ -52,12 +52,16 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page, filled in for the lead (click any text to copy). **Tools** next to it opens VIP Itinerary, GK Converter and How to make a PNR.
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - Click a lead's status letter on the leads list to make it **Potential**, **Follow up** or **Closed** without opening the lead.
-- **Send quotes** (leads list) prepares each lead's profitable quotes as an email and a text; you confirm every message before it goes. A yellow tick in the PQs column marks leads already sent today.
+- **Send quotes** (leads list) prepares each lead's profitable quotes as the BO's own email; you confirm every email before it goes. A yellow tick in the PQs column marks leads already emailed today.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates. Sent follow-ups turn green and show when they went out.
 
 **Look** — the header buttons switch between **Dark, Light and Navy** and change the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.14.0 — Send quotes: emails only**
+- **Send quotes** now sends emails only: the text-message step has been taken out. You still see and confirm every email before it goes.
+- The yellow tick next to the PQs count now means the lead's quotes were emailed today.
 
 **2.13.0 — change status from the leads list**
 - Change a lead's status straight from the leads list: click its round letter (N / P / F / C) and pick **Potential**, **Follow up** or **Closed**. No need to open the lead.

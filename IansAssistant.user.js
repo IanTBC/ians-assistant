@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.13.0
+// @version      2.14.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -12475,17 +12475,14 @@ function __jsEnsureSharedObserver() {
   // ==========================================================================
   // Send quotes (leads list). For each lead on the page the tool reads its
   // quotes from the BO, keeps only the green-badge (profitable) ones, writes
-  // the BO's own "Send options" email and a RingCentral text, and then
-  // SHOWS EACH MESSAGE AND WAITS: nothing goes out until the agent presses
-  // Send (Skip and Stop are always there). When the BO says "Too many
-  // attempts … retry in N seconds", the run waits the full time it asks for
-  // and carries on; if the BO keeps refusing two leads in a row, it stops.
+  // the BO's own "Send options" email, and then SHOWS EACH EMAIL AND WAITS:
+  // nothing goes out until the agent presses Send (Skip and Stop are always
+  // there). Emails only: texting was taken out in 2.14.0 at Ian's request.
   // A yellow tick in the PQs column marks leads whose quotes went out today
   // (click it to tick / untick); ticked leads are skipped.
   // ==========================================================================
   const SQ_SENT_KEY = 'ia-quotes-sent';      // { e|t: { leadId: [quote ids] } }
   const SQ_DAY_KEY = 'ia-quotes-done-day';   // today's ticks (day rolls at 2pm GMT)
-  const SQ_REVEAL_GAP_MS = 10000;            // the BO's own pace for opening contacts
   const sqSleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const SQ_AIRLINES = {
     AA: 'American Airlines', DL: 'Delta', UA: 'United', AC: 'Air Canada', BA: 'British Airways', LH: 'Lufthansa', AF: 'Air France', KL: 'KLM',
@@ -12548,20 +12545,6 @@ function __jsEnsureSharedObserver() {
     const i = getLeadInfo(row);
     return { leadId: i.leadId, clientName: i.clientName, origin: i.origin, dest: i.dest, agent: sqAgentOf(row) };
   }
-  function sqFill(text, info) {
-    let first = String(info.clientName || '').trim().split(/\s+/)[0] || '';
-    if (/^(client|lead|-)$/i.test(first)) first = '';
-    let agent = String(info.agent || '').trim().split(/\s+/)[0];
-    if (!agent) agent = String(smsAgentName() || '').trim().split(/\s+/)[0];
-    if (!agent) { try { agent = String(GM_getValue(AGENT_NAME_KEY, '') || '').trim(); } catch (e) { agent = ''; } }
-    if (!agent) text = String(text).replace(/\{agent\} from /gi, '');
-    return String(text)
-      .replace(/\{agent\}/gi, agent)
-      .replace(/\{destination\}/gi, ((typeof SMS_CITY !== 'undefined' && SMS_CITY) || {})[info.dest] || info.dest || 'your destination')
-      .replace(/\{client\}/gi, first || 'there')
-      .replace(/[ \t]{2,}/g, ' ');
-  }
-
   // ---- what went out (memory + the yellow tick) ----------------------------
   function sqSentMap() { try { const o = JSON.parse(GM_getValue(SQ_SENT_KEY, '{}')); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } }
   const sqSent = (kind, leadId) => new Set((((sqSentMap()[kind] || {})[leadId]) || []).map(String));
@@ -12616,7 +12599,7 @@ function __jsEnsureSharedObserver() {
       const on = sqTicked(id);
       ck.classList.toggle('is-on', on);
       const tip = on
-        ? (o.m[id] ? 'Ticked by hand' : 'Quotes sent today: email ' + (o.e[id] ? '✓' : '—') + ', text ' + (o.t[id] ? '✓' : '—')) + ' — Send quotes skips this lead. Click to untick.'
+        ? (o.m[id] ? 'Ticked by hand' : 'Quotes emailed today') + ' \u2014 Send quotes skips this lead. Click to untick.'
         : 'Quotes not sent today. Click to tick it and skip this lead.';
       if (ck.title !== tip) ck.title = tip;
     });
@@ -12714,11 +12697,6 @@ function __jsEnsureSharedObserver() {
     }
     return { lead, quotes };
   }
-  function sqText(info, quotes) {
-    const intro = sqFill('Hi {client}, {agent} from Travel Business Class here. ' + (quotes.length === 1 ? 'Here is the best option I found' : 'Here are the best options I found') + ' for your flight to {destination}:', info);
-    const body = quotes.map((x, i) => (quotes.length > 1 ? (i + 1) + '. ' : '') + x.line + (x.link ? '\n' + x.link : '')).join('\n\n');
-    return intro + '\n\n' + body + '\n\nWhen is a good time to go over them? I can hold the fare for you.';
-  }
   // Only ever called after the agent pressed Send.
   async function sqSendEmail(lead, pks) {
     if (!lead.client_email_pk) return { ok: false, error: 'the lead has no email in the BO' };
@@ -12731,32 +12709,8 @@ function __jsEnsureSharedObserver() {
       return { ok: true };
     } catch (e) { return { ok: false, error: 'the BO refused the email (' + (e && e.message ? e.message : e) + ')' }; }
   }
-  // Only ever called after the agent pressed Send.
-  async function sqSendText(number, text) {
-    await smsRcOpen(number, text);
-    const r = await smsRc('send', { phone: number, text }, 45000);
-    if (r.ok || r.error === 'unconfirmed') return { ok: true, warn: !r.ok };
-    return { ok: false, error: r.message || r.error || 'not sent (is RingCentral signed in?)' };
-  }
-
-  // ---- the BO's "Too many attempts … retry in N seconds" ----------------------
-  function sqLimitSecs() {
-    let secs = 0;
-    document.querySelectorAll('.v-toast__text').forEach((el) => {
-      const item = el.closest('.v-toast__item') || el;
-      if (item.dataset.iaLimitSeen) return;
-      const t = el.textContent;
-      if (!/too many attempts/i.test(t)) return;
-      item.dataset.iaLimitSeen = '1';
-      const m = t.match(/(\d+)\s*s(?:ec|econd)?/i);
-      secs = Math.max(secs, m ? Math.min(+m[1], 300) : 40);
-    });
-    return secs;
-  }
-
   // ---- the window -------------------------------------------------------------
   const sqRun = { on: false, stop: false };
-  let sqLastReveal = 0;
   function sqWin() {
     document.querySelectorAll('.ia-sq').forEach((n) => n.remove());
     const pal = iaPalette();
@@ -12773,23 +12727,20 @@ function __jsEnsureSharedObserver() {
   function sqHead(icon, small, title, tag) {
     return '<div class="ia-sq__head"><div class="ia-sq__ic">' + icon + '</div><div><small>' + sqEsc(small) + '</small><b>' + sqEsc(title) + '</b></div>' + (tag ? '<span class="ia-sq__tag">' + sqEsc(tag) + '</span>' : '') + '</div>';
   }
-  // Shows one message and waits for the agent: resolves 'send' | 'skip' | 'stop'
-  // (for a text, also the edited text).
+  // Shows one email and waits for the agent: resolves 'send' | 'skip' | 'stop'.
   function sqAsk(w, o) {
     return new Promise((resolve) => {
       const qs = o.quotes.map((x) => '<div class="ia-sq__q' + (x.ok ? '' : ' is-red') + '"><span class="ia-sq__box' + (x.ok ? '' : ' is-off') + '">' + (x.ok ? '✓' : '') + '</span><span>' + sqEsc(x.line) + '</span><span class="ia-sq__p">' + (x.ok ? '+' + sqDollars(x.profit) : (x.profit < 0 ? '−' + sqDollars(-x.profit) : sqDollars(x.profit || 0)) + ' · not sent') + '</span></div>').join('');
-      w.card.innerHTML = sqHead(o.kind === 'e' ? '✉' : '\u{1F4AC}', 'Lead ' + o.n + ' of ' + o.tot + ' · #' + o.id, o.name, o.kind === 'e' ? 'Email · BO Send options' : 'Text · RingCentral')
+      w.card.innerHTML = sqHead('\u2709', 'Lead ' + o.n + ' of ' + o.tot + ' \u00b7 #' + o.id, o.name, 'Email \u00b7 BO Send options')
         + '<div class="ia-sq__to"><span>To</span>' + sqEsc(o.to) + '</div>'
-        + (o.kind === 'e' ? qs : '<textarea class="ia-sq__msg" spellcheck="true"></textarea><div class="ia-sq__hint">You can edit the text before sending.</div>')
-        + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button><button type="button" class="ia-sq__b">Skip</button><button type="button" class="ia-sq__b is-go">' + (o.kind === 'e' ? 'Send email' : 'Send text') + '</button></div>';
-      const ta = w.card.querySelector('.ia-sq__msg');
-      if (ta) { ta.value = o.text; }
+        + qs
+        + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button><button type="button" class="ia-sq__b">Skip</button><button type="button" class="ia-sq__b is-go">Send email</button></div>';
       const [stop, skip, go] = w.card.querySelectorAll('.ia-sq__b');
-      const done = (v) => { document.removeEventListener('keydown', onKey, true); resolve({ act: v, text: ta ? ta.value : '' }); };
+      const done = (v) => { document.removeEventListener('keydown', onKey, true); resolve({ act: v }); };
       const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done('stop'); } };
       stop.addEventListener('click', () => done('stop'));
       skip.addEventListener('click', () => done('skip'));
-      go.addEventListener('click', () => { if (ta && !ta.value.trim()) return; go.disabled = true; done('send'); });
+      go.addEventListener('click', () => { go.disabled = true; done('send'); });
       document.addEventListener('keydown', onKey, true);
       setTimeout(() => go.focus(), 0);
     });
@@ -12799,46 +12750,6 @@ function __jsEnsureSharedObserver() {
       + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button></div>';
     w.card.querySelector('.is-stop').addEventListener('click', () => { sqRun.stop = true; });
   }
-  // The BO asked us to wait: a countdown, then carry on (Stop works throughout).
-  async function sqCountdown(w, o, secs, why) {
-    const total = secs;
-    w.card.innerHTML = sqHead('⏳', 'Lead ' + o.n + ' of ' + o.tot + ' · #' + o.id, why || 'The BO asked us to wait')
-      + '<div class="ia-sq__big"></div><div class="ia-sq__bar"><i></i></div>'
-      + '<div class="ia-sq__hint">The tool waits the full time the BO asks for, then opens this lead’s contact again and shows you the message.</div>'
-      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-stop">Stop</button></div>';
-    w.card.querySelector('.is-stop').addEventListener('click', () => { sqRun.stop = true; });
-    const big = w.card.querySelector('.ia-sq__big'), bar = w.card.querySelector('.ia-sq__bar i');
-    for (; secs > 0 && !sqRun.stop; secs--) {
-      big.textContent = 'Trying again in ' + secs + ' s';
-      bar.style.width = Math.round(100 * (total - secs) / total) + '%';
-      await sqSleep(1000);
-    }
-    return !sqRun.stop;
-  }
-  // The client's number: already shown, or opened with the BO's own reveal
-  // (never faster than the BO's pace; waits out its "too many attempts").
-  async function sqNumber(w, o, row) {
-    for (let tries = 0; tries < 3 && !sqRun.stop; tries++) {
-      const box = row && findPhoneCell(row);
-      if (!box) return null;
-      const shown = revealedNumber(box.textContent);
-      if (shown) return shown;
-      sqBusy(w, o, 'Opening the client\u2019s number\u2026');
-      const gap = SQ_REVEAL_GAP_MS - (Date.now() - sqLastReveal);
-      if (gap > 0 && !(await sqCountdown(w, o, Math.ceil(gap / 1000), 'Opening the next contact'))) return null;
-      sqLastReveal = Date.now();
-      box.click(); // the BO's own reveal
-      const n = await waitForNumber(box, 2500);
-      if (n) return n;
-      await sqSleep(600);
-      const secs = sqLimitSecs();
-      if (!secs) return null;
-      if (!(await sqCountdown(w, o, secs))) return null;
-      row = sqRowFor(o.id) || row;
-    }
-    return null;
-  }
-
   function sqStart() {
     if (sqRun.on) return;
     const rows = getLeadRows();
@@ -12848,33 +12759,25 @@ function __jsEnsureSharedObserver() {
       w.card.querySelector('.is-go').addEventListener('click', w.close);
       return;
     }
-    const items = rows.map((row) => ({ id: String(getLeadId(row)), info: sqInfo(row), night: isQuietTime(rowLocalTime(row)), hasP: !!findPhoneCell(row) }));
+    const items = rows.map((row) => ({ id: String(getLeadId(row)), info: sqInfo(row) }));
     const ticked = items.filter((x) => sqTicked(x.id)).length;
-    const night = items.filter((x) => !sqTicked(x.id) && x.night).length;
     const todo = items.filter((x) => !sqTicked(x.id));
-    w.card.innerHTML = sqHead('✈', 'Send quotes', 'Leads on this page')
+    w.card.innerHTML = sqHead('\u2708', 'Send quotes', 'Leads on this page')
       + '<div class="ia-sq__sum"><div><b>' + todo.length + '</b> leads to go through</div>'
-      + (ticked ? '<div>Already sent today (yellow tick): <b>' + ticked + '</b> — skipped</div>' : '')
-      + (night ? '<div>Night time for the client: <b>' + night + '</b> — email only, no text</div>' : '') + '</div>'
-      + '<label class="ia-sq__chk"><input type="checkbox" class="ia-sq-e" checked> Email the quotes (the BO’s own “Send options” email)</label>'
-      + '<label class="ia-sq__chk"><input type="checkbox" class="ia-sq-t" checked> Text the quotes (RingCentral)</label>'
-      + '<div class="ia-sq__note">Each lead’s quotes are read live from the BO. Only green-badge quotes are offered; red ($0 or less), hidden and award quotes are never included. <b>You’ll see and confirm every message before it goes.</b></div>'
+      + (ticked ? '<div>Already sent today (yellow tick): <b>' + ticked + '</b> \u2014 skipped</div>' : '') + '</div>'
+      + '<div class="ia-sq__note">For each lead the tool reads its quotes from the BO and prepares the BO\u2019s own \u201cSend options\u201d email with the green-badge quotes only; red ($0 or less), hidden and award quotes are never included. <b>You\u2019ll see and confirm every email before it goes.</b></div>'
       + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b">Cancel</button><button type="button" class="ia-sq__b is-go">Start</button></div>';
     const [cancel, go] = w.card.querySelectorAll('.ia-sq__b');
     cancel.addEventListener('click', w.close);
-    go.addEventListener('click', () => {
-      const doE = w.card.querySelector('.ia-sq-e').checked, doT = w.card.querySelector('.ia-sq-t').checked;
-      if (!doE && !doT) return;
-      sqGo(w, todo, doE, doT);
-    });
+    go.addEventListener('click', () => sqGo(w, todo));
   }
 
-  async function sqGo(w, todo, doE, doT) {
+  async function sqGo(w, todo) {
     sqRun.on = true; sqRun.stop = false;
-    const st = { e: 0, t: 0, skip: 0, none: 0, fail: [], refusals: 0, blocked: false };
+    const st = { e: 0, skip: 0, none: 0, fail: [] };
     const tot = todo.length;
     let n = 0;
-    const prog = () => 'Sent so far: ' + st.e + ' email' + (st.e === 1 ? '' : 's') + ', ' + st.t + ' text' + (st.t === 1 ? '' : 's') + (st.skip ? ' · ' + st.skip + ' skipped' : '');
+    const prog = () => 'Sent so far: ' + st.e + ' email' + (st.e === 1 ? '' : 's') + (st.skip ? ' \u00b7 ' + st.skip + ' skipped' : '');
     try {
       for (const item of todo) {
         if (sqRun.stop) break;
@@ -12882,67 +12785,32 @@ function __jsEnsureSharedObserver() {
         const name = item.info.clientName || ('Lead ' + item.id);
         const o = { n, tot, id: item.id, name, prog: prog() };
         if (sqTicked(item.id)) continue;
-        sqBusy(w, o, 'Reading this lead’s quotes from the BO…');
+        sqBusy(w, o, 'Reading this lead\u2019s quotes from the BO\u2026');
         let data;
         try { data = await sqLoad(item.id); } catch (err) { st.fail.push(name + ' (' + (err && err.message ? err.message : err) + ')'); continue; }
         if (sqRun.stop) break;
-        const pend = (kind) => { const done = sqSent(kind, item.id); return data.quotes.filter((x) => x.ok && !done.has(x.pk) && !(kind === 'e' && x.sent)); };
         if (!data.quotes.some((x) => x.ok)) { st.none++; continue; }
-        // Email first (it creates the View deal links), then the text.
-        if (doE) {
-          const list = pend('e');
-          if (!list.length) sqMark('e', item.id);
-          else {
-            const shown = sqShownEmail(sqRowFor(item.id) || document.body);
-            const show = data.quotes.filter((x) => !x.ok || list.includes(x));
-            const a = await sqAsk(w, Object.assign({}, o, { prog: prog(), kind: 'e', to: shown || 'the client’s email on this lead', quotes: show }));
-            if (a.act === 'stop') { sqRun.stop = true; break; }
-            if (a.act === 'skip') st.skip++;
-            else {
-              sqBusy(w, o, 'Sending the email…');
-              const r = await sqSendEmail(data.lead, list.map((x) => x.pk));
-              if (r.ok) { sqRemember('e', item.id, list.map((x) => x.pk)); sqMark('e', item.id); st.e++; } else st.fail.push(name + ' (email: ' + r.error + ')');
-              await sqSleep(1500);
-              if (r.ok && doT) { try { data = await sqLoad(item.id); } catch (e2) { /* keep the old copy */ } }
-            }
-          }
-        }
-        if (doT && !sqRun.stop) {
-          const list = pend('t');
-          if (!list.length) sqMark('t', item.id);
-          else if (item.night) { /* night time for the client: no text */ }
-          else if (!item.hasP) st.fail.push(name + ' (no phone number on the list)');
-          else {
-            const num = await sqNumber(w, o, sqRowFor(item.id));
-            if (sqRun.stop) break;
-            if (!num) {
-              st.fail.push(name + ' (the BO didn’t show the number)');
-              // The BO kept refusing: after two leads in a row, stop for now.
-              if (++st.refusals >= 2) { st.blocked = true; break; }
-            } else {
-              st.refusals = 0;
-              const text = sqText(item.info, list);
-              const a = await sqAsk(w, Object.assign({}, o, { prog: prog(), kind: 't', to: num, quotes: list, text }));
-              if (a.act === 'stop') { sqRun.stop = true; break; }
-              if (a.act === 'skip') st.skip++;
-              else {
-                sqBusy(w, o, 'Sending the text…');
-                const r = await sqSendText(num, a.text);
-                if (r.ok) { sqRemember('t', item.id, list.map((x) => x.pk)); sqMark('t', item.id); st.t++; } else st.fail.push(name + ' (text: ' + r.error + ')');
-                await sqSleep(1500);
-              }
-            }
-          }
-        }
+        const done = sqSent('e', item.id);
+        const list = data.quotes.filter((x) => x.ok && !done.has(x.pk) && !x.sent);
+        if (!list.length) { sqMark('e', item.id); continue; }
+        const shown = sqShownEmail(sqRowFor(item.id) || document.body);
+        const show = data.quotes.filter((x) => !x.ok || list.includes(x));
+        const a = await sqAsk(w, Object.assign({}, o, { prog: prog(), to: shown || 'the client\u2019s email on this lead', quotes: show }));
+        if (a.act === 'stop') { sqRun.stop = true; break; }
+        if (a.act === 'skip') { st.skip++; continue; }
+        sqBusy(w, o, 'Sending the email\u2026');
+        const r = await sqSendEmail(data.lead, list.map((x) => x.pk));
+        if (r.ok) { sqRemember('e', item.id, list.map((x) => x.pk)); sqMark('e', item.id); st.e++; } else st.fail.push(name + ' (' + r.error + ')');
+        await sqSleep(1500);
       }
     } finally {
       sqRun.on = false;
     }
-    const fails = st.fail.length ? '<div>Failed: <b>' + st.fail.length + '</b> — ' + st.fail.slice(0, 4).map(sqEsc).join('; ') + (st.fail.length > 4 ? '; …' : '') + '</div>' : '';
-    w.card.innerHTML = sqHead('✓', 'Send quotes', sqRun.stop ? 'Stopped' : st.blocked ? 'The BO is still blocking' : 'Done')
-      + '<div class="ia-sq__sum"><div>Emails sent: <b>' + st.e + '</b> · Texts sent: <b>' + st.t + '</b></div>'
-      + '<div>Skipped by you: <b>' + st.skip + '</b> · No green quotes: <b>' + st.none + '</b></div>' + fails + '</div>'
-      + (st.blocked ? '<div class="ia-sq__note">The BO kept refusing to open contacts for two leads in a row, so the run stopped here. Try again later: everything sent is remembered.</div>' : '<div class="ia-sq__note">Everything sent is remembered, so the next run carries on where this one stopped.</div>')
+    const fails = st.fail.length ? '<div>Failed: <b>' + st.fail.length + '</b> \u2014 ' + st.fail.slice(0, 4).map(sqEsc).join('; ') + (st.fail.length > 4 ? '; \u2026' : '') + '</div>' : '';
+    w.card.innerHTML = sqHead('\u2713', 'Send quotes', sqRun.stop ? 'Stopped' : 'Done')
+      + '<div class="ia-sq__sum"><div>Emails sent: <b>' + st.e + '</b></div>'
+      + '<div>Skipped by you: <b>' + st.skip + '</b> \u00b7 No green quotes: <b>' + st.none + '</b></div>' + fails + '</div>'
+      + '<div class="ia-sq__note">Everything sent is remembered, so the next run carries on where this one stopped.</div>'
       + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">Close</button></div>';
     w.card.querySelector('.is-go').addEventListener('click', w.close);
     sqPaintTicks();
@@ -12960,7 +12828,7 @@ function __jsEnsureSharedObserver() {
       chip.type = 'button';
       chip.className = 'ia-sq-chip';
       chip.textContent = '✈ Send quotes';
-      chip.title = 'Send each lead its green quotes — you confirm every message';
+      chip.title = 'Email each lead its green quotes \u2014 you confirm every email';
       chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); sqStart(); });
     }
     const pal = iaPalette();
@@ -12993,13 +12861,8 @@ function __jsEnsureSharedObserver() {
     .ia-sq__q.is-red .ia-sq__p { color: var(--q-bad); }
     .ia-sq__box { width: 15px; height: 15px; border-radius: 5px; background: var(--q-acc); color: var(--q-onacc); display: grid; place-items: center; font-size: 10px; }
     .ia-sq__box.is-off { background: transparent; border: 1.5px solid var(--q-sec); box-sizing: border-box; }
-    .ia-sq__msg { display: block; width: 100%; box-sizing: border-box; min-height: 170px; resize: vertical; border: 1px solid transparent; border-radius: 12px; padding: 9px 10px; background: var(--q-chip); color: var(--q-title); font: 500 12.5px/1.45 Inter, 'Segoe UI', system-ui, sans-serif; }
-    .ia-sq__msg:focus { outline: none; border-color: var(--q-acc); }
     .ia-sq__hint { font-size: 11px; color: var(--q-sec); margin-top: 5px; font-weight: 600; }
     .ia-sq__wait { padding: 10px 2px; color: var(--q-sec); }
-    .ia-sq__big { font: 800 22px Inter, 'Segoe UI', system-ui, sans-serif; }
-    .ia-sq__bar { height: 6px; border-radius: 999px; background: var(--q-chip); overflow: hidden; margin: 10px 0 6px; }
-    .ia-sq__bar i { display: block; height: 100%; width: 0; background: #f59e0b; border-radius: 999px; transition: width .9s linear; }
     .ia-sq__sum div { margin: 3px 0; }
     .ia-sq__chk { display: flex; gap: 8px; align-items: center; margin: 7px 0; font-size: 12.5px; cursor: pointer; }
     .ia-sq__chk input { accent-color: var(--q-acc); width: 15px; height: 15px; margin: 0; }
@@ -13020,11 +12883,10 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.13.0',
+    version: '2.14.0',
     items: [
-      'Change a lead\u2019s status straight from the leads list: click its round letter (N / P / F / C) and pick Potential, Follow up or Closed. No need to open the lead.',
-      'Closed opens the same \u201cClosing reason request?\u201d window as inside the lead: reason, duplicate lead, remark, urgency and files (drop or paste them).',
-      'A small green note confirms each change.',
+      'Send quotes now sends emails only: the text-message step has been taken out. You still see and confirm every email before it goes.',
+      'The yellow tick next to the PQs count now means the lead\u2019s quotes were emailed today.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
