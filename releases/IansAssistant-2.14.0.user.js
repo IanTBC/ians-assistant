@@ -12477,7 +12477,7 @@ function __jsEnsureSharedObserver() {
   // quotes from the BO, keeps only the green-badge (profitable) ones, writes
   // the BO's own "Send options" email, and then SHOWS EACH EMAIL AND WAITS:
   // nothing goes out until the agent presses Send (Skip and Stop are always
-  // there). Emails only: texting was taken out in 2.14.0 at Ian's request.
+  // there). Emails only: texting was taken out in 2.14.0.
   // A yellow tick in the PQs column marks leads whose quotes went out today
   // (click it to tick / untick); ticked leads are skipped.
   // ==========================================================================
