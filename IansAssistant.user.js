@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.15.0
+// @version      2.15.1
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -18,6 +18,7 @@
 // @match        *://*.tmgbo.com/*
 // @match        https://apps.ringcentral.com/integration/ringcentral-embeddable/*
 // @match        https://app.ringcentral.com/*
+// @match        https://iantbc.github.io/ians-assistant/*
 // @grant        GM_addStyle
 // @grant        GM_setClipboard
 // @grant        GM_getValue
@@ -121,10 +122,27 @@ function iaPipNode(size, p) {
 // a one-click "Update" (opens Tampermonkey's install screen). While
 // UPDATE_URL is empty this does nothing.
 // ====================================================================
+// ====================================================================
+// WEBSITE CHECK — on the TBC Assistant website only, tells the page that
+// the tool is installed (and which version), so its install guide can say
+// "You're all set". Nothing else runs there.
+// ====================================================================
+(function websiteCheck() {
+  if (location.hostname !== 'iantbc.github.io') return;
+  const v = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '';
+  const mark = () => {
+    document.documentElement.setAttribute('data-tbc-assistant', v);
+    document.dispatchEvent(new CustomEvent('tbc-assistant-ready', { detail: { version: v } }));
+  };
+  mark();
+  setTimeout(mark, 1500);
+})();
+
 (function updateNotice() {
   const UPDATE_URL = 'https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js';
   if (!UPDATE_URL || window.top !== window) return;
   if (/ringcentral\.com$/.test(location.hostname)) return;
+  if (location.hostname === 'iantbc.github.io') return; // the website shows updates itself
   const CHECK_KEY = 'ia-update-checked';
   const SNOOZE_KEY = 'ia-update-snooze';
   const installed = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '0';
@@ -13046,11 +13064,10 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.15.0',
+    version: '2.15.1',
     items: [
-      'A new look called Nova: soft colours, round pill buttons and new fonts, the same design as the TBC Assistant website. Everyone starts on Nova after this update.',
-      'Nova Night is the same design in dark colours.',
-      'The moon button now opens a small menu with every look: Nova, Nova Night, Dark, Light and Navy. Pick any of them; your choice is saved.',
+      'The TBC Assistant website now has a step-by-step install guide: one button walks a new agent through adding Tampermonkey and installing the tool, and the page checks that it worked.',
+      'Already installed? The website now shows "You\u2019re all set" with your version, or an Update button when a newer one is out.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';

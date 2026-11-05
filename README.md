@@ -12,6 +12,8 @@ A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites,
 
 ## Install (one time, on your computer)
 
+The easiest way: open **https://iantbc.github.io/ians-assistant/#install** in Chrome and follow the step-by-step guide. It opens each page for you and checks that everything works. Or do it by hand:
+
 1. Install the **Tampermonkey** extension in Chrome from the Chrome Web Store.
 2. Remove any older copy of this tool or a similar one from the Tampermonkey dashboard first, otherwise you'll see doubled buttons.
 3. Click the **Install** button above. Tampermonkey opens its install page — click **Install**.
@@ -58,6 +60,10 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the moon button on the panel opens a menu with five looks: **Nova** (the main look), **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.15.1 — step-by-step install**
+- The TBC Assistant website now walks new agents through installing: one button opens each step in order (Tampermonkey, then TBC Assistant), and the page checks that it worked.
+- Already installed? The website shows **You're all set** with your version, or **Update now** when a newer one is out.
 
 **2.15.0 — Nova look**
 - A new look called **Nova**: soft colours, round pill buttons and new fonts, the same design as the TBC Assistant website. Everyone starts on Nova after this update.

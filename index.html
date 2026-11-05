@@ -340,6 +340,69 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .rel b { color: var(--ink); }
 .news-more { margin-top: 18px; }
 
+/* install wizard */
+.wiz { border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow); padding: clamp(18px, 3.4vw, 32px); display: grid; gap: 18px; position: relative; overflow: hidden; isolation: isolate; }
+.wiz::before { content: ""; position: absolute; z-index: -1; width: 420px; height: 420px; border-radius: 50%; right: -160px; top: -200px; background: radial-gradient(circle, color-mix(in srgb, var(--c1) 45%, transparent), transparent 65%); }
+.wiz-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wiz-status { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 12px; border-radius: 999px; background: var(--bg); font-weight: 700; font-size: .92rem; }
+.wiz-status i { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.wiz[data-state="waiting"] .wiz-status i { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.wiz[data-state="fix"] .wiz-status i { background: var(--accent); }
+.wiz[data-state="done"] .wiz-status i, .wiz[data-state="update"] .wiz-status i { background: var(--mint); box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint) 22%, transparent); }
+.wiz-count { font-size: .78rem; color: var(--muted); letter-spacing: .06em; }
+.wiz-bar { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.wiz-bar i { display: block; height: 100%; width: 100%; border-radius: 99px; background: var(--mint); transform-origin: left; transform: scaleX(.04); transition: transform .7s var(--ease); }
+
+.wiz-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ws { display: grid; grid-template-columns: 40px 1fr; gap: 14px; padding: 16px; border-radius: var(--r-lg); background: var(--bg); align-items: start; transition: background .3s; }
+.ws-n { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--muted); font: 600 1rem var(--f-display); box-shadow: inset 0 0 0 1.5px var(--line); position: relative; }
+.ws-n svg { position: absolute; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.4); transition: opacity .25s, transform .45s var(--spring); }
+.ws-n b { transition: opacity .2s, transform .3s var(--ease); }
+.ws.is-active .ws-n { background: var(--btn-bg); color: var(--btn-fg); box-shadow: none; }
+.ws.is-done .ws-n { background: var(--mint); color: #0A0D19; box-shadow: none; }
+.ws.is-done .ws-n b { opacity: 0; transform: scale(.4); }
+.ws.is-done .ws-n svg { opacity: 1; transform: none; }
+.ws-body { min-width: 0; padding-top: 8px; }
+.ws-body h3 { font-size: 1.02rem; }
+.ws:not(.is-active) .ws-body h3 { color: var(--muted); }
+.ws.is-done .ws-body h3 { color: var(--ink); }
+.ws-sum { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+.ws-open { display: none; }
+.ws.is-active { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); }
+.ws.is-active .ws-sum { display: none; }
+.ws.is-active .ws-open { display: grid; gap: 4px; animation: vt-in .42s var(--ease) both; }
+.ws-open > p { color: var(--muted); font-size: .95rem; margin-top: 6px; max-width: 60ch; }
+.ws-open .row { margin-top: 16px; }
+.ws-wait { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-weight: 700; font-size: .92rem; color: var(--ink); }
+.spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--surface-2); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+
+.fix p { color: var(--muted); font-size: .95rem; margin-top: 6px; max-width: 60ch; }
+.fix p b { color: var(--ink); }
+.fix-list { margin: 14px 0 0; padding: 0; list-style: none; counter-reset: f; display: grid; gap: 10px; }
+.fix-list li { counter-increment: f; display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 10px; font-size: .94rem; }
+.fix-list li > span { min-width: 0; }
+.fix-list li::before { content: counter(f); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font: 600 .74rem var(--f-mono); flex: none; }
+.copy-addr { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--btn-bg); color: var(--btn-fg); transition: transform .3s var(--spring); }
+.copy-addr:active { transform: scale(.95); }
+.copy-addr code { font-family: var(--f-mono); font-size: .85rem; }
+.copy-addr svg { width: 16px; height: 16px; }
+
+.wiz-done, .wiz-away { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; padding: 8px 4px; }
+.wiz [hidden] { display: none !important; }
+.wiz-done h3, .wiz-away h3 { font-size: clamp(1.2rem, 2.6vw, 1.6rem); font-weight: 700; letter-spacing: -.03em; }
+.wiz-done p, .wiz-away p { color: var(--muted); margin-top: 8px; max-width: 58ch; }
+.wiz-tick { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--mint); color: #0A0D19; animation: tick-pop .6s var(--spring) both; }
+.wiz-tick svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+@keyframes tick-pop { from { transform: scale(.3); opacity: 0; } }
+.wiz-away__ic { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-text); }
+.wiz-away__ic svg { width: 28px; height: 28px; }
+@media (max-width: 460px) {
+  .wiz-done, .wiz-away { grid-template-columns: 1fr; }
+  .ws { grid-template-columns: 34px 1fr; gap: 12px; padding: 14px; }
+  .ws-n { width: 34px; height: 34px; }
+  .ws-body { padding-top: 5px; }
+}
+
 /* faq */
 .faq { display: grid; gap: 12px; }
 .faq details { border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow); }
@@ -466,17 +529,17 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 <main id="main">
   <section class="wrap hero" id="top">
     <div>
-      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>For TBC agents &middot; <span data-ver>v2.14.0</span></p>
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>For TBC agents &middot; <span data-ver>v2.15.1</span></p>
       <h1>Quote faster. Call smarter. <em>Miss nothing.</em></h1>
       <p class="lede">TBC Assistant is a free add-on for Chrome that sits inside the BO and the flight sites you already use. It copies flights in Sabre format, adds them to your lead, dials your list and reminds you of every callback.</p>
       <div class="row">
         <a class="btn" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" data-install>
           <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-          Download free <span class="ver" data-ver>v2.14.0</span>
+          <span class="lab">Download free</span> <span class="ver" data-ver>v2.15.1</span>
         </a>
         <a class="btn ghost" href="#install">How to install</a>
       </div>
-      <p class="hero-note"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>Needs the free Tampermonkey extension in Chrome on your computer.</p>
+      <p class="hero-note"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>The button walks you through it: Tampermonkey first, then TBC Assistant.</p>
       <dl class="hero-stats">
         <div><dt>Flight sites</dt><dd>7</dd></div>
         <div><dt>To copy a flight</dt><dd>1 click</dd></div>
@@ -737,33 +800,108 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       <p>Updates install by themselves. You'll also see a small banner in the BO when a new version is out.</p>
     </div>
     <div class="news">
-      <article class="rel reveal"><div class="rel-top"><span class="v">2.15.0</span><h3>Nova look</h3></div>
+      <article class="rel reveal"><div class="rel-top"><span class="v">2.15.1</span><h3>Step-by-step install</h3></div>
+        <ul><li>This website now walks you through installing: one button opens each step in order, and the page checks that it worked.</li><li>Already installed? The page shows <b>You're all set</b> with your version, or <b>Update now</b> when a newer one is out.</li></ul></article>
+      <article class="rel reveal"><div class="rel-top"><span class="v old">2.15.0</span><h3>Nova look</h3></div>
         <ul><li>A new look called <b>Nova</b>, the same design as this website. Everyone starts on Nova after the update.</li><li><b>Nova Night</b> is the same design in dark colours.</li><li>The moon button opens a menu with every look: <b>Nova, Nova Night, Dark, Light and Navy</b>.</li></ul></article>
       <article class="rel reveal"><div class="rel-top"><span class="v old">2.14.0</span><h3>Send quotes: emails only</h3></div>
         <ul><li><b>Send quotes</b> now sends emails only: the text-message step has been taken out. You still see and confirm every email before it goes.</li><li>The yellow tick next to the PQs count now means the lead's quotes were emailed today.</li></ul></article>
-      <article class="rel reveal"><div class="rel-top"><span class="v old">2.13.0</span><h3>Status from the leads list</h3></div>
-        <ul><li>Click a lead's round letter (N / P / F / C) and pick <b>Potential</b>, <b>Follow up</b> or <b>Closed</b>. No need to open the lead.</li><li><b>Closed</b> opens the same closing-reason window as inside the lead.</li></ul></article>
     </div>
     <p class="news-more reveal"><a class="link" href="https://github.com/IanTBC/ians-assistant#whats-new">Every update so far <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></p>
   </section>
 
-  <!-- INSTALL -->
+  <!-- INSTALL (guided) -->
   <section class="wrap section" id="install">
     <div class="sec-head reveal">
-      <p class="eyebrow">How to install</p>
-      <h2>Ready in about two minutes</h2>
-      <p>One time, on your work computer, in Google Chrome.</p>
+      <p class="eyebrow">Install</p>
+      <h2>Set up in three steps</h2>
+      <p>On your work computer, in Google Chrome. Each button opens exactly what you need next, and this page checks that it worked.</p>
     </div>
-    <ol class="steps" style="list-style:none;margin:0;padding:0">
-      <li class="step reveal"><span class="n">01</span><h3>Add Tampermonkey</h3><p>Install the free Tampermonkey extension from the Chrome Web Store.</p>
-        <a class="btn ghost sm" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Open Web Store</a></li>
-      <li class="step reveal"><span class="n">02</span><h3>Remove old copies</h3><p>If you had an older copy of this tool or a similar one, delete it from the Tampermonkey dashboard first, so you don't see doubled buttons.</p></li>
-      <li class="step reveal"><span class="n">03</span><h3>Install TBC Assistant</h3><p>Tap the button below. Tampermonkey opens its install page: click <b>Install</b>.</p>
-        <a class="btn sm" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" data-install>Install now</a></li>
-      <li class="step reveal"><span class="n">04</span><h3>Open a lead</h3><p>Open any lead in the BO. Pip appears in the bottom-right corner and greets you by name. That's it.</p></li>
-    </ol>
-    <div class="tip reveal"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>
-      <p><b>Nothing happened in step 3?</b> Open <code>chrome://extensions</code>, click <b>Details</b> on Tampermonkey and turn on <b>Allow user scripts</b>. Then tap Install again.</p></div>
+
+    <div class="wiz reveal" id="wiz" data-state="start">
+      <div class="wiz-top">
+        <span class="wiz-status" id="wizStatus"><i></i><span id="wizStatusTxt">Not installed yet</span></span>
+        <span class="wiz-count mono" id="wizCount">Step 1 of 3</span>
+      </div>
+      <div class="wiz-bar" aria-hidden="true"><i id="wizBar"></i></div>
+
+      <!-- phone / other browser -->
+      <div class="wiz-away" id="wizAway" hidden>
+        <span class="wiz-away__ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2.5"/><path d="M8 20h8M12 16.5V20"/></svg></span>
+        <div>
+          <h3 id="wizAwayT">Install it on your work computer</h3>
+          <p id="wizAwayP">TBC Assistant runs in Google Chrome on a computer. Send yourself this page and open it there.</p>
+          <div class="row" style="margin-top:14px"><button class="btn sm" id="wizShare">Copy this page's link</button></div>
+        </div>
+      </div>
+
+      <ol class="wiz-steps" id="wizSteps">
+        <li class="ws" data-step="1">
+          <span class="ws-n"><b>1</b><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          <div class="ws-body">
+            <h3>Add Tampermonkey to Chrome</h3>
+            <p class="ws-sum">The free extension that runs TBC Assistant.</p>
+            <div class="ws-open">
+              <p>The Chrome Web Store opens in a new tab. Click <b>Add to Chrome</b>, then <b>Add extension</b>, and come back to this tab.</p>
+              <div class="row">
+                <a class="btn" id="wizStore" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">
+                  <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Add Tampermonkey</a>
+                <button class="btn ghost" id="wizHave">I already have it</button>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="ws" data-step="2">
+          <span class="ws-n"><b>2</b><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          <div class="ws-body">
+            <h3>Install TBC Assistant</h3>
+            <p class="ws-sum">One click in Tampermonkey's install screen.</p>
+            <div class="ws-open">
+              <p>Tampermonkey opens its install screen. Click <b>Install</b>, then come back to this tab. If you had an older copy, remove it from the Tampermonkey dashboard first.</p>
+              <div class="row">
+                <a class="btn" id="wizInstall" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js">
+                  <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install TBC Assistant <span class="ver" data-ver>v2.15.1</span></a>
+                <button class="btn ghost" id="wizBack1">Back</button>
+              </div>
+              <p class="ws-wait" id="wizWait" hidden><span class="spin" aria-hidden="true"></span>Waiting for TBC Assistant to start&hellip;</p>
+            </div>
+          </div>
+        </li>
+        <li class="ws" data-step="3">
+          <span class="ws-n"><b>3</b><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          <div class="ws-body">
+            <h3>Check it works</h3>
+            <p class="ws-sum">This page checks by itself.</p>
+            <div class="ws-open">
+              <div class="fix" id="wizFix">
+                <p><b>Chrome needs one switch turned on.</b> It's a Chrome setting, so it can't be opened from a link:</p>
+                <ol class="fix-list">
+                  <li><span>Copy this address: <button class="copy-addr" id="wizCopyAddr"><code>chrome://extensions</code><svg class="i" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button></span></li>
+                  <li><span>Open a new tab, paste it in the address bar and press Enter.</span></li>
+                  <li><span>On <b>Tampermonkey</b>, click <b>Details</b> and turn on <b>Allow user scripts</b>.</span></li>
+                  <li><span>Come back here and press <b>Check again</b>.</span></li>
+                </ol>
+                <div class="row"><button class="btn" id="wizCheck">Check again</button><a class="btn ghost" id="wizRetry" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js">Install again</a></div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ol>
+
+      <!-- success -->
+      <div class="wiz-done" id="wizDone" hidden>
+        <span class="wiz-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+        <div>
+          <h3 id="wizDoneT">You're all set</h3>
+          <p id="wizDoneP">TBC Assistant <span class="mono" id="wizDoneV">v2.15.0</span> is installed and running. Open any lead in the BO and Pip will greet you in the bottom-right corner.</p>
+          <div class="row" style="margin-top:14px">
+            <a class="btn" id="wizUpdate" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" hidden>Update now</a>
+            <a class="btn" id="wizBO" href="https://bo.travelbusinessclass.com/leads/" target="_blank" rel="noopener">Open the BO</a>
+            <button class="btn ghost" id="wizRestart">Set up another computer</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- FAQ -->
@@ -781,6 +919,8 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
           <div class="ans"><p>They install by themselves. Within a few minutes of a new version you'll also see a small banner saying it's available: click <b>Update</b> to get it right away.</p><p>The <b>What's new</b> button on the panel shows what the latest update changed.</p></div></details>
         <details class="reveal"><summary>Does it send anything without me?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>No. Send quotes shows you every email first and waits for you to press Send, Skip or Stop. Quote cards and copied flights only go where you paste them.</p></div></details>
+        <details class="reveal"><summary>Why does it take three steps?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+          <div class="ans"><p>Chrome only lets you add extensions yourself, from the Chrome Web Store, so no website can install them for you. The guide above opens each page for you in order and checks at the end that everything works.</p></div></details>
         <details class="reveal"><summary>Does it work on my phone?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>It is made for Chrome on your work computer, where you use the BO. You can read this page on your phone and install it later from your desk.</p></div></details>
         <details class="reveal"><summary>I see every button twice.<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
@@ -801,7 +941,7 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       <p>Install once, and Pip is waiting in the corner of every lead. Updates arrive on their own.</p>
       <div class="row">
         <a class="btn" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" data-install>
-          <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download free <span class="ver" data-ver>v2.14.0</span></a>
+          <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="lab">Download free</span> <span class="ver" data-ver>v2.15.1</span></a>
         <a class="btn ghost" href="#news">See what's new</a>
       </div>
     </div>
@@ -810,7 +950,7 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 
 <footer>
   <div class="wrap foot">
-    <span>TBC Assistant &middot; for TBC agents &middot; <span data-ver>v2.14.0</span></span>
+    <span>TBC Assistant &middot; for TBC agents &middot; <span data-ver>v2.15.1</span></span>
     <nav aria-label="Footer">
       <a href="#news">What's new</a>
       <a href="https://github.com/IanTBC/ians-assistant">Source</a>
@@ -853,13 +993,154 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
     t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600);
   }
 
-  /* install buttons */
-  $$('[data-install]').forEach(a => a.addEventListener('click', () => toast('Opening the install page. Click Install in Tampermonkey.')));
+  /* ---------- guided install ---------- */
+  const wiz = (() => {
+    const W = $('#wiz');
+    if (!W) return null;
+    const KEY = 'tbc-wiz';
+    const RAW = 'https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js';
+    const ua = navigator.userAgent;
+    const onPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    const onChromium = (!!window.chrome || /Chrome\//.test(ua)) && !/Firefox|FxiOS/i.test(ua);
+    let state = 'start', latest = null, leftAt = 0, waitTimer = 0;
+
+    const installed = () => root.dataset.tbcAssistant || null;
+    const cmp = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
+    const save = (s) => store.set(KEY, s);
+
+    const TEXT = {
+      start: ['Not installed yet', 'Step 1 of 3', .04],
+      step2: ['Tampermonkey added', 'Step 2 of 3', .38],
+      waiting: ['Waiting for TBC Assistant', 'Step 2 of 3', .58],
+      checking: ['Checking', 'Step 3 of 3', .8],
+      fix: ['One setting left', 'Step 3 of 3', .8],
+      done: ['Installed and running', 'Done', 1],
+      update: ['Update available', 'Done', 1],
+      away: ['Use your work computer', '', .04],
+    };
+    function render(s) {
+      state = s;
+      W.dataset.state = s;
+      const [t, c, p] = TEXT[s];
+      $('#wizStatusTxt').textContent = t;
+      $('#wizCount').textContent = c;
+      $('#wizBar').style.transform = `scaleX(${p})`;
+      const active = { start: 1, step2: 2, waiting: 2, checking: 3, fix: 3 }[s] || 0;
+      $$('.ws', W).forEach((li) => {
+        const n = +li.dataset.step;
+        li.classList.toggle('is-active', n === active);
+        li.classList.toggle('is-done', n < active);
+      });
+      $('#wizWait').hidden = s !== 'waiting';
+      $('#wizFix').hidden = s !== 'fix';
+      const end = s === 'done' || s === 'update';
+      $('#wizSteps').hidden = end || s === 'away';
+      $('#wizDone').hidden = !end;
+      $('#wizAway').hidden = s !== 'away';
+      if (s === 'checking') { $('#wizFix').hidden = true; }
+      if (end) {
+        const v = installed() || '';
+        $('#wizDoneV').textContent = 'v' + v;
+        $('#wizUpdate').hidden = s !== 'update';
+        $('#wizDoneT').textContent = s === 'update' ? 'A newer version is ready' : "You're all set";
+        $('#wizDoneP').firstChild.textContent = 'TBC Assistant ';
+        if (s === 'update') $('#wizDoneP').lastChild.textContent = ` is installed. Version v${latest} is out: click Update now, then Install in Tampermonkey.`;
+        else $('#wizDoneP').lastChild.textContent = ' is installed and running. Open any lead in the BO and Pip will greet you in the bottom-right corner.';
+      }
+      paintHero();
+    }
+    // The hero buttons always do the next step.
+    function paintHero() {
+      $$('[data-install]').forEach((a) => {
+        const lab = a.querySelector('.lab');
+        if (!lab) return;
+        if (state === 'done') lab.textContent = 'Installed';
+        else if (state === 'update') lab.textContent = 'Update';
+        else if (state === 'step2' || state === 'waiting' || state === 'fix') lab.textContent = 'Install TBC Assistant';
+        else lab.textContent = 'Download free';
+      });
+    }
+    function settle() {
+      const v = installed();
+      if (v) { save('done'); render(latest && cmp(latest, v) > 0 ? 'update' : 'done'); return true; }
+      return false;
+    }
+    function goStore() {
+      window.open($('#wizStore').href, '_blank', 'noopener');
+      leftAt = Date.now();
+      save('step1-open');
+      toast('Click Add to Chrome, then come back to this tab');
+    }
+    function goInstall() {
+      window.open(RAW, '_blank');      // Tampermonkey catches this and shows its install screen
+      leftAt = Date.now();
+      save('waiting');
+      render('waiting');
+      clearTimeout(waitTimer);
+      waitTimer = setTimeout(() => { if (state === 'waiting') render('fix'); }, 45000);
+    }
+    // A new script only starts on pages opened after it was installed,
+    // so coming back to this tab reloads it once and checks.
+    function onReturn() {
+      if (document.visibilityState !== 'visible' || !leftAt || Date.now() - leftAt < 1500) return;
+      const saved = store.get(KEY);
+      leftAt = 0;
+      if (saved === 'step1-open') { save('step2'); render('step2'); toast('Next: install TBC Assistant'); }
+      else if (saved === 'waiting') { save('checking'); location.reload(); }
+    }
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    document.addEventListener('tbc-assistant-ready', () => settle());
+
+    $('#wizStore').addEventListener('click', (e) => { e.preventDefault(); goStore(); });
+    $('#wizHave').addEventListener('click', () => { save('step2'); render('step2'); });
+    $('#wizBack1').addEventListener('click', () => { save('start'); render('start'); });
+    $('#wizInstall').addEventListener('click', (e) => { e.preventDefault(); goInstall(); });
+    $('#wizRetry').addEventListener('click', (e) => { e.preventDefault(); goInstall(); });
+    $('#wizCheck').addEventListener('click', () => { save('checking'); location.reload(); });
+    $('#wizRestart').addEventListener('click', () => { save('start'); render('start'); });
+    $('#wizUpdate').addEventListener('click', (e) => { e.preventDefault(); goInstall(); });
+    $('#wizCopyAddr').addEventListener('click', () => {
+      const t = 'chrome://extensions';
+      (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in a new tab'), () => toast('Type chrome://extensions in a new tab'));
+    });
+    $('#wizShare').addEventListener('click', () => {
+      const url = location.href.split('#')[0] + '#install';
+      if (navigator.share) navigator.share({ title: 'TBC Assistant', url }).catch(() => {});
+      else (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast('Link copied'), () => toast(url));
+    });
+
+    // Download buttons anywhere on the page run the next step.
+    $$('[data-install]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      $('#install').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      if (state === 'start') goStore();
+      else if (state === 'step2' || state === 'fix' || state === 'update') goInstall();
+      else if (state === 'done') toast('TBC Assistant is already installed');
+    }));
+
+    function boot() {
+      if (onPhone) { $('#wizAwayT').textContent = 'Install it on your work computer'; $('#wizAwayP').textContent = "TBC Assistant runs in Google Chrome on a computer. Send yourself this page's link and open it there."; render('away'); return; }
+      if (!onChromium) { $('#wizAwayT').textContent = 'Open this page in Google Chrome'; $('#wizAwayP').textContent = 'TBC Assistant works in Google Chrome. Copy the link and open it in Chrome on your work computer.'; render('away'); return; }
+      const saved = store.get(KEY);
+      if (saved === 'checking') {
+        render('checking');
+        let tries = 0;
+        const t = setInterval(() => { if (settle()) clearInterval(t); else if (++tries > 12) { clearInterval(t); save('fix'); render('fix'); } }, 250);
+        return;
+      }
+      render(saved === 'step2' || saved === 'step1-open' ? 'step2' : saved === 'fix' ? 'fix' : 'start');
+      // The script marks the page a moment after it loads.
+      let tries = 0;
+      const t = setInterval(() => { if (settle() || ++tries > 12) clearInterval(t); }, 250);
+    }
+    return { boot, render, setLatest(v) { latest = v; if (installed()) settle(); }, get state() { return state; } };
+  })();
 
   /* live version from the install file */
   fetch('https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js', { cache: 'no-store' })
     .then(r => r.ok ? r.text() : '')
-    .then(t => { const m = t.match(/@version\s+([\d.]+)/); if (m) $$('[data-ver]').forEach(e => e.textContent = 'v' + m[1]); })
+    .then(t => { const m = t.match(/@version\s+([\d.]+)/); if (m) { $$('[data-ver]').forEach(e => e.textContent = 'v' + m[1]); if (wiz) wiz.setLatest(m[1]); } })
     .catch(() => {});
 
   /* reveal on scroll */
@@ -946,6 +1227,8 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 
   /* demo: card */
   $('[data-copycard]').addEventListener('click', () => toast('Picture copied. Paste it into your chat.'));
+
+  if (wiz) wiz.boot();
 
   /* demo: send quotes */
   const mails = [
