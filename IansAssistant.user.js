@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.15.1
+// @version      2.16.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -1409,6 +1409,93 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     });
     return itinerary;
   }
+
+  // ------------------------------------------------------------------
+  // SUPER BASIS worker (2.16.0): a Basis results tab opened by Super Basis
+  // in the BO. It waits for the results to stop changing, sends a short
+  // summary of each one back to the BO (flights, cheapest program, miles,
+  // taxes, the ready *IA / VI* text) and the BO closes the tab.
+  // ------------------------------------------------------------------
+  function sbSummary(it, id) {
+    const pax = fbSearchPax();
+    const legs = (it.flights || []).flatMap((f) => f.legs || []);
+    if (!legs.length) return null;
+    const first = legs[0], last = legs[legs.length - 1];
+    const okP = (o) => { const c = programCode(o.program); return c && BO_PROGRAMS.includes(c) ? 0 : 1; };
+    const cost = (o) => (typeof o.price === 'number' ? o.price : Infinity);
+    const offers = [];
+    const collect = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 6) return;
+      if (Array.isArray(n)) { n.forEach((x) => collect(x, d + 1)); return; }
+      if (n.points && n.program) offers.push(n);
+      Object.keys(n).forEach((k) => { if (n[k] && typeof n[k] === 'object') collect(n[k], d + 1); });
+    };
+    collect(it.awards, 0);
+    offers.sort((a, b) => okP(a) - okP(b) || cost(a) - cost(b));
+    const o = offers[0] || null;
+    const seats = o && (o.seats || o.remainingSeats || o.availableSeats || o.seatsRemaining);
+    const legNo = (l) => (l.airline && l.airline.code ? l.airline.code : '') + ' ' + fbStripCarrierPrefixFromFlightNumber(String(l.flightNumber || ''), l.airline && l.airline.code);
+    let text = '';
+    try { text = buildBoth(fbCleanItineraryFlightNumbers(JSON.parse(JSON.stringify(pax ? Object.assign({}, it, { pax }) : it)))); } catch (e) { text = ''; }
+    let problem = '';
+    try { problem = text ? (gdsTextProblem(text) || '') : 'Flights not readable'; } catch (e) { problem = ''; }
+    const code = o ? programCode(o.program) : null;
+    const miles = o ? Number(o.points) || 0 : 0;
+    const taxes = o ? Math.round((Number(o.surcharge) || 0) * 100) / 100 : 0;
+    const cash = o ? 0 : Number(it.total || (it.flights && it.flights[0] && it.flights[0].price)) || 0;
+    let price = null;
+    if (o && code && BO_PROGRAMS.includes(code)) price = { kind: 'award', parts: [{ points: miles, taxesPerPerson: taxes, program: code }] };
+    else if (!o && cash > 0) price = { kind: 'cash', perPerson: cash };
+    return {
+      id: String(id || ''),
+      dep: String(first.departure || ''), arr: String(last.arrival || ''),
+      route: [first.origin && first.origin.iata].concat(legs.map((l) => l.destination && l.destination.iata)).filter(Boolean),
+      flights: legs.map(legNo),
+      stops: legs.length - 1,
+      mins: legs.reduce((t, l) => t + (Number(l.duration) || 0), 0),
+      cabin: String(first.cabin || ''),
+      program: code || (o ? String(o.program) : ''),
+      programName: code ? (PROGRAM_NAMES[code] || code) : (o ? String(o.program) : ''),
+      miles, taxes, cash,
+      seats: seats != null ? Number(seats) || 0 : null,
+      text, problem, price,
+      rush: code && RUSH_PROGRAMS[code] ? RUSH_PROGRAMS[code] + ' Detected, Rush flight only' : '',
+      inf: { cash: INFANT_CASH_NET, miles: INFANT_AWARD_MILES },
+    };
+  }
+  (function sbWorker() {
+    if (!/agentsearch\.vercel\.app|flybasis\.com/.test(location.hostname) || window.top !== window) return;
+    let job = null;
+    try { job = JSON.parse(GM_getValue('ia-sb-job', 'null')); } catch (e) { job = null; }
+    if (!job || !Array.isArray(job.urls) || Date.now() - job.at > 15 * 60 * 1000) return;
+    const sOf = (u) => { try { return new URL(u, location.href).searchParams.get('s'); } catch (e) { return null; } };
+    const mine = sOf(location.href);
+    // Same search: exact link, or (if Basis rewrote it) same route and date.
+    const sig = (sv) => { try { const j = JSON.parse(atob(sv)); const st = j.stops[0]; return [st.origin[0].code, st.destination[0].code, st.date.value, st.date.range, j.cabin, j.pax].join('|'); } catch (e) { return null; } };
+    let idx = job.urls.findIndex((u) => sOf(u) === mine);
+    if (idx < 0 && mine) { const me = sig(mine); idx = me ? job.urls.findIndex((u) => sig(sOf(u)) === me) : -1; }
+    if (idx < 0 || !mine) return;
+    const key = 'ia-sb-res-' + job.id + '-' + idx;
+    const report = (state, items) => { try { GM_setValue(key, JSON.stringify({ state, items, url: location.href, at: Date.now() })); } catch (e) { /* ignore */ } };
+    report('searching', []);
+    const t0 = Date.now();
+    let lastN = -1, stableAt = Date.now();
+    const tick = setInterval(() => {
+      const cards = document.querySelectorAll('[data-json][data-itinerary-id]');
+      const n = cards.length;
+      if (n !== lastN) { lastN = n; stableAt = Date.now(); }
+      const quiet = Date.now() - stableAt;
+      const txt = (document.body && document.body.innerText || '').slice(0, 30000);
+      const none = n === 0 && /no (flights|results|itineraries|availability)/i.test(txt);
+      const signedOut = n === 0 && /sign in|log in|login/i.test(txt) && Date.now() - t0 > 8000;
+      const timedOut = Date.now() - t0 > 75000;
+      if (!((n > 0 && quiet > 4000) || (none && quiet > 3000) || signedOut || timedOut)) return;
+      clearInterval(tick);
+      const items = [];
+      cards.forEach((c) => { try { const x = sbSummary(JSON.parse(c.dataset.json), c.dataset.itineraryId); if (x) items.push(x); } catch (e) { /* skip */ } });
+      report(items.length ? 'done' : (signedOut ? 'signedout' : 'empty'), items);
+    }, 500);
+  })();
 
   function injectFlyBasisButtons() {
     const cards = document.querySelectorAll('[data-json][data-itinerary-id]');
@@ -7281,7 +7368,35 @@ function __jsEnsureSharedObserver() {
     };
     mkAct('Outbound', 'out', !sides.ret);
     if (sides.ret) { mkAct('Return', 'ret', false); mkAct('Both \u2197', 'rt', false); mkAct('Round trip \u2197', 'trip', true); }
-    el.append(h, row, cabRow, info, acts, err);
+    // Super Basis (2.16.0): the same one-way search, with the results shown
+    // right here in the lead (GDS / Add to lead) instead of a new tab.
+    const sbActs = document.createElement('div');
+    sbActs.className = 'ia-fxp-ma-acts ia-sb-acts';
+    const sbLbl = document.createElement('span');
+    sbLbl.className = 'ia-sb-acts__l';
+    sbLbl.textContent = '\u2605 Super Basis \u00b7 results in the lead';
+    sbActs.appendChild(sbLbl);
+    const sbGo = (mode) => {
+      [A, B].forEach((x) => { if (x.inp.value) x.add(x.inp.value); });
+      const from = A.list, to = B.list;
+      if (!from.length || !to.length) { err.textContent = 'Add at least one airport on each side'; return; }
+      const d = mode === 'ret' ? (dRet && dRet.value) : dOut.value;
+      if (!d) { err.textContent = mode === 'ret' ? 'Pick the return date' : 'Pick the outbound date'; return; }
+      const f = mode === 'ret' ? to : from, t = mode === 'ret' ? from : to;
+      const url = srchBasisMulti(lead, f, t, d, null, bCab, range);
+      const anchor = btn;
+      srchCloseMenu();
+      sbStart(anchor, { url, from: f[0], to: t[0], date: d, cab: bCab, pax: srchPaxTotal(lead) });
+    };
+    [['Outbound', 'out']].concat(sides.ret ? [['Return', 'ret']] : []).forEach(([label, mode]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ia-fxp-ma-go ia-sb-go';
+      b.textContent = label;
+      b.addEventListener('click', (e) => { e.stopPropagation(); sbGo(mode); });
+      sbActs.appendChild(b);
+    });
+    el.append(h, row, cabRow, info, acts, sbActs, err);
     el.addEventListener('mousedown', (e) => e.stopPropagation());
     document.body.appendChild(el);
     const r = btn.getBoundingClientRect();
@@ -7303,6 +7418,238 @@ function __jsEnsureSharedObserver() {
     };
     return 'https://agentsearch.vercel.app/flights?s=' + encodeURIComponent(btoa(JSON.stringify(payload)));
   }
+
+
+  // ==================================================================
+  // SUPER BASIS (2.16.0): runs a Basis search in a background tab, shows
+  // the results here in the lead and closes that tab. GDS copies the
+  // *IA / VI* text; Add to lead adds the option to this lead (same helper
+  // as the flight-site pop-up, priced for the lead's passengers). One
+  // airport each side, ±1 day. Nothing is sent to the client.
+  // ==================================================================
+  let sbCur = null;
+  const sbEsc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const SB_CAB = { B: 'Business', W: 'Premium', F: 'First', Y: 'Economy' };
+  function sbWhen(iso) {
+    const m = /(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(String(iso || ''));
+    if (!m) return { day: '', time: '' };
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return { day: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }), time: m[4] + ':' + m[5], ymd: m[1] + m[2] + m[3] };
+  }
+  function sbDur(mins) { const h = Math.floor(mins / 60), m = mins % 60; return mins ? h + ' h ' + String(m).padStart(2, '0') : ''; }
+  function sbStop() {
+    if (!sbCur) return;
+    clearTimeout(sbCur.timer);
+    try { if (sbCur.tab && sbCur.tab.close) sbCur.tab.close(); } catch (e) { /* ignore */ }
+    if (sbCur.lid != null && typeof GM_removeValueChangeListener === 'function') { try { GM_removeValueChangeListener(sbCur.lid); } catch (e) { /* ignore */ } }
+    try { GM_setValue('ia-sb-res-' + sbCur.id + '-0', null); } catch (e) { /* ignore */ }
+    sbCur.lid = null; sbCur.tab = null;
+  }
+  function sbCard(anchor) {
+    const box = anchor.closest('.kayak-offers');
+    const body = (box && box.querySelector(':scope > .kayak-offers-body')) || (anchor.parentElement || document.body);
+    let card = body.querySelector(':scope > .ia-sb');
+    if (!card) {
+      card = document.createElement('section');
+      card.className = 'ia-sb';
+      card.setAttribute('aria-live', 'polite');
+      body.appendChild(card);
+    }
+    card.classList.toggle('ia-sb--nova', typeof iaIsNova === 'function' && iaIsNova(iaMode()));
+    return card;
+  }
+  function sbHead(q) {
+    const w = sbWhen(q.date + 'T00:00');
+    return '<div class="ia-sb-h"><span class="ia-sb-star" aria-hidden="true">★</span><div class="ia-sb-ht"><b class="ia-sb-t">Super Basis</b>'
+      + '<span class="ia-sb-meta">' + sbEsc(q.from) + ' → ' + sbEsc(q.to) + ' · ' + sbEsc(w.day) + ' ±1 day · ' + sbEsc(SB_CAB[q.cab] || 'Business') + ' · ' + q.pax + ' pax</span></div>'
+      + '<button type="button" class="ia-sb-ic ia-sb-re" title="Search again" aria-label="Search again">↻</button>'
+      + '<button type="button" class="ia-sb-ic ia-sb-x" title="Close" aria-label="Close Super Basis">×</button></div>';
+  }
+  function sbWireHead(card, anchor, q) {
+    card.querySelector('.ia-sb-x').addEventListener('click', (e) => { e.stopPropagation(); sbStop(); card.remove(); sbCur = null; });
+    card.querySelector('.ia-sb-re').addEventListener('click', (e) => { e.stopPropagation(); sbStart(anchor, q); });
+  }
+  function sbStart(anchor, q) {
+    sbStop();
+    const card = sbCard(anchor);
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    sbCur = { id, q, card, anchor, tab: null, lid: null, timer: 0 };
+    card.innerHTML = sbHead(q) + '<div class="ia-sb-st"><span class="ia-sb-spin" aria-hidden="true"></span>Searching Basis in a background tab… this takes up to a minute</div>';
+    sbWireHead(card, anchor, q);
+    const key = 'ia-sb-res-' + id + '-0';
+    try { GM_setValue('ia-sb-job', JSON.stringify({ id, urls: [q.url], at: Date.now() })); } catch (e) { /* ignore */ }
+    try {
+      sbCur.lid = GM_addValueChangeListener(key, (n, o, v) => {
+        if (!sbCur || sbCur.id !== id || !v) return;
+        let r; try { r = JSON.parse(v); } catch (e) { return; }
+        if (!r || r.state === 'searching') return;
+        const items = Array.isArray(r.items) ? r.items : [];
+        sbStop();
+        sbRender(card, anchor, q, items, r.state);
+      });
+    } catch (e) { /* ignore */ }
+    try { sbCur.tab = GM_openInTab(q.url, { active: false, insert: true, setParent: true }); } catch (e) { window.open(q.url, '_blank', 'noopener'); }
+    sbCur.timer = setTimeout(() => {
+      if (!sbCur || sbCur.id !== id) return;
+      sbStop();
+      sbRender(card, anchor, q, [], 'timeout');
+    }, 100000);
+  }
+  function sbRender(card, anchor, q, items, state) {
+    const sorted = items.slice().sort((a, b) => {
+      const ka = a.price ? (a.price.kind === 'award' ? 0 : 1) : 2, kb = b.price ? (b.price.kind === 'award' ? 0 : 1) : 2;
+      return ka - kb || (a.miles - b.miles) || (a.taxes - b.taxes) || (a.cash - b.cash);
+    });
+    let html = sbHead(q);
+    if (!sorted.length) {
+      const why = state === 'signedout' ? 'Basis looks signed out. Open Basis, sign in, then press ↻.'
+        : state === 'timeout' ? 'Basis did not answer in time. Press ↻ to try again.'
+          : 'No results for this date (±1 day). Try another date or class.';
+      html += '<div class="ia-sb-st ia-sb-st--warn">' + sbEsc(why) + '</div>';
+      card.innerHTML = html;
+      sbWireHead(card, anchor, q);
+      return;
+    }
+    html += '<div class="ia-sb-st"><i class="ia-sb-dot" aria-hidden="true"></i>' + sorted.length + ' result' + (sorted.length === 1 ? '' : 's') + ' · cheapest first · searched just now</div><div class="ia-sb-list">';
+    sorted.forEach((x, i) => {
+      const a = sbWhen(x.dep), b = sbWhen(x.arr);
+      const plus = a.ymd && b.ymd && b.ymd > a.ymd ? '+1' : '';
+      const stops = x.stops === 0 ? 'nonstop' : x.stops + ' stop' + (x.stops > 1 ? 's' : '');
+      const cab = x.cabin ? x.cabin.charAt(0).toUpperCase() + x.cabin.slice(1).toLowerCase() : '';
+      const priceTop = x.miles ? x.miles.toLocaleString('en-US') + ' mi' : (x.cash ? '$' + Math.round(x.cash).toLocaleString('en-US') : '—');
+      const priceSub = x.miles ? '+ $' + x.taxes.toFixed(2) + ' taxes · ' + sbEsc(x.programName || x.program) : (x.cash ? 'per person · cash' : '');
+      const why = x.problem ? x.problem : (!x.price ? (x.miles ? 'Program not in the BO' : 'Price not found') : '');
+      html += '<div class="ia-sb-row' + (i >= 12 ? ' is-more' : '') + '" data-i="' + i + '"' + (i >= 12 ? ' hidden' : '') + '>'
+        + '<div class="ia-sb-l"><div class="ia-sb-fl">' + sbEsc(x.flights.join(' · ')) + ' <span>' + sbEsc(x.route.join(' → ')) + '</span></div>'
+        + '<div class="ia-sb-sub">' + sbEsc(a.day) + ' · ' + sbEsc(a.time) + ' → ' + sbEsc(b.time) + plus + ' · ' + sbEsc(stops) + (x.mins ? ' · ' + sbDur(x.mins) : '') + (cab ? ' · ' + sbEsc(cab) : '') + '</div></div>'
+        + '<div class="ia-sb-r"><div class="ia-sb-price">' + sbEsc(priceTop) + '</div><div class="ia-sb-tax">' + priceSub + '</div></div>'
+        + '<div class="ia-sb-foot">' + (x.seats ? '<span class="ia-sb-seat">' + x.seats + (x.seats <= 2 ? ' seat' + (x.seats === 1 ? '' : 's') + ' left' : ' seats') + '</span>' : '')
+        + (x.rush ? '<span class="ia-sb-seat ia-sb-seat--rush">Rush</span>' : '')
+        + '<span class="ia-sb-msg' + (why ? ' err' : '') + '">' + sbEsc(why) + '</span>'
+        + '<button type="button" class="ia-sb-btn ia-sb-gds"' + (x.problem ? ' disabled' : '') + '>GDS</button>'
+        + '<button type="button" class="ia-sb-btn pri ia-sb-add"' + (why ? ' disabled' : '') + '>Add to lead</button></div></div>';
+    });
+    html += '</div>';
+    if (sorted.length > 12) html += '<button type="button" class="ia-sb-btn ia-sb-more">Show all ' + sorted.length + '</button>';
+    card.innerHTML = html;
+    sbWireHead(card, anchor, q);
+    const more = card.querySelector('.ia-sb-more');
+    if (more) more.addEventListener('click', (e) => { e.stopPropagation(); card.querySelectorAll('.ia-sb-row.is-more').forEach((r) => { r.hidden = false; }); more.remove(); });
+    card.querySelectorAll('.ia-sb-row').forEach((row) => {
+      const x = sorted[+row.dataset.i];
+      const msg = row.querySelector('.ia-sb-msg');
+      const say = (t, cls) => { msg.className = 'ia-sb-msg' + (cls ? ' ' + cls : ''); msg.textContent = t; };
+      row.querySelector('.ia-sb-gds').addEventListener('click', (e) => {
+        e.stopPropagation();
+        try { if (typeof GM_setClipboard === 'function') GM_setClipboard(x.text); else navigator.clipboard.writeText(x.text); say('✓ GDS copied', 'ok'); } catch (err) { say('Could not copy', 'err'); }
+      });
+      const add = row.querySelector('.ia-sb-add');
+      add.addEventListener('click', (e) => { e.stopPropagation(); sbAdd(x, add, say); });
+    });
+  }
+  // Add to lead: the same send-to-lead helper the flight-site pop-up uses.
+  function sbAdd(x, btn, say) {
+    const m = location.pathname.match(/\/leads\/(\d{6})/);
+    const leadId = m && m[1];
+    if (!leadId) { say('Open the lead first', 'err'); return; }
+    btn.disabled = true;
+    say('Contacting BO…');
+    const jobId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const statusKey = 'js-sendjob-status-' + jobId;
+    const decisionKey = 'js-sendjob-decision-' + jobId;
+    let sellOn = true;
+    try { sellOn = GM_getValue('js-sell-on', true) !== false; } catch (e) { sellOn = true; }
+    const ending = [88, 89, 90, 91, 92][Math.floor(Math.random() * 5)];
+    let lid = null, ended = false;
+    const finish = (ok, t) => {
+      if (ended) return;
+      ended = true;
+      clearTimeout(overall);
+      if (lid != null && typeof GM_removeValueChangeListener === 'function') { try { GM_removeValueChangeListener(lid); } catch (e) { /* ignore */ } }
+      try { GM_setValue(statusKey, null); GM_setValue(decisionKey, null); GM_setValue('js-sendjob-' + jobId, null); } catch (e) { /* ignore */ }
+      say(t, ok ? 'ok' : 'err');
+      btn.disabled = false;
+      if (ok) btn.textContent = 'Add again';
+    };
+    const overall = setTimeout(() => finish(false, 'BO busy — try again'), 90000);
+    try { GM_setValue('js-sendjob-' + jobId, JSON.stringify({ id: jobId, leadId, gds: x.text, createdAt: Date.now() })); } catch (e) { finish(false, 'Could not start'); return; }
+    lid = GM_addValueChangeListener(statusKey, (n, o, v) => {
+      let st; try { st = JSON.parse(v || 'null'); } catch (e) { return; }
+      if (!st) return;
+      if (st.phase === 'lead') {
+        const pax = st.pax || { adults: 1, children: 0, infants: 0 };
+        const p = x.price;
+        let fill;
+        if (p.kind === 'cash') {
+          fill = { mode: 'cash', ADT: p.perPerson, CHD: p.perPerson, INF: x.inf.cash };
+        } else {
+          const full = (pax.adults || 0) + (pax.children || 0);
+          const parts = p.parts.map((pp) => ({ miles: pp.points * full + x.inf.miles * (pax.infants || 0), taxes: Math.round(pp.taxesPerPerson * (full + (pax.infants || 0)) * 100) / 100, program: pp.program }));
+          fill = Object.assign({ mode: 'award', parts }, parts[0]);
+          if (x.rush) fill.rush = x.rush;
+        }
+        fill.flags = [];
+        if (sellOn) {
+          if (p.kind === 'cash') { const t = p.perPerson * 1.1; let v = Math.floor(t / 100) * 100 + ending; if (v < t) v += 100; fill.sell = { value: v, ending }; }
+          else fill.sell = { value: null, ending };
+        }
+        try { GM_setValue(decisionKey, JSON.stringify({ go: true, fill })); } catch (e) { /* ignore */ }
+      } else if (st.phase === 'claimed') say('Opening lead ' + leadId + '…');
+      else if (st.phase === 'saving') say('Adding…');
+      else if (st.phase === 'selling') say('Setting sell price…');
+      else if (st.phase === 'done') {
+        const sv = st.sell && st.sell.ADT;
+        finish(true, '✓ Added' + (st.optionId ? ' #' + st.optionId : '') + (sv ? ' · Sell $' + Number(sv).toLocaleString('en-US') : ''));
+      } else if (st.phase === 'error') finish(false, st.message ? String(st.message).slice(0, 60) : 'Failed');
+    });
+    try { GM_setValue('js-sendjob-request', JSON.stringify({ id: jobId, leadId, t: Date.now() })); } catch (e) { /* ignore */ }
+  }
+
+  GM_addStyle(`
+    .ia-sb-acts { align-items: center; border-top: 1px dashed var(--ias-line2); padding-top: 8px; margin-top: 2px; }
+    .ia-sb-acts__l { font: 700 11px/1.2 Inter, 'Segoe UI', system-ui, sans-serif; color: var(--ias-sec); margin-right: auto; }
+    .ia-sb { margin: 8px; padding: 12px; border-radius: 16px; background: var(--ias-field); border: 1px solid var(--ias-line); color: var(--ias-text);
+      font: 500 12.5px/1.4 Inter, 'Segoe UI', system-ui, sans-serif; display: grid; gap: 10px; box-shadow: var(--ias-chipshadow); }
+    .ia-sb--nova { font-family: ${IA_NOVA_FONT}; border-radius: 22px; }
+    .ia-sb-h { display: flex; align-items: center; gap: 10px; }
+    .ia-sb-star { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ias-acc); color: var(--ias-onacc); font-size: 14px; flex: none; }
+    .ia-sb-ht { display: grid; gap: 1px; min-width: 0; margin-right: auto; }
+    .ia-sb-t { font: 700 13px/1.2 Inter, 'Segoe UI', system-ui, sans-serif; color: var(--ias-title); letter-spacing: -.01em; }
+    .ia-sb--nova .ia-sb-t { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; letter-spacing: -.02em; }
+    .ia-sb-meta { color: var(--ias-muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ia-sb--nova .ia-sb-meta { font-family: ${IA_NOVA_MONO}; font-size: 10.5px; letter-spacing: .02em; }
+    .ia-sb-ic { width: 30px; height: 30px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--ias-chip); color: var(--ias-title);
+      box-shadow: inset 0 0 0 1.5px var(--ias-line); font-size: 15px; cursor: pointer; transition: transform .25s cubic-bezier(.34,1.4,.64,1); flex: none; }
+    .ia-sb-ic:active { transform: scale(.88); }
+    .ia-sb-st { display: flex; align-items: center; gap: 8px; color: var(--ias-sec); font-size: 12px; font-weight: 600; }
+    .ia-sb-st--warn { color: var(--ias-bad); }
+    .ia-sb-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex: none; }
+    .ia-sb-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ias-line2); border-top-color: var(--ias-acc); animation: ia-sb-spin .8s linear infinite; flex: none; }
+    @keyframes ia-sb-spin { to { transform: rotate(360deg); } }
+    .ia-sb-list { display: grid; gap: 8px; max-height: 560px; overflow: auto; overscroll-behavior: contain; }
+    .ia-sb-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 12px; border-radius: 14px; background: var(--ias-bg); border: 1px solid var(--ias-line); animation: ia-sb-in .35s cubic-bezier(.2,.8,.2,1) both; }
+    .ia-sb-row[hidden] { display: none; }
+    @keyframes ia-sb-in { from { opacity: 0; transform: translateY(6px); } }
+    .ia-sb-l { min-width: 0; }
+    .ia-sb-fl { font-weight: 800; color: var(--ias-title); }
+    .ia-sb-fl span { font-weight: 600; color: var(--ias-sec); }
+    .ia-sb-sub { color: var(--ias-muted); font-size: 11.5px; }
+    .ia-sb-r { text-align: right; }
+    .ia-sb-price { font: 700 14px/1.2 Inter, 'Segoe UI', system-ui, sans-serif; color: var(--ias-title); white-space: nowrap; }
+    .ia-sb--nova .ia-sb-price { font-family: ${IA_NOVA_MONO}; font-weight: 500; }
+    .ia-sb-tax { color: var(--ias-muted); font-size: 11.5px; white-space: nowrap; }
+    .ia-sb-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .ia-sb-seat { padding: 3px 9px; border-radius: 999px; background: var(--ias-chip); box-shadow: inset 0 0 0 1px var(--ias-line); font-size: 11px; font-weight: 700; color: var(--ias-sec); }
+    .ia-sb-seat--rush { color: #ea580c; }
+    .ia-sb-msg { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--ias-sec); }
+    .ia-sb-msg.ok { color: #16a34a; } .ia-sb-msg.err { color: var(--ias-bad); }
+    .ia-sb-btn { min-height: 30px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--ias-chip); color: var(--ias-title); box-shadow: inset 0 0 0 1.5px var(--ias-line2);
+      font-weight: 700; font-size: 12px; line-height: 1; font-family: inherit; cursor: pointer; transition: transform .25s cubic-bezier(.34,1.4,.64,1), opacity .2s; }
+    .ia-sb-btn.pri { background: var(--ias-acc); color: var(--ias-onacc); box-shadow: none; }
+    .ia-sb-btn:active { transform: scale(.94); }
+    .ia-sb-btn:disabled { opacity: .45; cursor: default; transform: none; }
+    .ia-sb-more { justify-self: center; }
+  `);
 
   // Search links open in a new tab behind the BO, so you stay on the lead.
   const srchOpen = (url) => srchOpenBg(url);
@@ -7671,7 +8018,7 @@ function __jsEnsureSharedObserver() {
     .ia-sell-input.is-saving { opacity: .6; }
     /* Search panel in place of the BO's Kayak-price box */
     .kayak-offers.ia-fxp > .kayak-offers-body { max-height: none !important; height: auto !important; overflow: visible !important; }
-    .kayak-offers.ia-fxp > .kayak-offers-body > :not(.ia-fxp-panel) { display: none !important; }
+    .kayak-offers.ia-fxp > .kayak-offers-body > :not(.ia-fxp-panel):not(.ia-sb) { display: none !important; }
     .kayak-offers.ia-fxp > .kayak-offers-footer > :not(.ia-fxp-foot) { display: none !important; }
     .ia-fxp-foot-r { display: flex; align-items: center; gap: 8px; }
     .ia-fxp-re { border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
@@ -10238,11 +10585,15 @@ function __jsEnsureSharedObserver() {
   // Send button. Signed out -> "Sign in to RingCentral" opens its sign-in.
   const SMS_TPL_KEY = 'js-sms-templates';
   const SMS_RC_ORIGIN = 'https://apps.ringcentral.com';
-  const SMS_DEFAULT_TPL = [
+  const SMS_OLD_TPL = [
     { name: 'Follow-up 1', text: 'Hey {client}, {agent} here from Travel Business Class regarding your flight to {destination}. I\u2019ve got you some really good discounted business class deals with major airlines and wanted to confirm some information with you to see which one will work best. When is the best time to talk?' },
     { name: 'Follow-up 2', text: 'Hi, just following up on my message regarding your flight to {destination}. I found a couple of business class options that look pretty good for your trip. Would you have a few minutes today for me to run them by you?' },
     { name: 'Follow-up 3', text: 'Hey, just wanted to catch you before I close out your flight request. I still have some good business class fares available with major airlines. What time would be easiest for me to reach you?' },
     { name: 'Follow-up 4', text: 'Hi again! I wanted to check in and see if you\u2019re still looking at options for your flight to {destination}. I\u2019d be happy to go over the best fares I\u2019m seeing and see if we can find something that makes sense for you. When would be a good time to connect?' },
+  ];
+  // 2.16.0: one text only, "SMS Introduction" (Follow-up 1's wording).
+  const SMS_DEFAULT_TPL = [
+    { name: 'SMS Introduction', text: SMS_OLD_TPL[0].text },
   ];
   const SMS_CITY = (() => {
     const m = {};
@@ -10267,7 +10618,47 @@ function __jsEnsureSharedObserver() {
     return m;
   })();
 
+  // 2.16.0, once per computer: the four text templates become one. Everyone
+  // keeps their own wording: template 1 if they edited it, otherwise the
+  // first of 2-4 they edited, otherwise the standard Follow-up 1 text. A
+  // button name they chose themselves stays; otherwise "SMS Introduction".
+  // Sent ticks: the kept template's ticks become the one template's. The
+  // saved history is only ever added to, never trimmed.
+  let smsOneDone = false;
+  function smsOneTemplate() {
+    if (smsOneDone) return;
+    smsOneDone = true;
+    let t = null;
+    try { t = JSON.parse(GM_getValue(SMS_TPL_KEY, 'null')); } catch (e) { t = null; }
+    if (Array.isArray(t) && t.length === 1) return; // already done
+    let pick = 0, src = null;
+    if (Array.isArray(t)) {
+      const edited = (i) => !!(t[i] && typeof t[i].text === 'string' && t[i].text.trim() && SMS_OLD_TPL[i] && t[i].text.trim() !== SMS_OLD_TPL[i].text.trim());
+      const i = [0, 1, 2, 3].find(edited);
+      if (i != null) pick = i;
+      src = t[pick] || null;
+    }
+    const ownName = src && src.name && !/^\s*follow-up\s*\d*\s*$/i.test(String(src.name)) ? String(src.name) : '';
+    const keepText = src && typeof src.text === 'string' && src.text.trim() && (pick > 0 || src.text.trim() !== SMS_OLD_TPL[0].text.trim());
+    const one = [{ name: ownName || SMS_DEFAULT_TPL[0].name, text: keepText ? src.text : SMS_DEFAULT_TPL[0].text }];
+    try { GM_setValue(SMS_TPL_KEY, JSON.stringify(one)); } catch (e) { /* best-effort */ }
+    if (pick > 0) {
+      try {
+        const o = JSON.parse(GM_getValue('js-sms-sent', '{}')) || {};
+        Object.keys(o).forEach((id) => { const l = Array.isArray(o[id]) ? o[id].map(Number) : []; if (l.includes(pick) && !l.includes(0)) o[id] = l.concat(0); });
+        GM_setValue('js-sms-sent', JSON.stringify(o));
+      } catch (e) { /* best-effort */ }
+      try {
+        const o = JSON.parse(GM_getValue('ia-sent-times', '{}')) || {};
+        if (o && o.t && typeof o.t === 'object') {
+          Object.keys(o.t).forEach((id) => { const v = o.t[id] && o.t[id][pick]; if (v && !o.t[id][0]) o.t[id][0] = v; });
+          GM_setValue('ia-sent-times', JSON.stringify(o));
+        }
+      } catch (e) { /* best-effort */ }
+    }
+  }
   function smsTemplates() {
+    smsOneTemplate();
     let t = null;
     try { t = JSON.parse(GM_getValue(SMS_TPL_KEY, 'null')); } catch (e) { t = null; }
     if (!Array.isArray(t) || t.length !== SMS_DEFAULT_TPL.length) t = SMS_DEFAULT_TPL.map((x, i) => (t && t[i] && typeof t[i].text === 'string') ? { name: String(t[i].name || x.name), text: t[i].text } : Object.assign({}, x));
@@ -13064,10 +13455,10 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.15.1',
+    version: '2.16.0',
     items: [
-      'The TBC Assistant website now has a step-by-step install guide: one button walks a new agent through adding Tampermonkey and installing the tool, and the page checks that it worked.',
-      'Already installed? The website now shows "You\u2019re all set" with your version, or an Update button when a newer one is out.',
+      'Super Basis: in a lead, open Basis and press Outbound (or Return) under "Super Basis". The search runs in the background and the results show right in the lead, cheapest first, with GDS and Add to lead on each one. The Basis tab closes by itself.',
+      'Texts: the four follow-up texts are now one, called SMS Introduction. If you had changed a template, your own wording is kept.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';

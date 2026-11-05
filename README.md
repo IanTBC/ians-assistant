@@ -38,7 +38,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Sort Me** puts pasted segments in the right order and picks the carrier; **Auto-next** moves through the Add option steps.
 - **Merge** combines selected options into one, each as its own ticket.
 - Click a **Sell** price to edit it in place.
-- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box where you pick the class and the dates, with one airport on each side and ±1 day; search the outbound, the return, both, or one round trip. Multi-city leads written in the remark work too. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
+- Search buttons for the lead (Google, ELR, Matrix, PointsYeah, Basis, Kayak). Links open in a new tab behind the BO, so you stay on the lead. **FS** sends the lead's Sabre search straight to the terminal. **Basis** opens a search box where you pick the class and the dates, with one airport on each side and ±1 day; search the outbound, the return, both, or one round trip. **Super Basis** (in the same box) runs the search in the background and shows the results right in the lead, cheapest first, each with **GDS** and **Add to lead**; the Basis tab closes by itself. Multi-city leads written in the remark work too. **Open all** opens every site you tick in its ▾ menu, **Both** opens both legs of PointsYeah (Ctrl+click to pick legs one by one), and **↻** re-reads the lead.
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
@@ -55,11 +55,15 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - Click a lead's status letter on the leads list to make it **Potential**, **Follow up** or **Closed** without opening the lead.
 - **Send quotes** (leads list) prepares each lead's profitable quotes as the BO's own email; you confirm every email before it goes. A yellow tick in the PQs column marks leads already emailed today.
-- The RC tab shows your RingCentral texts and lets you send them to any country's number, with editable follow-up templates. Sent follow-ups turn green and show when they went out.
+- The RC tab shows your RingCentral texts and lets you send them to any country's number, with one editable text, **SMS Introduction**. Once sent it turns green and shows when it went out.
 
 **Look** — the moon button on the panel opens a menu with five looks: **Nova** (the main look), **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.16.0 — Super Basis, one text**
+- **Super Basis:** in a lead, open **Basis** and press **Outbound** (or **Return**) under "Super Basis". The search runs in the background and the results show right in the lead, cheapest first, each with **GDS** and **Add to lead**. The Basis tab closes by itself.
+- **Texts:** the four follow-up texts are now one, **SMS Introduction**. If you had changed a template, your own wording (and its name) is kept.
 
 **2.15.1 — step-by-step install**
 - The TBC Assistant website now walks new agents through installing: one button opens each step in order (Tampermonkey, then TBC Assistant), and the page checks that it worked.
