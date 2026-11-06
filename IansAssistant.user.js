@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.17.0
+// @version      2.17.1
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -92,6 +92,10 @@ try { GM_addStyle("@import url('https://fonts.googleapis.com/css2?family=Unbound
 var IA_NOVA_FONT = "Manrope, 'Segoe UI', system-ui, -apple-system, sans-serif";
 var IA_NOVA_DISPLAY = "Unbounded, 'Segoe UI', system-ui, sans-serif";
 var IA_NOVA_MONO = "'JetBrains Mono', ui-monospace, Consolas, monospace";
+// Windows or Mac: one script for both. Shortcuts use Ctrl on Windows and
+// Control on a Mac (Command works too); labels use the Mac names on a Mac.
+var IA_MAC = /Mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent);
+var IA_MOD = IA_MAC ? 'Control' : 'Ctrl';
 // Small Pip (body + eyes) built with DOM calls, so it works on sites that
 // block innerHTML (Google's Trusted Types).
 function iaPipNode(size, p) {
@@ -7694,15 +7698,18 @@ function __jsEnsureSharedObserver() {
         return;
       }
       row.append(a, b);
-      row.addEventListener('click', (e) => {
+      const go = (e) => {
         e.stopPropagation();
         if (it.pick) { srchCloseMenu(); it.pick(); return; }
         const urls = it.urls ? it.urls() : [it.url()];
         urls.forEach((u) => srchOpen(u));
-        // Ctrl (Cmd on Mac) or Shift held: keep the menu open to open more.
+        // Ctrl (Control or Command on a Mac) or Shift held: keep the menu open to open more.
         if (e.ctrlKey || e.metaKey || e.shiftKey) { row.classList.add('is-opened'); b.textContent = '\u2713 opened'; return; }
         srchCloseMenu();
-      });
+      };
+      row.addEventListener('click', go);
+      // On a Mac, Control+click counts as a right-click, so catch it here.
+      row.addEventListener('contextmenu', (e) => { if (IA_MAC && e.ctrlKey) { e.preventDefault(); go(e); } });
       el.appendChild(row);
     });
     document.body.appendChild(el);
@@ -7813,7 +7820,7 @@ function __jsEnsureSharedObserver() {
         const rows = legs.map((lg) => ({ label: lg.label, note: lg.origin + '→' + lg.destination + ' · ' + srchFmt(lg.date), url: () => build(lg) }));
         // One row that opens every leg at once.
         rows.unshift({ label: legs.length === 2 ? 'Both' : 'All ' + legs.length + ' legs', note: 'opens ' + legs.length + ' tabs', urls: () => legs.map((lg) => build(lg)) });
-        srchShowMenu(b, title + ' \u00b7 Ctrl+click to pick more', rows);
+        srchShowMenu(b, title + ' \u00b7 ' + IA_MOD + '+click to pick more', rows);
       };
       mk('PointsYeah ▾', 'py', (b) => legMenu(b, 'PointsYeah', (lg) => srchPointsYeah(L(), lg, flex(), cab())));
       // Basis opens the multi-airport box straight away (its Outbound /
@@ -10042,7 +10049,7 @@ function __jsEnsureSharedObserver() {
     mh.className = 'ia-call-menu-h';
     mh.textContent = 'Calls go to';
     m.appendChild(mh);
-    [['app', 'Windows app (RingCentral)'], ['web', 'RingCentral website']].forEach(([v, label]) => {
+    [['app', (IA_MAC ? 'Mac' : 'Windows') + ' app (RingCentral)'], ['web', 'RingCentral website']].forEach(([v, label]) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.setAttribute('role', 'menuitemradio');
@@ -10972,7 +10979,7 @@ function __jsEnsureSharedObserver() {
       + '<div class="ia-sms-editor" hidden><input class="ia-sms-ed-name" maxlength="24"><textarea class="ia-sms-ed-text" rows="3"></textarea>'
       + '<div class="ia-sms-ed-row"><span class="ia-sms-hint">{agent} · {destination} · {client}</span><button type="button" class="ia-sms-btn ia-sms-ed-reset">Reset</button><button type="button" class="ia-sms-btn ia-sms-ed-cancel">Cancel</button><button type="button" class="ia-sms-btn ia-sms-btn--go ia-sms-ed-save">Save</button></div></div>'
       + '<div class="ia-sms-row"><textarea class="ia-sms-text" rows="2" placeholder="Type a message…"></textarea><button type="button" class="ia-sms-btn ia-sms-btn--go ia-sms-send">Send</button></div>'
-      + '<div class="ia-sms-foot"><span class="ia-sms-status"></span><span class="ia-sms-via">via RingCentral \u00B7 Ctrl+Enter to send</span><button type="button" class="js-sms-view"></button></div>';
+      + '<div class="ia-sms-foot"><span class="ia-sms-status"></span><span class="ia-sms-via">via RingCentral \u00B7 ' + IA_MOD + '+Enter to send</span><button type="button" class="js-sms-view"></button></div>';
   }
 
   function smsSetStatusLine(comp, text, err) {
@@ -13722,11 +13729,11 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.17.0',
+    version: '2.17.1',
     items: [
-      'Send quotes is now "Send emails": choose Quotes (PQs) as before, or a Follow-up email.',
-      'Follow-up emails: four templates. "Next for each lead" sends each client the next one they haven\u2019t had. The client\u2019s first name, your name and the trip (cities and dates) are filled in from the lead.',
-      'You see every email first and can change it before pressing Send. Edit your own templates under "Edit templates"; they\u2019re saved for you.',
+      'Works on a MacBook too. It\u2019s the same tool for Windows and Mac: it notices which computer you\u2019re on by itself.',
+      'On a Mac, the shortcuts use the Control key: Control+Enter sends a text, Control+click picks more than one search. Command works too.',
+      'Still new from 2.17.0: "Send emails" with Quotes (PQs) or a Follow-up email, filled in from the lead.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';

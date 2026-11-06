@@ -42,7 +42,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - A red tag warns when an option changes airports during a connection.
 - Click the lead number under the client's name to copy it.
 - Warns before sending a quote that shows $0.00.
-- **Call icons** next to every phone number call it in one click; right-click picks the RingCentral Windows app or website.
+- **Call icons** next to every phone number call it in one click; right-click picks the RingCentral app (Windows or Mac) or website.
 - **Card** on an option makes a clean picture of it (flights, times, connections and price) to paste into a text or chat for your client.
 
 **Calling and texting**
@@ -60,6 +60,10 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 **Look** — the moon button on the panel opens a menu with five looks: **Nova** (the main look), **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.17.1 — works on a Mac**
+- One TBC Assistant for **Windows and Mac**: it notices which computer you're on by itself, so there's nothing to choose.
+- On a Mac, shortcuts use the **Control** key (Command works too): **Control+Enter** sends a text, **Control+click** picks more than one search. The call menu says "Mac app" instead of "Windows app".
 
 **2.17.0 — follow-up emails**
 - **Send quotes** is now **Send emails**: choose **Quotes (PQs)** as before, or a **Follow-up email**.
