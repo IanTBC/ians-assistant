@@ -54,12 +54,18 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page, filled in for the lead (click any text to copy). **Tools** next to it opens VIP Itinerary, GK Converter and How to make a PNR.
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - Click a lead's status letter on the leads list to make it **Potential**, **Follow up** or **Closed** without opening the lead.
-- **Send quotes** (leads list) prepares each lead's profitable quotes as the BO's own email; you confirm every email before it goes. A yellow tick in the PQs column marks leads already emailed today.
+- **Send emails** (leads list): choose **Quotes (PQs)**, which prepares each lead's profitable quotes as the BO's own email, or a **Follow-up email** from four templates you can edit. The client's first name, your name and the trip (cities and dates) are filled in from the BO. You see and confirm every email before it goes. A yellow tick in the PQs column marks leads whose quotes were emailed today.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with one editable text, **SMS Introduction**. Once sent it turns green and shows when it went out.
 
 **Look** — the moon button on the panel opens a menu with five looks: **Nova** (the main look), **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**2.17.0 — follow-up emails**
+- **Send quotes** is now **Send emails**: choose **Quotes (PQs)** as before, or a **Follow-up email**.
+- Four follow-up templates. **Next for each lead** sends each client the next one they haven't had (1 to 4), or pick one for everyone.
+- The client's first name, your name and the trip (cities and dates) are filled in automatically from the BO.
+- You see every email first and can change it before pressing **Send**. Edit your own templates under **Edit templates**; they're saved for you.
 
 **2.16.0 — Super Basis, one text**
 - **Super Basis:** in a lead, open **Basis** and press **Outbound** (or **Return**) under "Super Basis". The search runs in the background and the results show right in the lead, cheapest first, each with **GDS** and **Add to lead**. The Basis tab closes by itself.

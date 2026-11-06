@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.16.0
+// @version      2.17.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -13128,13 +13128,14 @@ function __jsEnsureSharedObserver() {
     o[kind][leadId] = Array.from(s);
     try { GM_setValue(SQ_SENT_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ }
   }
-  // e / t = sent today by email / text, m = ticked by hand, u = unticked by hand today.
+  // e / t = quotes sent today by email / text, m = ticked by hand, u = unticked by hand today,
+  // f = follow-up email sent today.
   function sqDayLog() {
     try {
       const o = JSON.parse(GM_getValue(SQ_DAY_KEY, '{}'));
-      if (o && o.day === todayKey() && o.e && o.t) { o.m = o.m || {}; o.u = o.u || {}; return o; }
+      if (o && o.day === todayKey() && o.e && o.t) { o.m = o.m || {}; o.u = o.u || {}; o.f = o.f || {}; return o; }
     } catch (e) { /* fall through */ }
-    return { day: todayKey(), e: {}, t: {}, m: {}, u: {} };
+    return { day: todayKey(), e: {}, t: {}, m: {}, u: {}, f: {} };
   }
   const sqSaveDay = (o) => { try { GM_setValue(SQ_DAY_KEY, JSON.stringify(o)); } catch (e) { /* best-effort */ } };
   function sqTicked(leadId) {
@@ -13287,7 +13288,7 @@ function __jsEnsureSharedObserver() {
     document.querySelectorAll('.ia-sq').forEach((n) => n.remove());
     const pal = iaPalette();
     const ov = document.createElement('div');
-    ov.className = 'ia-sq';
+    ov.className = 'ia-sq' + (iaIsNova(pal.mode) ? ' ia-sq--nova' : '');
     ov.style.cssText = '--q-glass:' + pal.glass + ';--q-sky:' + pal.sky + ';--q-edge:' + pal.edge + ';--q-inner:' + pal.inner + ';--q-chip:' + pal.chip + ';--q-chipsh:' + pal.chipshadow + ';--q-title:' + pal.title + ';--q-sec:' + pal.sec + ';--q-acc:' + pal.pri + ';--q-onacc:' + pal.onpri + ';--q-shadow:' + pal.shadow + ';--q-ok:' + (pal.ok || '#22c55e') + ';--q-bad:' + (pal.bad || '#ef4444');
     const card = document.createElement('div');
     card.className = 'ia-sq__card';
@@ -13322,26 +13323,271 @@ function __jsEnsureSharedObserver() {
       + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button></div>';
     w.card.querySelector('.is-stop').addEventListener('click', () => { sqRun.stop = true; });
   }
+  // ==========================================================================
+  // Follow-up emails (2.17.0). "Send emails" on the leads list offers Quotes
+  // (PQs, as before) or a Follow-up email from four templates each agent can
+  // edit (saved on their own computer). The client's first name, the agent
+  // and the trip (cities and dates) are read from the BO for each lead and
+  // filled in. Every email is shown and waits for Send / Skip / Stop; the
+  // agent can change the subject or text for that one email first.
+  // ==========================================================================
+  const FU_TPL_KEY = 'ia-fu-email-templates';
+  const FU_KIND_KEY = 'ia-send-kind';
+  const FU_PICK_KEY = 'ia-fu-pick';
+  const FU_SIGN = '\n\nBest regards,\n{agent}\nTravel Business Class';
+  const FU_DEFAULT = [
+    { name: 'Follow-up 1', subject: 'Your business class trip to {destination}',
+      text: 'Hi {client},\n\n{agent} here from Travel Business Class regarding your trip from {origin} to {destination} ({dates}). I’ve got you some really good discounted business class deals with major airlines and wanted to confirm a few details with you to see which one will work best.\n\nWhen is the best time to talk?' + FU_SIGN },
+    { name: 'Follow-up 2', subject: 'Following up – your flight to {destination}',
+      text: 'Hi {client},\n\nJust following up on my previous message about your flight to {destination} ({dates}). I found a couple of business class options that look pretty good for your trip.\n\nWould you have a few minutes today for me to run them by you?' + FU_SIGN },
+    { name: 'Follow-up 3', subject: 'Still looking at flights to {destination}?',
+      text: 'Hi {client},\n\nI wanted to check in and see if you’re still looking at options for your trip from {origin} to {destination} ({dates}). I’d be happy to go over the best fares I’m seeing and find something that makes sense for you.\n\nWhen would be a good time to connect?' + FU_SIGN },
+    { name: 'Follow-up 4', subject: 'Before I close out your flight request',
+      text: 'Hi {client},\n\nI wanted to catch you before I close out your flight request for {trip}. I still have some good business class fares available with major airlines.\n\nWhat time would be easiest for me to reach you?' + FU_SIGN },
+  ];
+  function fuTemplates() {
+    let t = null;
+    try { t = JSON.parse(GM_getValue(FU_TPL_KEY, 'null')); } catch (e) { t = null; }
+    return FU_DEFAULT.map((d, i) => {
+      const x = Array.isArray(t) ? t[i] : null;
+      return x && typeof x.text === 'string' && x.text.trim() ? { name: d.name, subject: String(x.subject || d.subject), text: x.text } : Object.assign({}, d);
+    });
+  }
+  function fuSaveTemplates(list) {
+    try { GM_setValue(FU_TPL_KEY, JSON.stringify(list.map((x) => ({ subject: x.subject, text: x.text })))); } catch (e) { /* best-effort */ }
+  }
+  const fuGet = (k, d) => { try { return GM_getValue(k, d); } catch (e) { return d; } };
+  const fuSet = (k, v) => { try { GM_setValue(k, v); } catch (e) { /* best-effort */ } };
+  const fuCity = (c) => (c ? (SMS_CITY[c] || c) : '');
+  function fuDay(unix, tz) {
+    if (!unix) return '';
+    const d = new Date(Number(unix) * 1000);
+    const o = { month: 'short', day: 'numeric' };
+    try { return d.toLocaleDateString('en-US', Object.assign({ timeZone: tz || 'UTC' }, o)); } catch (e) { return d.toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, o)); }
+  }
+  // The agent's name from the BO: the lead's agent as the leads list shows
+  // it, otherwise the signed-in agent from the BO login, otherwise the first
+  // name the panel already knows.
+  function fuAgentName(row) {
+    const fromRow = row ? sqAgentOf(row) : '';
+    if (fromRow) return fromRow;
+    const toks = [];
+    try { const a = __jsStoredAuth(); if (a) toks.push(a); } catch (e) { /* ignore */ }
+    try { Object.keys(__jsApi.headers || {}).forEach((k) => { if (/authorization/i.test(k)) toks.push(__jsApi.headers[k]); }); } catch (e) { /* ignore */ }
+    for (const t of toks) {
+      try {
+        const part = String(t).replace(/^Bearer\s+/i, '').split('.')[1];
+        if (!part) continue;
+        const j = JSON.parse(decodeURIComponent(escape(atob(part.replace(/-/g, '+').replace(/_/g, '/')))));
+        for (const o of [j, j.user, j.data]) {
+          if (!o || typeof o !== 'object') continue;
+          const f = o.first_name || o.firstName || o.given_name || '', l = o.last_name || o.lastName || o.family_name || '';
+          const n = (f + ' ' + l).trim() || (o.name && /\s/.test(o.name) ? String(o.name) : '');
+          if (n) return n;
+        }
+      } catch (e) { /* try the next */ }
+    }
+    return smsAgentName() || fuGet('bmo-first-name', '');
+  }
+  // The client's first name and the trip, read from the BO for this lead.
+  async function fuLoad(leadId, row) {
+    const lead = sqFirst(await sqApi('/api/database/v2/Lead/find?pks=' + leadId))[0];
+    if (!lead) throw new Error('lead ' + leadId + ' not found in the BO');
+    let first = '';
+    if (lead.client_pk) {
+      try {
+        const c = sqFirst(await sqApi('/api/database/v2/ClientPreview/find?pks=' + lead.client_pk))[0];
+        first = c && c.first_name ? String(c.first_name).trim().split(/\s+/)[0] : '';
+      } catch (e) { /* the name is a nice-to-have */ }
+    }
+    if (first) first = first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+    const info = row ? sqInfo(row) : {};
+    const from = fuCity(lead.from_iata_code || info.origin), to = fuCity(lead.to_iata_code || info.dest);
+    const dep = fuDay(lead.departure_date, lead.from_iata_timezone);
+    const ret = lead.return_date ? fuDay(lead.return_date, lead.to_iata_timezone) : '';
+    const dates = dep && ret && ret !== dep ? dep + ' – ' + ret : dep;
+    const vals = {
+      client: first || 'there',
+      agent: String(fuAgentName(row) || '').trim() || 'your Travel Business Class agent',
+      origin: from || 'your city',
+      destination: to || 'your destination',
+      dates,
+      trip: [from && to ? from + ' to ' + to : (to || 'your trip'), dates].filter(Boolean).join(', '),
+    };
+    return { lead, vals };
+  }
+  function fuFill(text, v) {
+    return String(text)
+      .replace(/\{(client|agent|origin|destination|dates|trip)\}/gi, (m, k) => v[k.toLowerCase()] || '')
+      .replace(/[ \t]*\(\s*\)/g, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/ +([,.!?])/g, '$1');
+  }
+  const fuHtml = (t) => String(t).split(/\n{2,}/).map((p) => '<p>' + smsEsc(p).replace(/\n/g, '<br>') + '</p>').join('');
+  // Only ever called after the agent pressed Send. Goes out through the BO,
+  // so it shows in the lead's history.
+  async function fuSend(lead, email, subject, text) {
+    const data = { to_email_uuids: [], to_emails: [], subject, body: fuHtml(text), attachments: [] };
+    if (email) data.to_emails.push(email);
+    else if (lead.client_email_pk) data.to_email_uuids.push(String(lead.client_email_pk));
+    else return { ok: false, error: 'the lead has no email in the BO' };
+    try {
+      await sqApi('/api/database/v2/EmailContactAttempt/action/send?waitsForResponse=false', {
+        model: { model_name: 'Lead', model_pk: String(lead.id) }, conversation_pk: null, data,
+      });
+      return { ok: true };
+    } catch (e) { return { ok: false, error: 'the BO refused the email (' + (e && e.message ? e.message : e) + ')' }; }
+  }
+  // Which follow-up a lead gets: the next one it hasn't had, or the one picked.
+  function fuIndexFor(leadId, pick) {
+    const had = sqSent('f', leadId);
+    if (pick === 'next') { for (let i = 0; i < 4; i++) if (!had.has(String(i))) return i; return null; }
+    const i = Number(pick) - 1;
+    return had.has(String(i)) ? null : i;
+  }
+  const fuToday = (leadId) => !!((sqDayLog().f || {})[String(leadId)]);
+  function fuMarkToday(leadId) { const o = sqDayLog(); o.f = o.f || {}; o.f[String(leadId)] = Date.now(); sqSaveDay(o); }
+
   function sqStart() {
     if (sqRun.on) return;
     const rows = getLeadRows();
     const w = sqWin();
     if (!rows.length) {
-      w.card.innerHTML = sqHead('✈', 'Send quotes', 'Open your leads list first') + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">OK</button></div>';
+      w.card.innerHTML = sqHead('✉', 'Send emails', 'Open your leads list first') + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">OK</button></div>';
       w.card.querySelector('.is-go').addEventListener('click', w.close);
       return;
     }
     const items = rows.map((row) => ({ id: String(getLeadId(row)), info: sqInfo(row) }));
-    const ticked = items.filter((x) => sqTicked(x.id)).length;
-    const todo = items.filter((x) => !sqTicked(x.id));
-    w.card.innerHTML = sqHead('\u2708', 'Send quotes', 'Leads on this page')
-      + '<div class="ia-sq__sum"><div><b>' + todo.length + '</b> leads to go through</div>'
-      + (ticked ? '<div>Already sent today (yellow tick): <b>' + ticked + '</b> \u2014 skipped</div>' : '') + '</div>'
-      + '<div class="ia-sq__note">For each lead the tool reads its quotes from the BO and prepares the BO\u2019s own \u201cSend options\u201d email with the green-badge quotes only; red ($0 or less), hidden and award quotes are never included. <b>You\u2019ll see and confirm every email before it goes.</b></div>'
-      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b">Cancel</button><button type="button" class="ia-sq__b is-go">Start</button></div>';
-    const [cancel, go] = w.card.querySelectorAll('.ia-sq__b');
-    cancel.addEventListener('click', w.close);
-    go.addEventListener('click', () => sqGo(w, todo));
+    let kind = fuGet(FU_KIND_KEY, 'q') === 'f' ? 'f' : 'q';
+    let pick = String(fuGet(FU_PICK_KEY, 'next'));
+    if (!/^(next|[1-4])$/.test(pick)) pick = 'next';
+    const paint = () => {
+      let sum, note, todo;
+      if (kind === 'q') {
+        const ticked = items.filter((x) => sqTicked(x.id)).length;
+        todo = items.filter((x) => !sqTicked(x.id));
+        sum = '<div><b>' + todo.length + '</b> leads to go through</div>' + (ticked ? '<div>Quotes already sent today (yellow tick): <b>' + ticked + '</b> — skipped</div>' : '');
+        note = 'For each lead the tool reads its quotes from the BO and prepares the BO’s own “Send options” email with the green-badge quotes only; red ($0 or less), hidden and award quotes are never included. <b>You’ll see and confirm every email before it goes.</b>';
+      } else {
+        let today = 0, had = 0;
+        todo = [];
+        items.forEach((x) => {
+          if (fuToday(x.id)) { today++; return; }
+          const idx = fuIndexFor(x.id, pick);
+          if (idx == null) { had++; return; }
+          todo.push(Object.assign({}, x, { idx }));
+        });
+        sum = '<div><b>' + todo.length + '</b> leads to go through</div>'
+          + (today ? '<div>Already had a follow-up today: <b>' + today + '</b> — skipped</div>' : '')
+          + (had ? '<div>' + (pick === 'next' ? 'Had all 4 follow-ups' : 'Already had follow-up ' + pick) + ': <b>' + had + '</b> — skipped</div>' : '');
+        note = 'The client’s name, your name and the trip are filled in from the BO for each lead. <b>You’ll see every email first; nothing goes out until you press Send.</b> <a class="ia-sq__link" href="#">Edit templates</a>';
+      }
+      const segBtn = (k, label) => '<button type="button" class="ia-sq__segb' + (kind === k ? ' is-on' : '') + '" data-kind="' + k + '">' + label + '</button>';
+      const chip = (v, label) => '<button type="button" class="ia-sq__chip' + (pick === v ? ' is-on' : '') + '" data-pick="' + v + '">' + label + '</button>';
+      w.card.innerHTML = sqHead('✉', 'Send emails', 'Leads on this page')
+        + '<div class="ia-sq__seg">' + segBtn('q', 'Quotes (PQs)') + segBtn('f', 'Follow-up email') + '</div>'
+        + (kind === 'f' ? '<div class="ia-sq__lbl">Which follow-up</div><div class="ia-sq__chips">' + chip('next', 'Next for each lead') + chip('1', '1') + chip('2', '2') + chip('3', '3') + chip('4', '4') + '</div>' : '')
+        + '<div class="ia-sq__sum ia-sq__box2">' + sum + '</div>'
+        + '<div class="ia-sq__note">' + note + '</div>'
+        + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b ia-sq-cancel">Cancel</button><button type="button" class="ia-sq__b is-go ia-sq-start"' + (todo.length ? '' : ' disabled') + '>Start</button></div>';
+      w.card.querySelectorAll('[data-kind]').forEach((b) => b.addEventListener('click', () => { kind = b.dataset.kind; fuSet(FU_KIND_KEY, kind); paint(); }));
+      w.card.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => { pick = b.dataset.pick; fuSet(FU_PICK_KEY, pick); paint(); }));
+      const ed = w.card.querySelector('.ia-sq__link');
+      if (ed) ed.addEventListener('click', (e) => { e.preventDefault(); fuEditor(w, paint); });
+      w.card.querySelector('.ia-sq-cancel').addEventListener('click', w.close);
+      w.card.querySelector('.ia-sq-start').addEventListener('click', () => (kind === 'q' ? sqGo(w, todo) : fuGo(w, todo)));
+    };
+    paint();
+  }
+
+  // Edit the four follow-up templates (saved for this agent only).
+  function fuEditor(w, back) {
+    const list = fuTemplates();
+    let cur = 0;
+    const draw = () => {
+      const t = list[cur];
+      w.card.innerHTML = sqHead('✎', 'Follow-up emails', 'Edit templates')
+        + '<div class="ia-sq__chips ia-sq__tabs">' + list.map((x, i) => '<button type="button" class="ia-sq__chip' + (i === cur ? ' is-on' : '') + '" data-tab="' + i + '">' + (i + 1) + '</button>').join('') + '</div>'
+        + '<div class="ia-sq__lbl">Subject</div><input class="ia-sq__in ia-fu-subj" type="text" value="' + sqEsc(t.subject) + '">'
+        + '<div class="ia-sq__lbl">Text</div><textarea class="ia-sq__in ia-sq__ta ia-fu-text">' + sqEsc(t.text) + '</textarea>'
+        + '<div class="ia-sq__hint">{client} · {agent} · {origin} · {destination} · {dates} · {trip} are filled in for each lead</div>'
+        + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b ia-fu-reset" style="margin-right:auto">Reset</button><button type="button" class="ia-sq__b ia-fu-cancel">Cancel</button><button type="button" class="ia-sq__b is-go ia-fu-save">Save</button></div>';
+      const keep = () => { list[cur].subject = w.card.querySelector('.ia-fu-subj').value; list[cur].text = w.card.querySelector('.ia-fu-text').value; };
+      w.card.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { keep(); cur = +b.dataset.tab; draw(); }));
+      w.card.querySelector('.ia-fu-reset').addEventListener('click', () => { list[cur] = Object.assign({}, FU_DEFAULT[cur]); draw(); });
+      w.card.querySelector('.ia-fu-cancel').addEventListener('click', () => back());
+      w.card.querySelector('.ia-fu-save').addEventListener('click', () => {
+        keep();
+        list.forEach((x, i) => { if (!x.text.trim()) list[i] = Object.assign({}, FU_DEFAULT[i]); });
+        fuSaveTemplates(list);
+        back();
+      });
+    };
+    draw();
+  }
+  // Shows one follow-up email and waits: { act: 'send' | 'skip' | 'stop', subject, text }.
+  function fuAsk(w, o) {
+    return new Promise((resolve) => {
+      w.card.innerHTML = sqHead('✉', 'Lead ' + o.n + ' of ' + o.tot + ' · #' + o.id, o.name, o.tag)
+        + '<div class="ia-sq__to"><span>To</span>' + sqEsc(o.to) + '</div>'
+        + '<div class="ia-sq__lbl">Subject</div><input class="ia-sq__in ia-fu-subj" type="text" value="' + sqEsc(o.subject) + '">'
+        + '<div class="ia-sq__lbl">Email</div><textarea class="ia-sq__in ia-sq__ta ia-fu-text">' + sqEsc(o.text) + '</textarea>'
+        + '<div class="ia-sq__hint">Changes here are for this email only</div>'
+        + '<div class="ia-sq__btns"><span class="ia-sq__prog">' + sqEsc(o.prog) + '</span><button type="button" class="ia-sq__b is-stop">Stop</button><button type="button" class="ia-sq__b">Skip</button><button type="button" class="ia-sq__b is-go">Send email</button></div>';
+      const [stop, skip, go] = w.card.querySelectorAll('.ia-sq__b');
+      const subj = w.card.querySelector('.ia-fu-subj'), txt = w.card.querySelector('.ia-fu-text');
+      const done = (v) => { document.removeEventListener('keydown', onKey, true); resolve({ act: v, subject: subj.value.trim(), text: txt.value }); };
+      const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); done('stop'); } };
+      stop.addEventListener('click', () => done('stop'));
+      skip.addEventListener('click', () => done('skip'));
+      go.addEventListener('click', () => {
+        if (!subj.value.trim() || !txt.value.trim()) { (subj.value.trim() ? txt : subj).focus(); return; }
+        go.disabled = true; done('send');
+      });
+      document.addEventListener('keydown', onKey, true);
+      setTimeout(() => go.focus(), 0);
+    });
+  }
+  async function fuGo(w, todo) {
+    sqRun.on = true; sqRun.stop = false;
+    const st = { sent: 0, skip: 0, fail: [] };
+    const tpl = fuTemplates();
+    const tot = todo.length;
+    let n = 0;
+    const prog = () => 'Sent so far: ' + st.sent + (st.skip ? ' · ' + st.skip + ' skipped' : '');
+    try {
+      for (const item of todo) {
+        if (sqRun.stop) break;
+        n++;
+        const name = item.info.clientName || ('Lead ' + item.id);
+        const o = { n, tot, id: item.id, name, prog: prog() };
+        if (fuToday(item.id)) continue;
+        sqBusy(w, o, 'Reading this lead from the BO…');
+        let data;
+        try { data = await fuLoad(item.id, sqRowFor(item.id)); } catch (err) { st.fail.push(name + ' (' + (err && err.message ? err.message : err) + ')'); continue; }
+        if (sqRun.stop) break;
+        const t = tpl[item.idx];
+        const shown = sqShownEmail(sqRowFor(item.id) || document.body);
+        const a = await fuAsk(w, Object.assign({}, o, {
+          prog: prog(), tag: t.name, to: shown || 'the client’s email on this lead',
+          subject: fuFill(t.subject, data.vals), text: fuFill(t.text, data.vals),
+        }));
+        if (a.act === 'stop') { sqRun.stop = true; break; }
+        if (a.act === 'skip') { st.skip++; continue; }
+        sqBusy(w, o, 'Sending the email…');
+        const r = await fuSend(data.lead, shown, a.subject, a.text);
+        if (r.ok) { sqRemember('f', item.id, [item.idx]); fuMarkToday(item.id); st.sent++; } else st.fail.push(name + ' (' + r.error + ')');
+        await sqSleep(1500);
+      }
+    } finally {
+      sqRun.on = false;
+    }
+    const fails = st.fail.length ? '<div>Failed: <b>' + st.fail.length + '</b> — ' + st.fail.slice(0, 4).map(sqEsc).join('; ') + (st.fail.length > 4 ? '; …' : '') + '</div>' : '';
+    w.card.innerHTML = sqHead('✓', 'Follow-up emails', sqRun.stop ? 'Stopped' : 'Done')
+      + '<div class="ia-sq__sum"><div>Emails sent: <b>' + st.sent + '</b></div><div>Skipped by you: <b>' + st.skip + '</b></div>' + fails + '</div>'
+      + '<div class="ia-sq__note">Everything sent is remembered: the next run gives each client the next follow-up.</div>'
+      + '<div class="ia-sq__btns"><button type="button" class="ia-sq__b is-go">Close</button></div>';
+    w.card.querySelector('.is-go').addEventListener('click', w.close);
   }
 
   async function sqGo(w, todo) {
@@ -13399,8 +13645,8 @@ function __jsEnsureSharedObserver() {
       chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'ia-sq-chip';
-      chip.textContent = '✈ Send quotes';
-      chip.title = 'Email each lead its green quotes \u2014 you confirm every email';
+      chip.textContent = '\u2709 Send emails';
+      chip.title = 'Email each lead its green quotes or a follow-up \u2014 you confirm every email';
       chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); sqStart(); });
     }
     const pal = iaPalette();
@@ -13447,6 +13693,27 @@ function __jsEnsureSharedObserver() {
     .ia-sq__b.is-go { background: linear-gradient(180deg, color-mix(in srgb, var(--q-acc) 78%, white), var(--q-acc)); color: var(--q-onacc); }
     .ia-sq__b.is-stop { color: var(--q-bad); }
     .ia-sq__b:disabled { opacity: .6; cursor: default; }
+    .ia-sq__seg { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 4px; border-radius: 999px; background: var(--q-inner); margin-bottom: 4px; }
+    .ia-sq__segb { border: 0; border-radius: 999px; min-height: 36px; cursor: pointer; background: transparent; color: var(--q-sec); font: 800 12.5px Inter, 'Segoe UI', system-ui, sans-serif; transition: transform .25s cubic-bezier(.34,1.4,.64,1); }
+    .ia-sq__segb.is-on { background: var(--q-acc); color: var(--q-onacc); box-shadow: 0 8px 18px -10px rgba(0,0,0,.5); }
+    .ia-sq__segb:active, .ia-sq__chip:active { transform: scale(.95); }
+    .ia-sq__lbl { font: 800 10px Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--q-sec); margin: 10px 2px 6px; }
+    .ia-sq__chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ia-sq__tabs .ia-sq__chip { flex: 1; }
+    .ia-sq__chip { border: 0; border-radius: 999px; padding: 7px 12px; cursor: pointer; background: var(--q-chip); color: var(--q-title); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--q-sec) 30%, transparent); font: 800 12px Inter, 'Segoe UI', system-ui, sans-serif; transition: transform .25s cubic-bezier(.34,1.4,.64,1); }
+    .ia-sq__chip.is-on { background: var(--q-acc); color: var(--q-onacc); box-shadow: none; }
+    .ia-sq__box2 { background: var(--q-inner); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
+    .ia-sq__link { color: var(--q-title); font-weight: 800; text-decoration: underline; cursor: pointer; }
+    .ia-sq__in { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 12px; background: var(--q-inner); color: var(--q-title); padding: 8px 10px; outline: none;
+      box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--q-sec) 25%, transparent); font: 600 12.5px/1.5 Inter, 'Segoe UI', system-ui, sans-serif; }
+    .ia-sq__in:focus { box-shadow: inset 0 0 0 1.5px var(--q-acc); }
+    .ia-sq__ta { min-height: 190px; resize: vertical; font-weight: 500; }
+    .ia-sq--nova .ia-sq__card { font-family: ${IA_NOVA_FONT}; border-radius: 24px; }
+    .ia-sq--nova .ia-sq__card .ia-sq__b, .ia-sq--nova .ia-sq__segb, .ia-sq--nova .ia-sq__chip, .ia-sq--nova .ia-sq__in { font-family: ${IA_NOVA_FONT}; }
+    .ia-sq--nova .ia-sq__head b { font-family: ${IA_NOVA_DISPLAY}; font-weight: 600; letter-spacing: -.02em; }
+    .ia-sq--nova .ia-sq__ic { border-radius: 50%; }
+    .ia-sq--nova .ia-sq__b { min-height: 34px; }
+    .ia-sq--nova .ia-sq__b.is-go { background: var(--q-acc); }
   `);
 
   // ==========================================================================
@@ -13455,10 +13722,11 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.16.0',
+    version: '2.17.0',
     items: [
-      'Super Basis: in a lead, open Basis and press Outbound (or Return) under "Super Basis". The search runs in the background and the results show right in the lead, cheapest first, with GDS and Add to lead on each one. The Basis tab closes by itself.',
-      'Texts: the four follow-up texts are now one, called SMS Introduction. If you had changed a template, your own wording is kept.',
+      'Send quotes is now "Send emails": choose Quotes (PQs) as before, or a Follow-up email.',
+      'Follow-up emails: four templates. "Next for each lead" sends each client the next one they haven\u2019t had. The client\u2019s first name, your name and the trip (cities and dates) are filled in from the lead.',
+      'You see every email first and can change it before pressing Send. Edit your own templates under "Edit templates"; they\u2019re saved for you.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
