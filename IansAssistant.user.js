@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.17.1
+// @version      2.17.2
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -3978,11 +3978,14 @@ function __jsEnsureSharedObserver() {
   // instead of assuming *IA always comes first on its own clean line.
   function splitByMarkers(rawText) {
     const text = rawText.split(/\r?\n/).map(stripPrompt).join('\n');
-    const markerRe = /(\*IA|VI\*|\*VI)[\u00ab\u00bb]?/g; // "*VI" accepted as VI*
+    // "*I" is accepted as *IA (both are valid Sabre entries); the
+    // lookahead stops "*IST-JFK OPERATED BY…" style lines matching.
+    const markerRe = /(\*IA?(?![A-Z])|VI\*|\*VI)[\u00ab\u00bb]?/g; // "*VI" accepted as VI*
     const matches = [];
     let m;
     while ((m = markerRe.exec(text))) {
-      matches.push({ type: m[1] === '*VI' ? 'VI*' : m[1], end: markerRe.lastIndex, index: m.index });
+      const t = m[1] === '*VI' ? 'VI*' : (m[1].startsWith('*I') ? '*IA' : m[1]);
+      matches.push({ type: t, end: markerRe.lastIndex, index: m.index });
     }
     const sections = [];
     for (let i = 0; i < matches.length; i++) {
@@ -4051,9 +4054,28 @@ function __jsEnsureSharedObserver() {
   // resolved once here (a single quick peek at the CRM's own clock)
   // rather than once per leg, since it can't meaningfully change
   // between legs parsed from the same paste.
+  // When the VI* / *I header lines weren't pasted, find each section by
+  // what its lines look like and put the markers back in front of them.
+  //   *I line:  " 1 DL3161Y 08MAY J ORDBOS SS1  1010A  136P /E"
+  //   VI line:  " 1 DL 3161 08MAY ORD BOS 1010A  136P ..."  (or the FLIGHT header)
+  function addMissingMarkers(rawText) {
+    const lines = String(rawText || '').split(/\r?\n/).map(stripPrompt);
+    const IA_RE = /^\s*\d+\s+[A-Z0-9]{2}\s*\d{1,5}[A-Z]\s+\d{2}[A-Z]{3}\s+[A-Z]\s+[A-Z]{6}\s/;
+    const VI_RE = /^\s*(FLIGHT\s+DATE\s+SEGMENT|\d+\s+[A-Z0-9]{2}[\s*]*\d{1,5}\s+\d{2}[A-Z]{3}\s+[A-Z]{3}\s+[A-Z]{3}\s)/i;
+    const ia = lines.findIndex((l) => IA_RE.test(l));
+    const vi = lines.findIndex((l) => VI_RE.test(l));
+    if (ia < 0 || vi < 0) return rawText;
+    const out = lines.slice();
+    // Insert the later one first so the earlier index stays right.
+    if (ia > vi) { out.splice(ia, 0, '*I'); out.splice(vi, 0, 'VI*'); }
+    else { out.splice(vi, 0, 'VI*'); out.splice(ia, 0, '*I'); }
+    return out.join('\n');
+  }
+
   function parseRawSegments(rawText) {
     const referenceNow = getReferenceNow();
-    const sections = splitByMarkers(rawText);
+    let sections = splitByMarkers(rawText);
+    if (sections.length < 2) sections = splitByMarkers(addMissingMarkers(rawText));
     const legs = [];
     for (let i = 0; i < sections.length; i += 2) {
       const a = sections[i];
@@ -4079,142 +4101,55 @@ function __jsEnsureSharedObserver() {
   // no leg without a predecessor), and to order separate, unconnected
   // chains relative to each other.
   function reorderByContinuity(legs) {
-    const n = legs.length;
-    if (n <= 1) return legs.slice();
-
-    const parent = Array.from({ length: n }, (_, i) => i);
-    function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
-    function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
-
-    const byOrigin = new Map();
-    const byDestination = new Map();
-    legs.forEach((leg, idx) => {
-      if (leg.origin) { if (!byOrigin.has(leg.origin)) byOrigin.set(leg.origin, []); byOrigin.get(leg.origin).push(idx); }
-      if (leg.destination) { if (!byDestination.has(leg.destination)) byDestination.set(leg.destination, []); byDestination.get(leg.destination).push(idx); }
-    });
-
-    // Link leg idx to leg j (idx's destination == j's origin) ONLY when j
-    // is the SOONEST qualifying departure from that airport — never every
-    // later one. Unioning with every later match breaks the moment an
-    // airport is revisited by a second, unrelated trip: e.g. trip A ends
-    // by ARRIVING at CAI in October, and weeks later a completely
-    // separate trip B DEPARTS CAI in November. CAI-as-origin matches
-    // trip B's leg too, so without picking only the nearest one, that
-    // later, unrelated departure gets unioned into trip A's chain right
-    // alongside trip A's real continuation — welding two separate trips
-    // into one false component. Picking only the minimum-sortKey
-    // candidate (the true immediate next flight) avoids this: trip B's
-    // later CAI departure stays unlinked from trip A and forms its own
-    // separate chain, exactly as it should.
-    //
-    // That alone isn't enough, though — it only guards the OUTGOING side
-    // (each leg picks its own nearest forward match), but says nothing
-    // about the INCOMING side. Two different legs can both arrive at the
-    // same airport and both pick the SAME single departure from there as
-    // their "nearest forward match" — one might be a same-day connection,
-    // the other a much later, unrelated arrival weeks earlier — and
-    // without an incoming check too, BOTH get unioned into that departure,
-    // welding an unrelated trip on anyway, just from the other direction.
-    // So a link only actually forms when it's the mutual best match on
-    // BOTH sides: idx's nearest forward candidate is j, AND j's nearest
-    // backward candidate (among everything arriving at its own origin) is
-    // idx. Whichever predecessor is genuinely closest in time wins that
-    // departure; the more distant one stays unlinked, ending its own
-    // chain instead of being dragged into one it was never really part of.
-    const bestForward = new Map();
-    legs.forEach((leg, idx) => {
-      if (!leg.destination) return;
-      const candidates = (byOrigin.get(leg.destination) || [])
-        .filter((j) => j !== idx && legs[j].sortKey >= leg.sortKey);
-      if (!candidates.length) return;
-      candidates.sort((a, b) => legs[a].sortKey - legs[b].sortKey);
-      bestForward.set(idx, candidates[0]);
-    });
-
-    const bestBackward = new Map();
-    legs.forEach((leg, idx) => {
-      if (!leg.origin) return;
-      const candidates = (byDestination.get(leg.origin) || [])
-        .filter((j) => j !== idx && legs[j].sortKey <= leg.sortKey);
-      if (!candidates.length) return;
-      candidates.sort((a, b) => legs[b].sortKey - legs[a].sortKey);
-      bestBackward.set(idx, candidates[0]);
-    });
-
-    legs.forEach((leg, idx) => {
-      const candidate = bestForward.get(idx);
-      if (candidate === undefined) return;
-      if (bestBackward.get(candidate) === idx) union(idx, candidate);
-    });
-
-    const groups = new Map();
-    legs.forEach((leg, idx) => {
-      const r = find(idx);
-      if (!groups.has(r)) groups.set(r, []);
-      groups.get(r).push(idx);
-    });
-
-    const chains = [];
-    groups.forEach((indices) => {
-      const idxSet = new Set(indices);
-      const hasPredecessor = new Set();
-      indices.forEach((idx) => {
-        const leg = legs[idx];
-        const preds = (byDestination.get(leg.origin) || []).filter((j) => idxSet.has(j));
-        if (preds.length) hasPredecessor.add(idx);
-      });
-      let startIdx = indices.find((idx) => !hasPredecessor.has(idx));
-      if (startIdx === undefined) {
-        // A closed loop (e.g. a round trip back to its own starting
-        // city) — every leg has a predecessor, so there's no unambiguous
-        // start. Cut it open at whichever leg looks earliest.
-        startIdx = indices.slice().sort((a, b) => legs[a].sortKey - legs[b].sortKey)[0];
+    // CHRONOLOGICAL order first: every leg sorted by its departure
+    // date/time (estimated UTC, so a Sydney vs San Francisco departure
+    // compare correctly). The old continuity-first ordering welded any
+    // route loop together (e.g. SEA-BCN 15MAY, BCN-LHR 28MAY, LHR-SEA
+    // 28MAY) and pushed a leg dated in between (CDG-CAI 17MAY) after it.
+    // Continuity is now only a local repair: two neighbouring legs less
+    // than ~30h apart are swapped when the later one clearly feeds the
+    // earlier one (its arrival = the other's departure) and not the other
+    // way round — that covers a time-zone estimate that's off by a few
+    // hours for an airport missing from AIRPORT_LON. Legs with no
+    // readable date keep their pasted order at the end.
+    const out = legs.map((leg, i) => ({ leg, i }))
+      .sort((a, b) => (a.leg.sortKey - b.leg.sortKey) || (a.i - b.i))
+      .map((x) => x.leg);
+    const NEAR = 30 * 3600 * 1000;
+    for (let pass = 0; pass < out.length; pass++) {
+      let changed = false;
+      for (let k = 0; k + 1 < out.length; k++) {
+        const a = out[k], b = out[k + 1];
+        if (a.sortKey === Number.MAX_SAFE_INTEGER || b.sortKey === Number.MAX_SAFE_INTEGER) continue;
+        if (Math.abs(b.sortKey - a.sortKey) >= NEAR) continue;
+        const aFeedsB = a.destination && a.destination === b.origin;
+        const bFeedsA = b.destination && b.destination === a.origin;
+        if (bFeedsA && !aFeedsB) { out[k] = b; out[k + 1] = a; changed = true; }
       }
-
-      const ordered = [];
-      const used = new Set();
-      let cur = startIdx;
-      while (cur !== undefined && !used.has(cur)) {
-        ordered.push(cur);
-        used.add(cur);
-        const leg = legs[cur];
-        // Among every unused leg departing from where `leg` just landed,
-        // the one that actually comes next is whichever departs SOONEST
-        // — not whichever happened to appear first in the pasted text.
-        // Taking nextCandidates[0] unsorted picked leg order/paste order
-        // by accident: a leg landing at CGK on the 12th with both a
-        // BPN side-trip departing the 13th and a later DOH continuation
-        // departing the 20th available from CGK would jump straight to
-        // the 20th continuation just because it was pasted first,
-        // skipping over the side-trip that actually happens in between.
-        // Sorting candidates by sortKey and taking the earliest fixes
-        // that regardless of paste order.
-        const nextCandidates = (byOrigin.get(leg.destination) || [])
-          .filter((j) => idxSet.has(j) && !used.has(j))
-          .sort((a, b) => legs[a].sortKey - legs[b].sortKey);
-        cur = nextCandidates.length ? nextCandidates[0] : undefined;
-      }
-      indices.forEach((idx) => { if (!used.has(idx)) ordered.push(idx); });
-
-      chains.push({ indices: ordered, startKey: legs[ordered[0]].sortKey });
-    });
-
-    chains.sort((a, b) => a.startKey - b.startKey);
-
-    const result = [];
-    chains.forEach((chain) => chain.indices.forEach((idx) => result.push(legs[idx])));
-    return result;
+      if (!changed) break;
+    }
+    return out;
   }
 
   function buildMerged(legs) {
     const sorted = reorderByContinuity(legs);
     const iaLines = sorted.map((leg, idx) => `${String(idx + 1).padStart(2, ' ')} ${leg.iaRest}`);
     const viLines = ['   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES SM'];
+    // Sabre ends the VI section with a "." on its last line. Take it off
+    // whichever leg had it and put it back on the very last line, so it
+    // doesn't end up in the middle after sorting.
+    let hadEndDot = false;
     sorted.forEach((leg, idx) => {
+      const other = leg.viOtherLines.map((l) => {
+        if (/\.\s*$/.test(l) && /^[A-Z-]+\.\s*$/.test(l.trim())) { hadEndDot = true; return l.replace(/\.(\s*)$/, '$1'); }
+        return l;
+      });
       viLines.push(`${String(idx + 1).padStart(2, ' ')} ${leg.viFirstLine}`);
-      viLines.push(...leg.viOtherLines);
+      viLines.push(...other);
     });
-    return `*IA\n${iaLines.join('\n')}\n\nVI*\n${viLines.join('\n')}`;
+    if (hadEndDot && viLines.length > 1) viLines[viLines.length - 1] = viLines[viLines.length - 1].replace(/\s*$/, '') + '.';
+    // Same layout agents paste from the Sabre terminal: VI* first, then *I.
+    return `VI*\n${viLines.join('\n')}\n\n*I\n${iaLines.join('\n')}`;
   }
 
   function detectCarrier(legs) {
@@ -5993,7 +5928,7 @@ function __jsEnsureSharedObserver() {
   let pageFetch = null;
 
   function saveOptionRaw(optionId, raw) {
-    if (!optionId || !raw || !/\*IA/.test(raw)) return;
+    if (!optionId || !raw || !/\*IA?(?![A-Z])/.test(raw)) return;
     let all = {};
     try { all = JSON.parse(GM_getValue(OPTION_RAW_KEY, '{}')) || {}; } catch (e) { all = {}; }
     all[optionId] = { raw, at: Date.now() };
@@ -6019,7 +5954,7 @@ function __jsEnsureSharedObserver() {
       Object.keys(node).forEach((k) => {
         const v = node[k];
         if (typeof v === 'string') {
-          if (/\*IA/.test(v) && /VI\*|\*VI/.test(v)) here.forEach((id) => { optionRawCache.set(id, v); if (own.length) optionObjCache.set(id, node); });
+          if (/\*IA?(?![A-Z])/.test(v) && /VI\*|\*VI/.test(v)) here.forEach((id) => { optionRawCache.set(id, v); if (own.length) optionObjCache.set(id, node); });
         } else if (v && typeof v === 'object') {
           walk(v, here, depth + 1);
         }
@@ -6364,10 +6299,7 @@ function __jsEnsureSharedObserver() {
       });
       if (tickets.length > 4) { say('Max 4 tickets', 2500); return; }
       const sorted = reorderByContinuity(legs);
-      const iaLines = sorted.map((leg, idx) => `${String(idx + 1).padStart(2, ' ')} ${leg.iaRest}`);
-      const viLines = ['   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES SM'];
-      sorted.forEach((leg, idx) => { viLines.push(`${String(idx + 1).padStart(2, ' ')} ${leg.viFirstLine}`); viLines.push(...leg.viOtherLines); });
-      const mergedText = `*IA\n${iaLines.join('\n')}\n\nVI*\n${viLines.join('\n')}`;
+      const mergedText = buildMerged(sorted);
       const ticketOfSeg = sorted.map((l) => l.ticket);
       const costs = tickets.map((t) => t.cost);
       const opts2 = tickets; // one entry per ticket for the price step

@@ -61,6 +61,11 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ## What's new
 
+**2.17.2 — Sort Me fix**
+- **Sort Me** now puts segments in **date order** (earliest flight first), even when the trip goes back to the same city.
+- Sorted segments now come out the way you paste them from Sabre: **VI\*** first, then **\*I**.
+- Works when you paste **\*I** instead of **\*IA**, and even when the VI\* / \*I lines are missing.
+
 **2.17.1 — works on a Mac**
 - One TBC Assistant for **Windows and Mac**: it notices which computer you're on by itself, so there's nothing to choose.
 - On a Mac, shortcuts use the **Control** key (Command works too): **Control+Enter** sends a text, **Control+click** picks more than one search. The call menu says "Mac app" instead of "Windows app".
