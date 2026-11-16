@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.17.2
+// @version      2.17.3
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -6944,6 +6944,51 @@ function __jsEnsureSharedObserver() {
     if (!segs.length) return null;
     return { segments: segs, cabin: card.cabin || 'B', adults: Math.max(1, pax.adults || 1), children: pax.children || 0, infants: pax.infants || 0, fromRemark: true, warn };
   }
+  // Last resort: some leads have the trip in the BO but no usable Matrix
+  // link in the box (it shows "Matrix 0") and nothing in the remark. Ask
+  // the BO for the lead (route, dates, passengers) once, then rebuild.
+  const srchApiCache = new Map(); // lead id -> lead object | null (none) | 'wait'
+  function srchIsoDay(unix, tz) {
+    if (!unix) return null;
+    const d = new Date(Number(unix) * 1000);
+    if (isNaN(d)) return null;
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); }
+    catch (e) { return d.toISOString().slice(0, 10); }
+  }
+  function srchLeadFromApi() {
+    const idm = location.pathname.match(/^\/leads\/(\d+)/);
+    if (!idm) return null;
+    const id = idm[1];
+    if (srchApiCache.has(id)) { const v = srchApiCache.get(id); return v && v !== 'wait' ? v : null; }
+    const h = Object.assign({ Accept: 'application/json' }, __jsApi.headers);
+    if (!Object.keys(h).some((k) => /authorization/i.test(k))) { const sa = __jsStoredAuth(); if (sa) h.Authorization = sa; else return null; }
+    srchApiCache.set(id, 'wait');
+    const w = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+    w.fetch('/api/database/v2/Lead/find?pks=' + id, { credentials: 'include', headers: h })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const r = j && (j.result || j.data);
+        const L = Array.isArray(r) ? r[0] : null;
+        const from = L && String(L.from_iata_code || '').toUpperCase();
+        const to = L && String(L.to_iata_code || '').toUpperCase();
+        const dep = L && srchIsoDay(L.departure_date, L.from_iata_timezone);
+        if (!from || !to || !dep) { srchApiCache.set(id, null); return; }
+        const ret = srchIsoDay(L.return_date, L.to_iata_timezone);
+        const card = srchCardInfo(id) || {};
+        const pax = (readLeadCard(id) || {}).pax || {};
+        srchApiCache.set(id, {
+          segments: [{ origin: from, destination: to, departureDate: dep, returnDate: ret }],
+          cabin: card.cabin || 'B',
+          adults: Math.max(1, parseInt(L.adult_count, 10) || pax.adults || 1),
+          children: parseInt(L.child_count, 10) || pax.children || 0,
+          infants: parseInt(L.infant_count, 10) || pax.infants || 0,
+          fromApi: true,
+        });
+        try { wireSearchPanels(); } catch (e) { /* ignore */ }
+      })
+      .catch(() => { srchApiCache.delete(id); }); // try again on the next re-render
+    return null;
+  }
   // Sabre JR (Fast Search): JR.<from>/S-O<cabin><to><date>…, with
   // /S-ARUNK<city> where a leg starts somewhere other than the last one ended.
   function srchJR(lead, cab) {
@@ -7690,7 +7735,7 @@ function __jsEnsureSharedObserver() {
       if (!body || !foot) return;
       // Re-read the lead each time the BO re-renders the box (its Matrix
       // link carries the route, dates and passengers).
-      const fresh = srchLeadFromBox(box) || srchLeadFromRemark();
+      const fresh = srchLeadFromBox(box) || srchLeadFromRemark() || srchLeadFromApi();
       if (fresh) {
         // The BO switched this box to other data (another lead, new dates):
         // rebuild the panel for it, with that lead's own cabin.
@@ -13661,11 +13706,10 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.17.1',
+    version: '2.17.3',
     items: [
-      'Works on a MacBook too. It\u2019s the same tool for Windows and Mac: it notices which computer you\u2019re on by itself.',
-      'On a Mac, the shortcuts use the Control key: Control+Enter sends a text, Control+click picks more than one search. Command works too.',
-      'Still new from 2.17.0: "Send emails" with Quotes (PQs) or a Follow-up email, filled in from the lead.',
+      'The search buttons (Basis, Kayak, Matrix, Google Flights\u2026) now show on every lead that has a trip in the BO, including leads whose box was empty and showed "Matrix 0".',
+      'Still new from 2.17.2: Sort Me puts segments in date order, VI* first then *I.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';

@@ -61,6 +61,9 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 ## What's new
 
+**2.17.3 — search buttons on every lead**
+- The search buttons (**Basis**, **Kayak**, **Matrix**, **Google Flights**…) now show on every lead that has a trip in the BO, including leads whose box was empty and showed "Matrix 0". The trip is read straight from the lead.
+
 **2.17.2 — Sort Me fix**
 - **Sort Me** now puts segments in **date order** (earliest flight first), even when the trip goes back to the same city.
 - Sorted segments now come out the way you paste them from Sabre: **VI\*** first, then **\*I**.
