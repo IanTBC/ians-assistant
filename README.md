@@ -57,9 +57,14 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Send emails** (leads list): choose **Quotes (PQs)**, which prepares each lead's profitable quotes as the BO's own email, or a **Follow-up email** from four templates you can edit. The client's first name, your name and the trip (cities and dates) are filled in from the BO. You see and confirm every email before it goes. A yellow tick in the PQs column marks leads whose quotes were emailed today.
 - The RC tab shows your RingCentral texts and lets you send them to any country's number, with one editable text, **SMS Introduction**. Once sent it turns green and shows when it went out.
 
-**Look** — the moon button on the panel opens a menu with five looks: **Nova** (the main look), **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
+**Look** — the moon button on the panel opens a menu with seven looks: **Calm** (the main look, dark), **Calm Light**, **Nova**, **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**3.0.0 — new look: Calm**
+- A new design for the whole tool: **Calm** (dark, the new main look) and **Calm Light**. Flat, calm colours, one blue for buttons, clearer text, on the panel, inside leads, Send emails, Super Basis and flight sites.
+- Everything works exactly as before; only the look changed. No blur behind panels any more, so it's lighter and stays smooth.
+- Everyone starts on Calm once. The old looks are still in the look menu (moon button).
 
 **2.17.3 — search buttons on every lead**
 - The search buttons (**Basis**, **Kayak**, **Matrix**, **Google Flights**…) now show on every lead that has a trip in the BO, including leads whose box was empty and showed "Matrix 0". The trip is read straight from the lead.

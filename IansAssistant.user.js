@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      2.17.3
+// @version      3.0.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -66,18 +66,25 @@ var IA_ACCENTS = {"midnight": ["#7c7cf8", "#1f5cff", "#7c9cff"], "teal": ["#2dd4
 // In Dark, Light and Navy, pri is simply the accent colour.
 IA_MODES.nova = {"bg": "#EEF1F7", "card": "rgba(255,255,255,.92)", "cardbd": "transparent", "field": "#FFFFFF", "line": "rgba(18,22,40,.10)", "line2": "rgba(18,22,40,.16)", "text": "#121628", "title": "#121628", "muted": "#565E77", "sec": "#2E3550", "head": "#121628", "eye": "#121628", "onacc": "#121628", "ok": "#0F9C83", "bad": "#C2283A", "stop": "#C2283A", "foot": "#8A90A6", "shadow": "0 1px 2px rgba(18,22,40,.05), 0 18px 40px -18px rgba(18,22,40,.30)", "glass": "rgba(255,255,255,.74)", "edge": "rgba(18,22,40,.10)", "inner": "#FFFFFF", "chip": "#FFFFFF", "chipshadow": "0 1px 2px rgba(18,22,40,.06), 0 6px 14px -8px rgba(18,22,40,.22)", "sky": "radial-gradient(circle at 100% 0%, rgba(255,120,80,.24) 0, transparent 55%), radial-gradient(circle at 0% 100%, rgba(80,130,255,.18) 0, transparent 55%)", "acc": "#FF5B2E", "pri": "#121628", "onpri": "#F5F7FC"};
 IA_MODES.novanight = {"bg": "#0A0D19", "card": "rgba(255,255,255,.04)", "cardbd": "transparent", "field": "#1B2036", "line": "rgba(238,240,250,.10)", "line2": "rgba(238,240,250,.16)", "text": "#EEF0FA", "title": "#FFFFFF", "muted": "#9CA3BF", "sec": "#C9CDE0", "head": "#EEF0FA", "eye": "#0A0D19", "onacc": "#0A0D19", "ok": "#3FE0C5", "bad": "#FF6B7D", "stop": "#E5484D", "foot": "#6B7189", "shadow": "0 1px 2px rgba(0,0,0,.4), 0 18px 40px -18px rgba(0,0,0,.75)", "glass": "rgba(14,18,33,.93)", "edge": "rgba(238,240,250,.10)", "inner": "#131729", "chip": "#1B2036", "chipshadow": "none", "sky": "radial-gradient(circle at 100% 0%, rgba(255,110,70,.20) 0, transparent 55%), radial-gradient(circle at 0% 100%, rgba(70,110,255,.20) 0, transparent 55%)", "acc": "#FF7048", "pri": "#EEF0FA", "onpri": "#0A0D19"};
-var IA_LOOKS = [['nova', 'Nova'], ['novanight', 'Nova Night'], ['dark', 'Dark'], ['light', 'Light'], ['navy', 'Navy']];
-function iaIsNova(m) { return m === 'nova' || m === 'novanight'; }
-function iaIsLight(m) { return m === 'light' || m === 'nova'; }
-// Everyone starts on Nova once when 2.15.0 arrives; after that the agent's
-// own pick stays.
+// Calm and Calm Light (3.0.0): the new main look. Flat surfaces, one blue
+// for actions, green / amber / red only for meaning, Plus Jakarta Sans.
+// Calm (dark) is the default. They reuse the Nova shapes (iaIsNova) and the
+// CALM LAYER below adjusts corners, labels and fonts.
+IA_MODES.calm = {"bg": "#0D1117", "card": "#161B24", "cardbd": "transparent", "field": "#1D2330", "line": "#262D3B", "line2": "#323A4B", "text": "#CDD3DF", "title": "#EEF1F7", "muted": "#97A0B3", "sec": "#B7BFCF", "head": "#EEF1F7", "eye": "#0D1117", "onacc": "#FFFFFF", "ok": "#3CCB92", "bad": "#FF6B63", "stop": "#E5484D", "foot": "#6F788C", "shadow": "0 0 0 1px #262D3B, 0 16px 36px -16px rgba(0,0,0,.7)", "glass": "#161B24", "edge": "#262D3B", "inner": "#1D2330", "chip": "#1D2330", "chipshadow": "none", "sky": "none", "acc": "#5B83FF", "pri": "#5B83FF", "onpri": "#FFFFFF"};
+IA_MODES.calmlight = {"bg": "#F4F6F9", "card": "#FFFFFF", "cardbd": "transparent", "field": "#FFFFFF", "line": "#E4E8EF", "line2": "#D3D9E3", "text": "#2B3346", "title": "#0E1525", "muted": "#5F687C", "sec": "#3B4458", "head": "#0E1525", "eye": "#FFFFFF", "onacc": "#FFFFFF", "ok": "#0E9F6A", "bad": "#D93A33", "stop": "#D93A33", "foot": "#8A92A4", "shadow": "0 1px 2px rgba(14,21,37,.06), 0 12px 32px -14px rgba(14,21,37,.28)", "glass": "#FFFFFF", "edge": "#E4E8EF", "inner": "#F1F3F7", "chip": "#FFFFFF", "chipshadow": "inset 0 0 0 1px #D3D9E3", "sky": "none", "acc": "#2556F5", "pri": "#2556F5", "onpri": "#FFFFFF"};
+var IA_LOOKS = [['calm', 'Calm'], ['calmlight', 'Calm Light'], ['nova', 'Nova'], ['novanight', 'Nova Night'], ['dark', 'Dark'], ['light', 'Light'], ['navy', 'Navy']];
+function iaIsCalm(m) { return m === 'calm' || m === 'calmlight'; }
+function iaIsNova(m) { return m === 'nova' || m === 'novanight' || iaIsCalm(m); }
+function iaIsLight(m) { return m === 'light' || m === 'nova' || m === 'calmlight'; }
+// Everyone moves to Calm (dark) once when 3.0.0 arrives; after that the
+// agent's own pick stays (Nova and the older looks are still in the menu).
 try {
-  if (!GM_getValue('ia-nova-start', false)) { GM_setValue('ia-mode', 'nova'); GM_setValue('ia-nova-start', true); }
+  if (!GM_getValue('ia-calm-start', false)) { GM_setValue('ia-mode', 'calm'); GM_setValue('ia-calm-start', true); GM_setValue('ia-nova-start', true); }
 } catch (e) { /* ignore */ }
 function iaMode() {
-  let m = 'nova';
-  try { m = GM_getValue('ia-mode', 'nova'); } catch (e) { /* ignore */ }
-  return IA_MODES[m] ? m : 'nova';
+  let m = 'calm';
+  try { m = GM_getValue('ia-mode', 'calm'); } catch (e) { /* ignore */ }
+  return IA_MODES[m] ? m : 'calm';
 }
 function iaPalette() {
   const mode = iaMode();
@@ -88,14 +95,57 @@ function iaPalette() {
 }
 // Nova fonts (Unbounded titles, Manrope text, JetBrains Mono labels). If a
 // site blocks them, the system fonts are used instead.
-try { GM_addStyle("@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');"); } catch (e) { /* ignore */ }
-var IA_NOVA_FONT = "Manrope, 'Segoe UI', system-ui, -apple-system, sans-serif";
-var IA_NOVA_DISPLAY = "Unbounded, 'Segoe UI', system-ui, sans-serif";
+try { GM_addStyle("@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Manrope:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');"); } catch (e) { /* ignore */ }
+// In Calm the same slots use Plus Jakarta Sans (a look change from Calm to
+// Nova or back picks up its fonts after the page reloads).
+var IA_CALM_FONT = "'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif";
+var IA_NOVA_FONT = iaIsCalm(iaMode()) ? IA_CALM_FONT : "Manrope, 'Segoe UI', system-ui, -apple-system, sans-serif";
+var IA_NOVA_DISPLAY = iaIsCalm(iaMode()) ? IA_CALM_FONT : "Unbounded, 'Segoe UI', system-ui, sans-serif";
 var IA_NOVA_MONO = "'JetBrains Mono', ui-monospace, Consolas, monospace";
 // Windows or Mac: one script for both. Shortcuts use Ctrl on Windows and
 // Control on a Mac (Command works too); labels use the Mac names on a Mac.
 var IA_MAC = /Mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent);
 var IA_MOD = IA_MAC ? 'Control' : 'Ctrl';
+
+// ====================================================================
+// CALM LAYER (3.0.0) — corners, labels and weights for the Calm looks.
+// Works by a class on <html> (ia-calm), so every part of the tool picks it
+// up without its own wiring. Flat: no blur behind panels (also cheaper to
+// draw, so animations stay smooth).
+// ====================================================================
+function iaCalmClass() {
+  try { document.documentElement.classList.toggle('ia-calm', iaIsCalm(iaMode())); } catch (e) { /* ignore */ }
+}
+iaCalmClass();
+try { GM_addValueChangeListener('ia-mode', () => iaCalmClass()); } catch (e) { /* ignore */ }
+try {
+  GM_addStyle(`
+  html.ia-calm .ia-widget.ia-mode-calm { --acc: #5B83FF; } html.ia-calm .ia-widget.ia-mode-calmlight { --acc: #2556F5; }
+  .ia-mode-calm .ia-ico-dark, .ia-mode-calmlight .ia-ico-light { display: block; }
+  html.ia-calm .ia-widget.ia-nova .ia-panel, html.ia-calm .ia-widget.ia-nova .ia-bubble { border-radius: 18px; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html.ia-calm .ia-widget.ia-nova .ia-card { border-radius: 14px; }
+  html.ia-calm button[class*="ia-"], html.ia-calm [class*="ia-"] button { border-radius: 10px !important; }
+  html.ia-calm button[class*="chip"], html.ia-calm [class*="chip"] > button, html.ia-calm .ia-cb-card { border-radius: 999px !important; }
+  html.ia-calm .ia-widget.ia-nova .ia-iconbtn, html.ia-calm .ia-widget.ia-nova .ia-mode-btn, html.ia-calm .ia-widget.ia-nova .ia-cb-btn { border-radius: 9px !important; }
+  html.ia-calm .ia-widget.ia-nova .ia-call, html.ia-calm .ia-widget.ia-nova .ia-sec, html.ia-calm .ia-widget.ia-nova .ia-stop { box-shadow: none; border-radius: 12px !important; }
+  html.ia-calm .ia-widget.ia-nova .ia-sec, html.ia-calm .ia-widget.ia-nova .ia-stop { background: var(--ia-inner); }
+  html.ia-calm .ia-widget.ia-nova .ia-cb-badge { color: #fff; font-family: inherit; font-weight: 800; }
+  html.ia-calm .ia-widget.ia-nova .ia-head__title, html.ia-calm .ia-widget.ia-nova .ia-panel .ia-screen-info__client, html.ia-calm .ia-widget.ia-nova .ia-idle__t,
+  html.ia-calm .ia-widget.ia-nova .ia-stats b, html.ia-calm .ia-widget.ia-nova .ia-cbdue__who, html.ia-calm .ia-sq--nova .ia-sq__head b, html.ia-calm .ia-sb--nova .ia-sb-t {
+    font-weight: 800; letter-spacing: -.01em; }
+  html.ia-calm .ia-widget.ia-nova .ia-panel .ia-screen-info__label, html.ia-calm .ia-widget.ia-nova .ia-stats > span, html.ia-calm .ia-widget.ia-nova .ia-foot,
+  html.ia-calm .ia-widget.ia-nova .ia-cbdue__k { font-family: ${IA_CALM_FONT}; text-transform: none; letter-spacing: 0; font-weight: 600; }
+  html.ia-calm .ia-widget.ia-nova .ia-stats > span { font-size: 10.5px; }
+  html.ia-calm .ia-widget.ia-nova .ia-cbdue, html.ia-calm .ia-cbpop.ia-nova, html.ia-calm .ia-sb--nova, html.ia-calm .ia-sq--nova .ia-sq__card { border-radius: 16px; }
+  html.ia-calm .ia-widget.ia-nova .ia-reminder, html.ia-calm .ia-widget.ia-nova .ia-levelup__text { border-radius: 14px; }
+  /* flight sites: the GDS copy button and the big COPIED sign */
+  html.ia-calm .gds-btn-base.gds-btn-base { background: #161B24 !important; color: #EEF1F7 !important; border: 1px solid #323A4B !important; border-radius: 10px !important;
+    font-family: ${IA_CALM_FONT} !important; box-shadow: none !important; }
+  html.ia-calm .gds-btn-base.gds-btn-base:hover { background: #1D2330 !important; color: #fff !important; }
+  html.ia-calm .gds-btn-base.copied { background: #0E9F6A !important; border-color: #0E9F6A !important; color: #fff !important; }
+  html.ia-calm .gds-big-copied { font-family: ${IA_CALM_FONT}; font-size: 40px; letter-spacing: 2px; color: #fff; background: #161B24; border: 1px solid #323A4B; border-radius: 18px; padding: 20px 40px; }
+  `);
+} catch (e) { /* ignore */ }
 // Small Pip (body + eyes) built with DOM calls, so it works on sites that
 // block innerHTML (Google's Trusted Types).
 function iaPipNode(size, p) {
@@ -1074,7 +1124,7 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     copyText(textToCopy);
     if (showBig) showBigCopiedIndicator();
     const originalText = btn.textContent;
-    btn.textContent = '\u2728 Copied! \u2728';
+    btn.textContent = '\u2713 Copied';
     btn.classList.add('copied');
     setTimeout(() => {
       btn.textContent = originalText;
@@ -3302,6 +3352,13 @@ const VI_HEADER = '   FLIGHT  DATE  SEGMENT DPTR  ARVL    MLS  EQP  ELPD MILES S
     .row button { height: 34px; border-radius: 999px; transition: transform .3s cubic-bezier(.34,1.4,.64,1); }
     .row button:active { transform: scale(.95); }
     .no { box-shadow: inset 0 0 0 1.5px ${th.line}; }
+  ` : '') + (iaIsCalm(th.mode) ? `
+    /* Calm */
+    .body { border-radius: 16px; }
+    .title { font-weight: 800; font-size: 12.5px; }
+    .gds, .lead, .sellrow, .row button { border-radius: 10px; }
+    .gds { box-shadow: none; }
+    .sell-l, .copy { font-family: ${IA_CALM_FONT}; letter-spacing: 0; text-transform: none; font-weight: 700; }
   ` : '');
 
   function openBmoPopover(trigger, origBtn) {
@@ -9685,6 +9742,7 @@ function __jsEnsureSharedObserver() {
     const m = iaMode();
     Object.keys(IA_MODES).forEach((x) => iaWidget.classList.toggle('ia-mode-' + x, x === m));
     iaWidget.classList.toggle('ia-nova', iaIsNova(m));
+    iaCalmClass();
     const menu = iaWidget.querySelector('.ia-looks');
     if (menu) menu.querySelectorAll('.ia-look').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.look === m)));
   }
@@ -9731,7 +9789,7 @@ function __jsEnsureSharedObserver() {
       const t = document.createElement('span');
       t.textContent = label;
       b.appendChild(dots); b.appendChild(t);
-      if (key === 'nova') { const sm = document.createElement('small'); sm.textContent = 'Main'; b.appendChild(sm); }
+      if (key === 'calm') { const sm = document.createElement('small'); sm.textContent = 'Main'; b.appendChild(sm); }
       b.addEventListener('click', (e) => { e.stopPropagation(); setLook(key); closeLooks(); });
       b.addEventListener('mousedown', (e) => e.stopPropagation());
       menu.appendChild(b);
@@ -13706,10 +13764,11 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '2.17.3',
+    version: '3.0.0',
     items: [
-      'The search buttons (Basis, Kayak, Matrix, Google Flights\u2026) now show on every lead that has a trip in the BO, including leads whose box was empty and showed "Matrix 0".',
-      'Still new from 2.17.2: Sort Me puts segments in date order, VI* first then *I.',
+      'New look: Calm. Dark by default, with Calm Light if you prefer it. Flat, calm colours, one blue for buttons, and clearer text everywhere in the tool.',
+      'Everything works the same; only the look changed. It\u2019s also lighter for your computer, so it stays smooth.',
+      'Prefer the old look? The moon button opens the look menu: Nova, Nova Night, Dark, Light and Navy are all still there.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
