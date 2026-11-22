@@ -1,0 +1,85 @@
+{
+  "manifest_version": 3,
+  "name": "TBC Assistant",
+  "version": "3.1.0",
+  "version_name": "3.1.0",
+  "description": "Sabre GDS copy, BO tools, dialer and texting for TBC agents.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "TBC Assistant",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "background": {
+    "service_worker": "bg.js"
+  },
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "offscreen",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://raw.githubusercontent.com/IanTBC/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.flybasis.com/*",
+        "*://agentsearch.vercel.app/*",
+        "*://*.awardlogic.com/*",
+        "*://*.pointsyeah.com/*",
+        "*://matrix.itasoftware.com/*",
+        "*://*.kayak.com/*",
+        "*://*.cheapoair.com/*",
+        "https://www.google.com/travel/flights*",
+        "https://bo.travelbusinessclass.com/*",
+        "https://bo.tmgbo.com/*",
+        "*://*.tmgbo.com/*",
+        "https://apps.ringcentral.com/integration/ringcentral-embeddable/*",
+        "https://app.ringcentral.com/*",
+        "https://iantbc.github.io/ians-assistant/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "ISOLATED"
+    },
+    {
+      "matches": [
+        "*://*.flybasis.com/*",
+        "*://agentsearch.vercel.app/*",
+        "*://*.awardlogic.com/*",
+        "*://*.pointsyeah.com/*",
+        "*://matrix.itasoftware.com/*",
+        "*://*.kayak.com/*",
+        "*://*.cheapoair.com/*",
+        "https://www.google.com/travel/flights*",
+        "https://bo.travelbusinessclass.com/*",
+        "https://bo.tmgbo.com/*",
+        "*://*.tmgbo.com/*",
+        "https://apps.ringcentral.com/integration/ringcentral-embeddable/*",
+        "https://app.ringcentral.com/*",
+        "https://iantbc.github.io/ians-assistant/*"
+      ],
+      "js": [
+        "tool.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+  "minimum_chrome_version": "111"
+}

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TBC Assistant
 // @namespace    ians-assistant
-// @version      3.0.0
+// @version      3.1.0
 // @updateURL    https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @downloadURL  https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
 // @description  TBC Assistant — Sabre *IA/VI* GDS toolkit for agents: copy button for flight sites, CRM Sort Me / Merge / quick Sell edit / search panel, Send to lead, power dialer + RingCentral texting. Dark dashboard design.
@@ -13764,11 +13764,11 @@ function __jsEnsureSharedObserver() {
   // once after an update.
   // ==========================================================================
   const IA_NEWS = {
-    version: '3.0.0',
+    version: '3.1.0',
     items: [
-      'New look: Calm. Dark by default, with Calm Light if you prefer it. Flat, calm colours, one blue for buttons, and clearer text everywhere in the tool.',
-      'Everything works the same; only the look changed. It\u2019s also lighter for your computer, so it stays smooth.',
-      'Prefer the old look? The moon button opens the look menu: Nova, Nova Night, Dark, Light and Navy are all still there.',
+      'TBC Assistant is now its own Chrome extension. Tampermonkey isn\u2019t needed any more.',
+      'Everything works the same as before. Install it once from the website\u2019s step-by-step guide.',
+      'When a new version is out, a small banner shows you how to update in a minute.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
