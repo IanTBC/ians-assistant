@@ -5,7 +5,7 @@
 <script>document.documentElement.classList.add('js')</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TBC Assistant</title>
-<meta name="description" content="TBC Assistant is a free Chrome add-on for TBC agents: one-click Sabre copy from flight sites, search buttons in every lead, a power dialer, callback reminders and quote emails you approve one by one.">
+<meta name="description" content="TBC Assistant is a free Chrome add-on for TBC agents: one-click Sabre copy from flight sites, search buttons in every lead, a power dialer with call buttons, callback reminders and quote cards.">
 <meta property="og:title" content="TBC Assistant">
 <meta property="og:description" content="Quote faster, call smarter, miss nothing. The free everyday toolkit for TBC agents.">
 <meta name="theme-color" content="#EEF1F7" media="(prefers-color-scheme: light)">
@@ -319,16 +319,6 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .qc-price { display: flex; justify-content: space-between; align-items: end; gap: 10px; padding-top: 6px; }
 .qc-price b { font: 600 1.8rem var(--f-display); letter-spacing: -.03em; color: #FF8A66; }
 
-/* demo: send quotes */
-.sq { border-radius: var(--r-lg); background: var(--bg); padding: 16px; display: grid; gap: 12px; }
-.mail { border-radius: 16px; background: var(--surface); padding: 16px; display: grid; gap: 8px; font-size: .88rem; }
-.mail .hd { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: .82rem; }
-.mail .hd span:nth-child(odd) { color: var(--muted); font-family: var(--f-mono); font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; padding-top: 2px; }
-.mail .body { color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
-.sq-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-.sq-btns .btn { min-height: 44px; padding: 0 20px; font-size: .9rem; }
-.sq-prog { font: 500 .78rem var(--f-mono); color: var(--muted); }
-
 /* updates */
 .news { display: grid; gap: 16px; }
 .rel { padding: 24px; border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 12px; align-content: start; }
@@ -611,10 +601,10 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
         <p class="where">Any lead</p>
       </article>
       <article class="card reveal">
-        <span class="ico"><svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.5 7 7.5 6 7.5-6"/></svg></span>
-        <h3>Quotes and follow-ups</h3>
-        <p>Emails each lead its profitable quotes, or a follow-up with the client's name and trip filled in. You read and confirm every single one before it goes.</p>
-        <p class="where">Leads list</p>
+        <span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"/><path d="M15 3.5a5.5 5.5 0 0 1 5.5 5.5M15 7a2 2 0 0 1 2 2"/></svg></span>
+        <h3>Call buttons</h3>
+        <p>Every phone number in the BO gets a call button. One click calls it; right-click picks the RingCentral app or website.</p>
+        <p class="where">Every phone number</p>
       </article>
       <article class="card reveal">
         <span class="ico m"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m4 15 4.5-4.5L13 15l2.5-2.5L20 17"/></svg></span>
@@ -648,7 +638,7 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
     <div class="sec-head reveal">
       <p class="eyebrow">Everyday tasks</p>
       <h2>A day on the desk, with Pip beside you</h2>
-      <p>Here is where the assistant saves you time, from the first lead of the morning to the last follow-up.</p>
+      <p>Here is where the assistant saves you time, from the first lead of the morning to the last call.</p>
     </div>
     <div class="day">
       <article class="slot reveal">
@@ -668,8 +658,8 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       </article>
       <article class="slot reveal">
         <time>Following up</time>
-        <div><h3>Every client hears back</h3><p>Send emails prepares quote emails or follow-ups, with the client's name and trip filled in, and waits for your yes on each one. Quote cards and the SMS Introduction text keep the conversation going.</p>
-        <ul><li>Send emails</li><li>Follow-ups</li><li>Quote card</li><li>SMS Introduction</li></ul></div>
+        <div><h3>Keep every client warm</h3><p>Set a callback for the time the client asked for, paste a clean quote card into the chat, and open the disclaimers already filled in for the lead.</p>
+        <ul><li>Callbacks</li><li>Quote card</li><li>Disclaimers</li></ul></div>
       </article>
     </div>
   </section>
@@ -685,7 +675,7 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
         <div><dt>Copy a flight</dt><dd>1 click<small>Sabre *IA / VI</small></dd></div>
         <div><dt>Flight sites</dt><dd>7<small>with the Pip button</small></dd></div>
         <div><dt>Basis range</dt><dd>&plusmn;1 day<small>class and dates you pick</small></dd></div>
-        <div><dt>Sent without you</dt><dd>0<small>you confirm every email</small></dd></div>
+        <div><dt>Emails or texts sent</dt><dd>0<small>it never contacts clients</small></dd></div>
       </dl>
     </div>
   </section>
@@ -702,7 +692,6 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
         <button class="chip" role="tab" aria-selected="true" aria-controls="p-flight" id="t-flight">Flight sites</button>
         <button class="chip" role="tab" aria-selected="false" aria-controls="p-dial" id="t-dial" tabindex="-1">Dialer</button>
         <button class="chip" role="tab" aria-selected="false" aria-controls="p-card" id="t-card" tabindex="-1">Quote card</button>
-        <button class="chip" role="tab" aria-selected="false" aria-controls="p-send" id="t-send" tabindex="-1">Send quotes</button>
       </div>
       <div class="screen">
         <div class="screen-bar" aria-hidden="true"><i></i><i></i><i></i><span class="addr" id="addr">matrix.itasoftware.com</span><span class="demo-tag">Preview</span></div>
@@ -779,23 +768,6 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
           </div>
         </div>
 
-        <div class="panel" role="tabpanel" id="p-send" aria-labelledby="t-send" hidden>
-          <div class="demo-grid">
-            <div class="sq">
-              <span class="sq-prog" id="sqProg">Email 1 of 3 &middot; waiting for you</span>
-              <div class="mail">
-                <div class="hd"><span>To</span><span id="sqTo">M. Carter &middot; lead 482913</span><span>Quotes</span><span id="sqQ">2 profitable options</span></div>
-                <p class="body" id="sqBody">Hi M., thank you for your time today. Here are the two Business options we talked about for New York to London in December...</p>
-              </div>
-              <div class="sq-btns"><button class="btn" data-sq="send">Send</button><button class="btn ghost" data-sq="skip">Skip</button><button class="btn ghost" data-sq="stop">Stop</button></div>
-            </div>
-            <div class="demo-cap">
-              <h3>You approve every email</h3>
-              <p>Send quotes reads each lead's quotes from the BO, keeps the profitable ones and writes the email. Then it waits for you.</p>
-              <ul><li>See the client, the address and the full message first.</li><li>A yellow tick marks leads you already emailed today.</li></ul>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </section>
@@ -808,8 +780,8 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       <p>A small banner in the BO tells you when a new version is out.</p>
     </div>
     <div class="news">
-      <article class="rel reveal"><div class="rel-top"><span class="v">3.1.0</span><h3>Now a Chrome extension</h3></div>
-        <ul><li>TBC Assistant is now its own <b>Chrome extension</b>. Tampermonkey isn't needed any more.</li><li>Everything works the same. Install it once with the <a class="link" href="#install" style="display:inline-flex">step-by-step guide</a>.</li><li>When a new version is out, a banner in the BO shows you how to update in a minute.</li></ul></article>
+      <article class="rel reveal"><div class="rel-top"><span class="v">3.1.0</span><h3>Chrome extension, for calling</h3></div>
+        <ul><li>TBC Assistant is now its own <b>Chrome extension</b>. Tampermonkey isn't needed any more. Install it once with the <a class="link" href="#install" style="display:inline-flex">step-by-step guide</a>.</li><li><b>Send emails</b> and <b>RingCentral texting</b> are no longer in the tool: it's for calling now. Everything else works the same.</li><li>When a new version is out, a banner in the BO shows you how to update in a minute.</li></ul></article>
       <article class="rel reveal"><div class="rel-top"><span class="v old">3.0.0</span><h3>New look: Calm</h3></div>
         <ul><li>A new design for the whole tool: <b>Calm</b> (dark, the new main look) and <b>Calm Light</b>.</li><li>Flat, calm colours, one blue for buttons and clearer text, everywhere in the tool. Everything works the same.</li><li>The old looks are still in the look menu.</li></ul></article>
       <article class="rel reveal"><div class="rel-top"><span class="v old">2.17.3</span><h3>Search buttons on every lead</h3></div>
@@ -951,8 +923,8 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
           <div class="ans"><p>Yes. TBC Assistant is free. There is nothing to sign up for, and it doesn't need Tampermonkey any more.</p></div></details>
         <details class="reveal"><summary>How do I get updates?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>When a new version is out, a small banner in the BO says so. Click <b>Update</b> and follow the <a class="link" href="#update" style="display:inline-flex">three short steps</a>: download, replace the folder, press reload.</p><p>The <b>What's new</b> button on the panel shows what the latest update changed.</p></div></details>
-        <details class="reveal"><summary>Does it send anything without me?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-          <div class="ans"><p>No. Send emails shows you every quote email and follow-up first and waits for you to press Send, Skip or Stop. Quote cards and copied flights only go where you paste them.</p></div></details>
+        <details class="reveal"><summary>Does it email or text my clients?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+          <div class="ans"><p>No. TBC Assistant never emails or texts your clients. It only calls when you press Call or start the dialer, and quote cards and copied flights only go where you paste them.</p></div></details>
         <details class="reveal"><summary>Why can't it install with one click?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>Chrome doesn't let a website add an extension for you, so the last click is yours: <b>Load unpacked</b> on Chrome's extensions page. The guide above walks you through it and checks at the end that it works.</p></div></details>
         <details class="reveal"><summary>Does it work on my phone?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
@@ -1199,7 +1171,7 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 
   /* demo tabs */
   const tabs = $$('[role="tab"]');
-  const addr = { 'p-flight': 'matrix.itasoftware.com', 'p-dial': 'tbc-cai.com / leads', 'p-card': 'tbc-cai.com / lead 482913', 'p-send': 'tbc-cai.com / leads' };
+  const addr = { 'p-flight': 'matrix.itasoftware.com', 'p-dial': 'tbc-cai.com / leads', 'p-card': 'tbc-cai.com / lead 482913' };
   function select(tab) {
     tabs.forEach(t => { const on = t === tab; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
       const p = document.getElementById(t.getAttribute('aria-controls')); p.hidden = !on; p.classList.toggle('show', on); });
@@ -1258,27 +1230,6 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 
   if (wiz) wiz.boot();
 
-  /* demo: send quotes */
-  const mails = [
-    ['M. Carter · lead 482913', '2 profitable options', 'Hi M., thank you for your time today. Here are the two Business options we talked about for New York to London in December...'],
-    ['J. Alvarez · lead 483107', '1 profitable option', 'Hi J., as promised, here is the Business fare to Paris for your March trip, with the times we discussed...'],
-    ['S. Okafor · lead 482765', '3 profitable options', 'Hi S., great speaking with you. I found three ways to fly Miami to Dubai in Business. Here they are...']
-  ];
-  let mi = 0, sent = 0;
-  function showMail() {
-    if (mi >= mails.length) { $('#sqProg').textContent = `Done · ${sent} sent, ${mails.length - sent} skipped`; $('#sqTo').textContent = '-'; $('#sqQ').textContent = '-'; $('#sqBody').textContent = 'All done for now. Nothing went out without your OK.'; return; }
-    const [to, q, body] = mails[mi];
-    $('#sqProg').textContent = `Email ${mi + 1} of ${mails.length} · waiting for you`;
-    $('#sqTo').textContent = to; $('#sqQ').textContent = q; $('#sqBody').textContent = body;
-  }
-  $$('[data-sq]').forEach(b => b.addEventListener('click', () => {
-    const a = b.dataset.sq;
-    if (mi >= mails.length) { mi = 0; sent = 0; showMail(); return; }
-    if (a === 'send') { sent++; toast('Email sent (preview)'); mi++; }
-    if (a === 'skip') { toast('Skipped'); mi++; }
-    if (a === 'stop') { toast('Stopped. Nothing else will go out.'); mi = mails.length; }
-    showMail();
-  }));
 })();
 </script>
 </body>

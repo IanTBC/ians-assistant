@@ -1,30 +1,26 @@
 # TBC Assistant
 
-A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites, CRM shortcuts, a power dialer and RingCentral texting.
+A Chrome toolkit for TBC agents: one-click Sabre *IA/VI* copy from flight sites, CRM shortcuts and a power dialer.
 
 **Website:** https://iantbc.github.io/ians-assistant/
 
-[![Install TBC Assistant](https://img.shields.io/badge/Install-TBC%20Assistant-7c7cf8?style=for-the-badge)](https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js)
-
-**Install link:** https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js
+**Download:** [TBC-Assistant.zip](https://github.com/IanTBC/ians-assistant/raw/main/releases/TBC-Assistant-3.1.0.zip) (version 3.1.0)
 
 ---
 
 ## Install (one time, on your computer)
 
-The easiest way: open **https://iantbc.github.io/ians-assistant/#install** in Chrome and follow the step-by-step guide. It opens each page for you and checks that everything works. Or do it by hand:
+TBC Assistant is its own Chrome extension (since 3.1.0): Tampermonkey isn't needed any more. The easiest way: open **https://iantbc.github.io/ians-assistant/#install** in Chrome and follow the step-by-step guide. It checks at the end that everything works. Or do it by hand:
 
-1. Install the **Tampermonkey** extension in Chrome from the Chrome Web Store.
-2. Remove any older copy of this tool or a similar one from the Tampermonkey dashboard first, otherwise you'll see doubled buttons.
-3. Click the **Install** button above. Tampermonkey opens its install page — click **Install**.
-4. If nothing happens: open `chrome://extensions`, click **Details** on Tampermonkey, and turn on **Allow user scripts**. Then click the install link again.
+1. Download **TBC-Assistant.zip** (link above) and unzip it. Move the **TBC Assistant** folder into Documents and keep it there (deleting it removes the tool).
+2. In Chrome, open `chrome://extensions` (type it in the address bar) and turn on **Developer mode**, top right.
+3. Click **Load unpacked** and pick the **TBC Assistant** folder.
+4. If you still have the old copy in Tampermonkey, remove it there, otherwise you'll see doubled buttons.
 5. Open a lead in the BO. The assistant appears in the bottom-right corner and greets you by name.
 
 ## Updates
 
-Updates install by themselves. Within a few minutes of a new version coming out you'll also see a small **"TBC Assistant x.x is available"** banner — click **Update** to get it right away.
-
-To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript updates**.
+When a new version is out, a small **"TBC Assistant x.x is available"** banner shows in the BO. Updating takes a minute: download the new zip, replace the files in your **TBC Assistant** folder, then press the round reload arrow on TBC Assistant in `chrome://extensions` and refresh your BO tabs. Your settings and callbacks stay.
 
 ## What it does
 
@@ -45,7 +41,7 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Call icons** next to every phone number call it in one click; right-click picks the RingCentral app (Windows or Mac) or website.
 - **Card** on an option makes a clean picture of it (flights, times, connections and price) to paste into a text or chat for your client.
 
-**Calling and texting**
+**Calling**
 - **Call** dials the next lead; the dialer keeps going after each call until you press **Stop**.
 - Each lead gets a dot by its ID: green called, yellow skipped, red called in round 2. Right-click a dot to skip calling that lead.
 - The panel shows today's calls, answered, skipped and round.
@@ -54,12 +50,15 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 - **Disclaimers** — the button next to the clock inside a lead opens the disclaimers and scripts page, filled in for the lead (click any text to copy). **Tools** next to it opens VIP Itinerary, GK Converter and How to make a PNR.
 - **Callback reminders** — tap the clock next to a lead's number (or on the panel) to set a callback. When it's due, Pip pops up with the lead: **Open lead**, **+15 min** or **Done**. The clock at the top of the panel lists them all. Times are Egypt time.
 - Click a lead's status letter on the leads list to make it **Potential**, **Follow up** or **Closed** without opening the lead.
-- **Send emails** (leads list): choose **Quotes (PQs)**, which prepares each lead's profitable quotes as the BO's own email, or a **Follow-up email** from four templates you can edit. The client's first name, your name and the trip (cities and dates) are filled in from the BO. You see and confirm every email before it goes. A yellow tick in the PQs column marks leads whose quotes were emailed today.
-- The RC tab shows your RingCentral texts and lets you send them to any country's number, with one editable text, **SMS Introduction**. Once sent it turns green and shows when it went out.
 
 **Look** — the moon button on the panel opens a menu with seven looks: **Calm** (the main look, dark), **Calm Light**, **Nova**, **Nova Night**, **Dark**, **Light** and **Navy**. In Dark, Light and Navy the colour button next to it changes the accent colour. Your choice is saved.
 
 ## What's new
+
+**3.1.0 — Chrome extension, for calling**
+- TBC Assistant is now its own **Chrome extension**. Tampermonkey isn't needed any more. Install it once with the step-by-step guide on the website.
+- **Send emails** and **RingCentral texting** are no longer in the tool: it's for calling now. The RC tab inside a lead is the BO's own again.
+- Everything else works the same: the dialer, callbacks, search sites, Super Basis, Sort Me, the quote card, disclaimers and the flight-site copy button.
 
 **3.0.0 — new look: Calm**
 - A new design for the whole tool: **Calm** (dark, the new main look) and **Calm Light**. Flat, calm colours, one blue for buttons, clearer text, on the panel, inside leads, Send emails, Super Basis and flight sites.
@@ -207,8 +206,8 @@ To check by hand: Tampermonkey icon → **Dashboard** → **Check for userscript
 
 | Problem | Fix |
 | --- | --- |
-| Nothing appears | Make sure Tampermonkey is on and **Allow user scripts** is enabled (step 4). Refresh the page. |
-| Buttons show twice | An old version is still installed — remove it in the Tampermonkey dashboard. |
+| Nothing appears | Open `chrome://extensions` and check that **TBC Assistant** is there with its switch on. Refresh the page. |
+| Buttons show twice | The old copy is still in Tampermonkey (or the extension was added twice). Keep one TBC Assistant. |
 | Calls don't dial | Your computer's default phone app must be the RingCentral app. |
 
 ---

@@ -1,7 +1,8 @@
 const mf = chrome.runtime.getManifest();
 document.getElementById('name').textContent = mf.name;
 document.getElementById('ver').textContent = 'Version ' + (mf.version_name || mf.version);
-document.getElementById('guide').href = (typeof GUIDE_URL === 'string' && GUIDE_URL) || 'https://iantbc.github.io/ians-assistant/#install';
+if (typeof GUIDE_URL === 'string' && GUIDE_URL) document.getElementById('guide').href = GUIDE_URL;
+else document.querySelector('.foot').style.display = 'none';
 const matches = (mf.content_scripts || []).flatMap((c) => c.matches || []);
 const toRe = (p) => {
   const m = /^(\*|https?):\/\/([^/]+)(\/.*)$/.exec(p); if (!m) return null;
