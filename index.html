@@ -329,14 +329,6 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
 .rel ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: .94rem; display: grid; gap: 6px; }
 .rel b { color: var(--ink); }
 .news-more { margin-top: 18px; }
-.os-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--bg); margin-top: 12px; }
-.os-tabs button { border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; color: var(--muted); font: 600 .85rem var(--f-body, inherit); cursor: pointer; }
-.os-tabs button.on { background: var(--btn-bg); color: var(--btn-fg); }
-[data-os-only] { display: none; }
-#wiz[data-os="win"] [data-os-only="win"], #wiz[data-os="mac"] [data-os-only="mac"], #update[data-os="win"] [data-os-only="win"], #update[data-os="mac"] [data-os-only="mac"] { display: grid; }
-.upd { margin-top: 22px; padding: 20px 22px; border-radius: 22px; background: var(--card, rgba(127,127,127,.06)); border: 1px solid var(--line, rgba(127,127,127,.18)); }
-.upd h3 { margin: 0 0 4px; }
-.upd > p { color: var(--muted); font-size: .95rem; }
 
 /* install wizard */
 .wiz { border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow); padding: clamp(18px, 3.4vw, 32px); display: grid; gap: 18px; position: relative; overflow: hidden; isolation: isolate; }
@@ -527,17 +519,17 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 <main id="main">
   <section class="wrap hero" id="top">
     <div>
-      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>For TBC agents &middot; <span data-ver>v3.1.0</span></p>
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>For TBC agents &middot; <span data-ver>v3.0.0</span></p>
       <h1>Quote faster. Call smarter. <em>Miss nothing.</em></h1>
       <p class="lede">TBC Assistant is a free add-on for Chrome that sits inside the BO and the flight sites you already use. It copies flights in Sabre format, adds them to your lead, dials your list and reminds you of every callback.</p>
       <div class="row">
-        <a class="btn" href="TBC-Assistant.zip" download data-install>
+        <a class="btn" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" data-install>
           <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-          <span class="lab">Download free</span> <span class="ver" data-ver>v3.1.0</span>
+          <span class="lab">Download free</span> <span class="ver" data-ver>v3.0.0</span>
         </a>
         <a class="btn ghost" href="#install">How to install</a>
       </div>
-      <p class="hero-note"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>Its own Chrome extension now: no Tampermonkey needed. The guide below takes about two minutes.</p>
+      <p class="hero-note"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>The button walks you through it: Tampermonkey first, then TBC Assistant.</p>
       <dl class="hero-stats">
         <div><dt>Flight sites</dt><dd>7</dd></div>
         <div><dt>To copy a flight</dt><dd>1 click</dd></div>
@@ -777,11 +769,11 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
     <div class="sec-head reveal">
       <p class="eyebrow">What's new</p>
       <h2>Latest updates</h2>
-      <p>A small banner in the BO tells you when a new version is out.</p>
+      <p>Updates install by themselves. You'll also see a small banner in the BO when a new version is out.</p>
     </div>
     <div class="news">
-      <article class="rel reveal"><div class="rel-top"><span class="v">3.1.0</span><h3>Chrome extension, for calling</h3></div>
-        <ul><li>TBC Assistant is now its own <b>Chrome extension</b>. Tampermonkey isn't needed any more. Install it once with the <a class="link" href="#install" style="display:inline-flex">step-by-step guide</a>.</li><li><b>Send emails</b> and <b>RingCentral texting</b> are no longer in the tool: it's for calling now. Everything else works the same.</li><li>When a new version is out, a banner in the BO shows you how to update in a minute.</li></ul></article>
+      <article class="rel reveal"><div class="rel-top"><span class="v">3.1.0</span><h3>For calling</h3></div>
+        <ul><li><b>Send emails</b> and <b>RingCentral texting</b> are no longer in the tool: it's for calling now.</li><li>The RC tab inside a lead is the BO's own again.</li><li>Everything else works the same: the dialer, callbacks, search buttons, Super Basis, Sort Me, the quote card and the flight-site button.</li></ul></article>
       <article class="rel reveal"><div class="rel-top"><span class="v old">3.0.0</span><h3>New look: Calm</h3></div>
         <ul><li>A new design for the whole tool: <b>Calm</b> (dark, the new main look) and <b>Calm Light</b>.</li><li>Flat, calm colours, one blue for buttons and clearer text, everywhere in the tool. Everything works the same.</li><li>The old looks are still in the look menu.</li></ul></article>
       <article class="rel reveal"><div class="rel-top"><span class="v old">2.17.3</span><h3>Search buttons on every lead</h3></div>
@@ -795,10 +787,10 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
     <div class="sec-head reveal">
       <p class="eyebrow">Install</p>
       <h2>Set up in three steps</h2>
-      <p>On your work computer (Windows or Mac), in Google Chrome. About two minutes. This page follows along and checks at the end that it worked.</p>
+      <p>On your work computer (Windows or Mac), in Google Chrome. Each button opens exactly what you need next, and this page checks that it worked.</p>
     </div>
 
-    <div class="wiz reveal" id="wiz" data-state="start" data-os="win">
+    <div class="wiz reveal" id="wiz" data-state="start">
       <div class="wiz-top">
         <span class="wiz-status" id="wizStatus"><i></i><span id="wizStatusTxt">Not installed yet</span></span>
         <span class="wiz-count mono" id="wizCount">Step 1 of 3</span>
@@ -819,23 +811,14 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
         <li class="ws" data-step="1">
           <span class="ws-n"><b>1</b><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
           <div class="ws-body">
-            <h3>Download and unzip</h3>
-            <p class="ws-sum">One small file, unzipped into a folder you keep.</p>
+            <h3>Add Tampermonkey to Chrome</h3>
+            <p class="ws-sum">The free extension that runs TBC Assistant.</p>
             <div class="ws-open">
-              <div class="os-tabs" role="tablist" aria-label="Your computer"><button type="button" data-os-pick="win">Windows</button><button type="button" data-os-pick="mac">Mac</button></div>
-              <ol class="fix-list" data-os-only="win">
-                <li><span>Press <b>Download TBC Assistant</b> below.</span></li>
-                <li><span>Open your <b>Downloads</b> folder, right-click <b>TBC-Assistant.zip</b> and choose <b>Extract All…</b>, then <b>Extract</b>.</span></li>
-                <li><span>Move the <b>TBC Assistant</b> folder into <b>Documents</b> and keep it there. Deleting it removes the tool.</span></li>
-              </ol>
-              <ol class="fix-list" data-os-only="mac">
-                <li><span>Press <b>Download TBC Assistant</b> below.</span></li>
-                <li><span>Open <b>Downloads</b> and double-click <b>TBC-Assistant.zip</b>. A <b>TBC Assistant</b> folder appears.</span></li>
-                <li><span>Drag the <b>TBC Assistant</b> folder into <b>Documents</b> and keep it there. Deleting it removes the tool.</span></li>
-              </ol>
+              <p>The Chrome Web Store opens in a new tab. Click <b>Add to Chrome</b>, then <b>Add extension</b>, and come back to this tab.</p>
               <div class="row">
-                <a class="btn" id="wizDownload" href="TBC-Assistant.zip" download><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download TBC Assistant <span class="ver" data-ver>v3.1.0</span></a>
-                <button class="btn ghost" id="wizHave">Done, next step</button>
+                <a class="btn" id="wizStore" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">
+                  <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Add Tampermonkey</a>
+                <button class="btn ghost" id="wizHave">I already have it</button>
               </div>
             </div>
           </div>
@@ -843,20 +826,16 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
         <li class="ws" data-step="2">
           <span class="ws-n"><b>2</b><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
           <div class="ws-body">
-            <h3>Add it to Chrome</h3>
-            <p class="ws-sum">Chrome's extensions page, one switch, one folder.</p>
+            <h3>Install TBC Assistant</h3>
+            <p class="ws-sum">One click in Tampermonkey's install screen.</p>
             <div class="ws-open">
-              <ol class="fix-list">
-                <li><span>Copy this address: <button class="copy-addr" id="wizCopyAddr"><code>chrome://extensions</code><svg class="i" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button></span></li>
-                <li><span>Open a new tab, paste it in the address bar and press Enter. (Chrome doesn't let websites open this page for you.)</span></li>
-                <li><span>Turn on <b>Developer mode</b>, top right.</span></li>
-                <li><span>Click <b>Load unpacked</b>, pick the <b>TBC Assistant</b> folder from Documents and click <b>Select</b>.</span></li>
-                <li><span>This page opens again by itself and checks. Or come back here.</span></li>
-              </ol>
+              <p>Tampermonkey opens its install screen. Click <b>Install</b>, then come back to this tab. If you had an older copy, remove it from the Tampermonkey dashboard first.</p>
               <div class="row">
-                <button class="btn" id="wizCheck2">I added it, check now</button>
+                <a class="btn" id="wizInstall" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js">
+                  <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install TBC Assistant <span class="ver" data-ver>v3.0.0</span></a>
                 <button class="btn ghost" id="wizBack1">Back</button>
               </div>
+              <p class="ws-wait" id="wizWait" hidden><span class="spin" aria-hidden="true"></span>Waiting for TBC Assistant to start&hellip;</p>
             </div>
           </div>
         </li>
@@ -866,15 +845,15 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
             <h3>Check it works</h3>
             <p class="ws-sum">This page checks by itself.</p>
             <div class="ws-open">
-              <p class="ws-wait" id="wizWait" hidden><span class="spin" aria-hidden="true"></span>Looking for TBC Assistant&hellip;</p>
               <div class="fix" id="wizFix">
-                <p><b>Not found yet.</b> On <code>chrome://extensions</code>:</p>
+                <p><b>Chrome needs one switch turned on.</b> It's a Chrome setting, so it can't be opened from a link:</p>
                 <ol class="fix-list">
-                  <li><span><b>TBC Assistant</b> should be in the list with its switch <b>on</b>.</span></li>
-                  <li><span>If it isn't there, click <b>Load unpacked</b> again and pick the <b>TBC Assistant</b> folder (the one with <b>manifest.json</b> inside, not the zip).</span></li>
-                  <li><span>If <b>Developer mode</b> or <b>Load unpacked</b> is greyed out, your computer's settings block it: ask IT to allow it.</span></li>
+                  <li><span>Copy this address: <button class="copy-addr" id="wizCopyAddr"><code>chrome://extensions</code><svg class="i" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></button></span></li>
+                  <li><span>Open a new tab, paste it in the address bar and press Enter.</span></li>
+                  <li><span>On <b>Tampermonkey</b>, click <b>Details</b> and turn on <b>Allow user scripts</b>.</span></li>
+                  <li><span>Come back here and press <b>Check again</b>.</span></li>
                 </ol>
-                <div class="row"><button class="btn" id="wizCheck">Check again</button><button class="btn ghost" id="wizRetry">Start over</button></div>
+                <div class="row"><button class="btn" id="wizCheck">Check again</button><a class="btn ghost" id="wizRetry" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js">Install again</a></div>
               </div>
             </div>
           </div>
@@ -886,27 +865,14 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
         <span class="wiz-tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
         <div>
           <h3 id="wizDoneT">You're all set</h3>
-          <p id="wizDoneP">TBC Assistant <span class="mono" id="wizDoneV">v3.1.0</span> is installed and running. Open any lead in the BO and Pip will greet you in the bottom-right corner.</p>
+          <p id="wizDoneP">TBC Assistant <span class="mono" id="wizDoneV">v2.15.0</span> is installed and running. Open any lead in the BO and Pip will greet you in the bottom-right corner.</p>
           <div class="row" style="margin-top:14px">
-            <a class="btn" id="wizUpdate" href="#update" hidden>How to update</a>
+            <a class="btn" id="wizUpdate" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" hidden>Update now</a>
             <a class="btn" id="wizBO" href="https://bo.travelbusinessclass.com/leads/" target="_blank" rel="noopener">Open the BO</a>
             <button class="btn ghost" id="wizRestart">Set up another computer</button>
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- UPDATE -->
-    <div class="upd reveal" id="update" data-os="win">
-      <h3>Updating to a new version</h3>
-      <p>When a new version is out, a small banner in the BO says so. Updating takes a minute:</p>
-      <ol class="fix-list">
-        <li><span>Download the new version: <a class="link" href="TBC-Assistant.zip" download style="display:inline-flex">TBC-Assistant.zip <span class="ver" data-ver style="margin-left:6px">v3.1.0</span></a></span></li>
-        <li data-os-only="win"><span>Right-click it in Downloads, <b>Extract All…</b>, then move the new <b>TBC Assistant</b> folder into <b>Documents</b> and choose <b>Replace the files</b>.</span></li>
-        <li data-os-only="mac"><span>Double-click it in Downloads, then drag the new <b>TBC Assistant</b> folder into <b>Documents</b> and choose <b>Replace</b>.</span></li>
-        <li><span>Open <code>chrome://extensions</code> and press the round <b>reload</b> arrow on TBC Assistant. Then refresh your BO tabs.</span></li>
-      </ol>
-      <p style="margin-top:12px">Your settings, templates and callbacks stay.</p>
     </div>
   </section>
 
@@ -920,23 +886,23 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       </div>
       <div class="faq">
         <details class="reveal"><summary>Is it really free?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-          <div class="ans"><p>Yes. TBC Assistant is free. There is nothing to sign up for, and it doesn't need Tampermonkey any more.</p></div></details>
+          <div class="ans"><p>Yes. TBC Assistant and Tampermonkey are both free. There is nothing to sign up for.</p></div></details>
         <details class="reveal"><summary>How do I get updates?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-          <div class="ans"><p>When a new version is out, a small banner in the BO says so. Click <b>Update</b> and follow the <a class="link" href="#update" style="display:inline-flex">three short steps</a>: download, replace the folder, press reload.</p><p>The <b>What's new</b> button on the panel shows what the latest update changed.</p></div></details>
+          <div class="ans"><p>They install by themselves. Within a few minutes of a new version you'll also see a small banner saying it's available: click <b>Update</b> to get it right away.</p><p>The <b>What's new</b> button on the panel shows what the latest update changed.</p></div></details>
         <details class="reveal"><summary>Does it email or text my clients?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>No. TBC Assistant never emails or texts your clients. It only calls when you press Call or start the dialer, and quote cards and copied flights only go where you paste them.</p></div></details>
-        <details class="reveal"><summary>Why can't it install with one click?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-          <div class="ans"><p>Chrome doesn't let a website add an extension for you, so the last click is yours: <b>Load unpacked</b> on Chrome's extensions page. The guide above walks you through it and checks at the end that it works.</p></div></details>
+        <details class="reveal"><summary>Why does it take three steps?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
+          <div class="ans"><p>Chrome only lets you add extensions yourself, from the Chrome Web Store, so no website can install them for you. The guide above opens each page for you in order and checks at the end that everything works.</p></div></details>
         <details class="reveal"><summary>Does it work on my phone?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>It is made for Chrome on your work computer, where you use the BO. You can read this page on your phone and install it later from your desk.</p></div></details>
         <details class="reveal"><summary>Does it work on a Mac?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>Yes. Install it in Google Chrome on your MacBook the same way. It's the same tool for Windows and Mac and picks the right keys by itself: where Windows uses Ctrl, a Mac uses Control (Command works too).</p></div></details>
         <details class="reveal"><summary>I see every button twice.<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-          <div class="ans"><p>It's running twice. Open <code>chrome://extensions</code> and keep one <b>TBC Assistant</b>. If Tampermonkey is still there with the old copy, remove that one.</p></div></details>
+          <div class="ans"><p>You have two copies installed. Open the Tampermonkey dashboard, keep <b>TBC Assistant</b> and delete the older one.</p></div></details>
         <details class="reveal"><summary>Can I change how it looks?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
           <div class="ans"><p>Yes. The moon button at the top of the panel opens a menu with seven looks: Calm (the main look, dark), Calm Light, Nova (like this website), Nova Night, Dark, Light and Navy. Your choice is saved.</p></div></details>
         <details class="reveal"><summary>Are my settings kept after an update?<span class="pm-i" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"/></svg></span></summary>
-          <div class="ans"><p>Yes, as long as you keep the same <b>TBC Assistant</b> folder and replace its files. Callbacks, templates, your number and your look all stay. (Moving from Tampermonkey to the extension starts your settings fresh once.)</p></div></details>
+          <div class="ans"><p>Yes. Callbacks, templates, your number and your look all stay. Your follow-up progress is also backed up every day.</p></div></details>
       </div>
     </div>
   </section>
@@ -948,8 +914,8 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       <h2>Give your next shift a head start</h2>
       <p>Install once, and Pip is waiting in the corner of every lead. Updates arrive on their own.</p>
       <div class="row">
-        <a class="btn" href="TBC-Assistant.zip" download data-install>
-          <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="lab">Download free</span> <span class="ver" data-ver>v3.1.0</span></a>
+        <a class="btn" href="https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js" data-install>
+          <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="lab">Download free</span> <span class="ver" data-ver>v3.0.0</span></a>
         <a class="btn ghost" href="#news">See what's new</a>
       </div>
     </div>
@@ -958,7 +924,7 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
 
 <footer>
   <div class="wrap foot">
-    <span>TBC Assistant &middot; for TBC agents &middot; <span data-ver>v3.1.0</span></span>
+    <span>TBC Assistant &middot; for TBC agents &middot; <span data-ver>v3.0.0</span></span>
     <nav aria-label="Footer">
       <a href="#news">What's new</a>
       <a href="https://github.com/IanTBC/ians-assistant">Source</a>
@@ -1001,35 +967,27 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
     t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600);
   }
 
-  /* ---------- guided install (Chrome extension) ---------- */
+  /* ---------- guided install ---------- */
   const wiz = (() => {
     const W = $('#wiz');
     if (!W) return null;
-    const KEY = 'tbc-wiz2';
+    const KEY = 'tbc-wiz';
+    const RAW = 'https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js';
     const ua = navigator.userAgent;
     const onPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
     const onChromium = (!!window.chrome || /Chrome\//.test(ua)) && !/Firefox|FxiOS/i.test(ua);
-    const isMac = /Mac/i.test(navigator.platform || ua);
-    let state = 'start', latest = null, leftAt = 0;
+    let state = 'start', latest = null, leftAt = 0, waitTimer = 0;
 
     const installed = () => root.dataset.tbcAssistant || null;
     const cmp = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
     const save = (s) => store.set(KEY, s);
 
-    // Windows or Mac steps (picked for you, can be switched).
-    function setOs(os) {
-      W.dataset.os = os;
-      const u = $('#update'); if (u) u.dataset.os = os;
-      $$('[data-os-pick]').forEach((b) => b.classList.toggle('on', b.dataset.osPick === os));
-    }
-    $$('[data-os-pick]').forEach((b) => b.addEventListener('click', () => setOs(b.dataset.osPick)));
-    setOs(isMac ? 'mac' : 'win');
-
     const TEXT = {
       start: ['Not installed yet', 'Step 1 of 3', .04],
-      step2: ['Downloaded', 'Step 2 of 3', .4],
+      step2: ['Tampermonkey added', 'Step 2 of 3', .38],
+      waiting: ['Waiting for TBC Assistant', 'Step 2 of 3', .58],
       checking: ['Checking', 'Step 3 of 3', .8],
-      fix: ['Not found yet', 'Step 3 of 3', .8],
+      fix: ['One setting left', 'Step 3 of 3', .8],
       done: ['Installed and running', 'Done', 1],
       update: ['Update available', 'Done', 1],
       away: ['Use your work computer', '', .04],
@@ -1041,35 +999,39 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       $('#wizStatusTxt').textContent = t;
       $('#wizCount').textContent = c;
       $('#wizBar').style.transform = `scaleX(${p})`;
-      const active = { start: 1, step2: 2, checking: 3, fix: 3 }[s] || 0;
+      const active = { start: 1, step2: 2, waiting: 2, checking: 3, fix: 3 }[s] || 0;
       $$('.ws', W).forEach((li) => {
         const n = +li.dataset.step;
         li.classList.toggle('is-active', n === active);
         li.classList.toggle('is-done', n < active);
       });
-      $('#wizWait').hidden = s !== 'checking';
+      $('#wizWait').hidden = s !== 'waiting';
       $('#wizFix').hidden = s !== 'fix';
       const end = s === 'done' || s === 'update';
       $('#wizSteps').hidden = end || s === 'away';
       $('#wizDone').hidden = !end;
       $('#wizAway').hidden = s !== 'away';
+      if (s === 'checking') { $('#wizFix').hidden = true; }
       if (end) {
         const v = installed() || '';
         $('#wizDoneV').textContent = 'v' + v;
         $('#wizUpdate').hidden = s !== 'update';
         $('#wizDoneT').textContent = s === 'update' ? 'A newer version is ready' : "You're all set";
         $('#wizDoneP').firstChild.textContent = 'TBC Assistant ';
-        if (s === 'update') $('#wizDoneP').lastChild.textContent = ` is installed. Version v${latest} is out: it takes a minute, see the steps below.`;
+        if (s === 'update') $('#wizDoneP').lastChild.textContent = ` is installed. Version v${latest} is out: click Update now, then Install in Tampermonkey.`;
         else $('#wizDoneP').lastChild.textContent = ' is installed and running. Open any lead in the BO and Pip will greet you in the bottom-right corner.';
       }
       paintHero();
     }
-    // The download buttons always say what's next.
+    // The hero buttons always do the next step.
     function paintHero() {
       $$('[data-install]').forEach((a) => {
         const lab = a.querySelector('.lab');
         if (!lab) return;
-        lab.textContent = state === 'done' ? 'Installed' : state === 'update' ? 'Download update' : state === 'start' ? 'Download free' : 'Download again';
+        if (state === 'done') lab.textContent = 'Installed';
+        else if (state === 'update') lab.textContent = 'Update';
+        else if (state === 'step2' || state === 'waiting' || state === 'fix') lab.textContent = 'Install TBC Assistant';
+        else lab.textContent = 'Download free';
       });
     }
     function settle() {
@@ -1077,38 +1039,43 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       if (v) { save('done'); render(latest && cmp(latest, v) > 0 ? 'update' : 'done'); return true; }
       return false;
     }
-    function check() {
-      if (settle()) return;
-      render('checking');
-      let tries = 0;
-      const t = setInterval(() => { if (settle()) clearInterval(t); else if (++tries > 12) { clearInterval(t); save('fix'); render('fix'); } }, 250);
+    function goStore() {
+      window.open($('#wizStore').href, '_blank', 'noopener');
+      leftAt = Date.now();
+      save('step1-open');
+      toast('Click Add to Chrome, then come back to this tab');
     }
-    function downloaded() {
-      save('step2'); render('step2');
-      toast(isMac ? 'Unzip it in Downloads, then step 2' : 'Extract it in Downloads, then step 2');
+    function goInstall() {
+      window.open(RAW, '_blank');      // Tampermonkey catches this and shows its install screen
+      leftAt = Date.now();
+      save('waiting');
+      render('waiting');
+      clearTimeout(waitTimer);
+      waitTimer = setTimeout(() => { if (state === 'waiting') render('fix'); }, 45000);
     }
-    // Coming back from Chrome's extensions page: the extension only starts on
-    // pages opened after it was added, so reload once and check.
+    // A new script only starts on pages opened after it was installed,
+    // so coming back to this tab reloads it once and checks.
     function onReturn() {
       if (document.visibilityState !== 'visible' || !leftAt || Date.now() - leftAt < 1500) return;
+      const saved = store.get(KEY);
       leftAt = 0;
-      if (state === 'step2' || state === 'fix') { save('checking'); location.reload(); }
+      if (saved === 'step1-open') { save('step2'); render('step2'); toast('Next: install TBC Assistant'); }
+      else if (saved === 'waiting') { save('checking'); location.reload(); }
     }
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && (state === 'step2' || state === 'fix')) leftAt = Date.now(); onReturn(); });
+    document.addEventListener('visibilitychange', onReturn);
     window.addEventListener('focus', onReturn);
     document.addEventListener('tbc-assistant-ready', () => settle());
 
-    $('#wizDownload').addEventListener('click', () => setTimeout(downloaded, 400));
+    $('#wizStore').addEventListener('click', (e) => { e.preventDefault(); goStore(); });
     $('#wizHave').addEventListener('click', () => { save('step2'); render('step2'); });
     $('#wizBack1').addEventListener('click', () => { save('start'); render('start'); });
-    $('#wizCheck2').addEventListener('click', () => { save('checking'); location.reload(); });
+    $('#wizInstall').addEventListener('click', (e) => { e.preventDefault(); goInstall(); });
+    $('#wizRetry').addEventListener('click', (e) => { e.preventDefault(); goInstall(); });
     $('#wizCheck').addEventListener('click', () => { save('checking'); location.reload(); });
-    $('#wizRetry').addEventListener('click', () => { save('start'); render('start'); });
     $('#wizRestart').addEventListener('click', () => { save('start'); render('start'); });
-    $('#wizUpdate').addEventListener('click', (e) => { e.preventDefault(); $('#update').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); });
+    $('#wizUpdate').addEventListener('click', (e) => { e.preventDefault(); goInstall(); });
     $('#wizCopyAddr').addEventListener('click', () => {
       const t = 'chrome://extensions';
-      leftAt = Date.now();
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied. Paste it in a new tab'), () => toast('Type chrome://extensions in a new tab'));
     });
     $('#wizShare').addEventListener('click', () => {
@@ -1117,30 +1084,37 @@ footer { margin-top: 72px; border-top: 1px solid var(--line); }
       else (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => toast('Link copied'), () => toast(url));
     });
 
-    // Download buttons anywhere on the page download the file and move the guide on.
-    $$('[data-install]').forEach((a) => a.addEventListener('click', () => {
+    // Download buttons anywhere on the page run the next step.
+    $$('[data-install]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
       $('#install').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-      if (state === 'start') setTimeout(downloaded, 400);
-      else if (state === 'update') setTimeout(() => $('#update').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }), 300);
+      if (state === 'start') goStore();
+      else if (state === 'step2' || state === 'fix' || state === 'update') goInstall();
+      else if (state === 'done') toast('TBC Assistant is already installed');
     }));
 
     function boot() {
       if (onPhone) { $('#wizAwayT').textContent = 'Install it on your work computer'; $('#wizAwayP').textContent = "TBC Assistant runs in Google Chrome on a computer. Send yourself this page's link and open it there."; render('away'); return; }
       if (!onChromium) { $('#wizAwayT').textContent = 'Open this page in Google Chrome'; $('#wizAwayP').textContent = 'TBC Assistant works in Google Chrome. Copy the link and open it in Chrome on your work computer.'; render('away'); return; }
       const saved = store.get(KEY);
-      // The extension opens this page by itself right after it's added.
-      if (saved === 'checking' || /[?&]installed=1/.test(location.search)) { check(); return; }
-      render(saved === 'step2' ? 'step2' : saved === 'fix' ? 'fix' : 'start');
+      if (saved === 'checking') {
+        render('checking');
+        let tries = 0;
+        const t = setInterval(() => { if (settle()) clearInterval(t); else if (++tries > 12) { clearInterval(t); save('fix'); render('fix'); } }, 250);
+        return;
+      }
+      render(saved === 'step2' || saved === 'step1-open' ? 'step2' : saved === 'fix' ? 'fix' : 'start');
+      // The script marks the page a moment after it loads.
       let tries = 0;
       const t = setInterval(() => { if (settle() || ++tries > 12) clearInterval(t); }, 250);
     }
     return { boot, render, setLatest(v) { latest = v; if (installed()) settle(); }, get state() { return state; } };
   })();
 
-  /* live version from the extension */
-  fetch('https://raw.githubusercontent.com/IanTBC/ians-assistant/main/extension/manifest.json', { cache: 'no-store' })
+  /* live version from the install file */
+  fetch('https://raw.githubusercontent.com/IanTBC/ians-assistant/main/IansAssistant.user.js', { cache: 'no-store' })
     .then(r => r.ok ? r.text() : '')
-    .then(t => { const m = t.match(/"version"\s*:\s*"([\d.]+)"/); if (m) { $$('[data-ver]').forEach(e => e.textContent = 'v' + m[1]); if (wiz) wiz.setLatest(m[1]); } })
+    .then(t => { const m = t.match(/@version\s+([\d.]+)/); if (m) { $$('[data-ver]').forEach(e => e.textContent = 'v' + m[1]); if (wiz) wiz.setLatest(m[1]); } })
     .catch(() => {});
 
   /* reveal on scroll */

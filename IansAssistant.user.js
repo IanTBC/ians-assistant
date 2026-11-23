@@ -12387,10 +12387,9 @@ function __jsEnsureSharedObserver() {
   const IA_NEWS = {
     version: '3.1.0',
     items: [
-      'TBC Assistant is now its own Chrome extension. Tampermonkey isn\u2019t needed any more. Install it once from the website\u2019s step-by-step guide.',
-      'Send emails and RingCentral texting are no longer in the tool: it\u2019s for calling now. The RC tab inside a lead is the BO\u2019s own again.',
-      'Everything else works the same: the dialer, callbacks, search sites, Super Basis, Sort Me, the quote card, disclaimers and the flight-site copy button.',
-      'When a new version is out, a small banner shows you how to update in a minute.',
+      'Send emails and RingCentral texting are no longer in the tool: it\u2019s for calling now.',
+      'The RC tab inside a lead is the BO\u2019s own again.',
+      'Everything else works the same: the dialer, callbacks, search buttons, Super Basis, Sort Me, the quote card, disclaimers and the flight-site copy button.',
     ],
   };
   const IA_NEWS_SEEN_KEY = 'ia-news-seen';
